@@ -58,8 +58,8 @@ const normalizeOauthModelMappings = (payload: unknown): Record<string, OAuthMode
 
   const record = payload as Record<string, unknown>;
   const source =
-    record['oauth-model-mappings'] ??
     record['oauth-model-alias'] ??
+    record['oauth-model-mappings'] ??
     record.items ??
     payload;
   if (!source || typeof source !== 'object') return {};
@@ -101,8 +101,8 @@ const normalizeOauthModelMappings = (payload: unknown): Record<string, OAuthMode
   return result;
 };
 
-const OAUTH_MODEL_MAPPINGS_ENDPOINT = '/oauth-model-mappings';
-const OAUTH_MODEL_MAPPINGS_LEGACY_ENDPOINT = '/oauth-model-alias';
+const OAUTH_MODEL_MAPPINGS_ENDPOINT = '/oauth-model-alias';
+const OAUTH_MODEL_MAPPINGS_LEGACY_ENDPOINT = '/oauth-model-mappings';
 
 export const authFilesApi = {
   list: () => apiClient.get<AuthFilesResponse>('/auth-files'),
