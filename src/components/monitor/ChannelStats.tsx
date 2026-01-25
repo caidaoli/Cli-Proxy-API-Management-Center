@@ -90,10 +90,8 @@ export function ChannelStats({ data, loading, providerMap, providerModels }: Cha
           const source = detail.source || 'unknown';
           // 获取渠道显示信息
           const { provider, masked } = getProviderDisplayParts(source, providerMap);
-          // 只统计在 providerMap 中存在的渠道
-          if (!provider) return;
-
-          const displayName = `${provider} (${masked})`;
+          // 即使没有匹配到 provider，也要统计，使用脱敏后的 source 作为显示名称
+          const displayName = provider ? `${provider} (${masked})` : masked;
           const timestamp = detail.timestamp ? new Date(detail.timestamp).getTime() : 0;
 
           if (!stats[displayName]) {
@@ -290,7 +288,7 @@ export function ChannelStats({ data, loading, providerMap, providerModels }: Cha
                       onClick={() => toggleExpand(stat.displayName)}
                     >
                       <td>
-                        {stat.providerName ? (
+                        {stat.providerName && stat.providerName !== 'gemini-cli' ? (
                           <>
                             <span className={styles.channelName}>{stat.providerName}</span>
                             <span className={styles.channelSecret}> ({stat.maskedKey})</span>
