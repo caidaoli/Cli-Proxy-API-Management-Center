@@ -19,7 +19,7 @@ import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useHeaderRefresh } from '@/hooks/useHeaderRefresh';
 import { useThemeStore } from '@/stores';
-import { usageApi, providersApi } from '@/services/api';
+import { usageApi, providersApi, authFilesApi } from '@/services/api';
 import { KpiCards } from '@/components/monitor/KpiCards';
 import { ModelDistributionChart } from '@/components/monitor/ModelDistributionChart';
 import { DailyTrendChart } from '@/components/monitor/DailyTrendChart';
@@ -71,6 +71,22 @@ export interface UsageData {
   }>;
 }
 
+// 格式化认证文件类型为显示名称
+function formatAuthFileType(type: string): string {
+  const typeMap: Record<string, string> = {
+    'gemini': 'Gemini',
+    'gemini-cli': 'Gemini CLI',
+    'claude': 'Claude',
+    'codex': 'Codex',
+    'qwen': 'Qwen',
+    'aistudio': 'AI Studio',
+    'antigravity': 'Antigravity',
+    'iflow': 'iFlow',
+    'vertex': 'Vertex',
+  };
+  return typeMap[type.toLowerCase()] || type;
+}
+
 export function MonitorPage() {
   const { t } = useTranslation();
   const resolvedTheme = useThemeStore((state) => state.resolvedTheme);
@@ -94,12 +110,13 @@ export function MonitorPage() {
       const typeMap: Record<string, string> = {};
 
       // 并行加载所有提供商配置
-      const [openaiProviders, geminiKeys, claudeConfigs, codexConfigs, vertexConfigs] = await Promise.all([
+      const [openaiProviders, geminiKeys, claudeConfigs, codexConfigs, vertexConfigs, authFilesRes] = await Promise.all([
         providersApi.getOpenAIProviders().catch(() => []),
         providersApi.getGeminiKeys().catch(() => []),
         providersApi.getClaudeConfigs().catch(() => []),
         providersApi.getCodexConfigs().catch(() => []),
         providersApi.getVertexConfigs().catch(() => []),
+        authFilesApi.list().catch(() => ({ files: [] })),
       ]);
 
       // 处理 OpenAI 兼容提供商
@@ -189,6 +206,19 @@ export function MonitorPage() {
             modelsMap[apiKey] = modelSet;
           }
         }
+      });
+
+      // 处理认证文件（OAuth 登录的账号）
+      // source 字段可能是认证文件名（如邮箱或 json 文件名）
+      const authFiles = authFilesRes?.files || [];
+      authFiles.forEach((file) => {
+        const fileName = file.name;
+        if (!fileName) return;
+        // 使用 provider 或 type 作为渠道名称，并进行格式化
+        const fileType = file.type || 'unknown';
+        const providerName = file.provider || formatAuthFileType(fileType);
+        map[fileName] = providerName;
+        typeMap[fileName] = providerName;
       });
 
       setProviderMap(map);
