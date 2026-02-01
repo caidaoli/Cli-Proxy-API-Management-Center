@@ -118,6 +118,9 @@ export function filterByTimeRange<T extends { timestamp?: string }>(
   if (range === 'custom' && customRange) {
     cutoffStart = customRange.start;
     cutoffEnd = customRange.end;
+  } else if (range === 1) {
+    // "今天"：当天零点到当前时间
+    cutoffStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
   } else if (typeof range === 'number') {
     cutoffStart = new Date(now.getTime() - range * 24 * 60 * 60 * 1000);
     cutoffStart.setHours(0, 0, 0, 0);

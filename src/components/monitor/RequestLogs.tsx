@@ -142,6 +142,9 @@ export function RequestLogs({ data, loading: parentLoading, providerMap, provide
         if (timeRange === 'custom' && customRange) {
           cutoffStart = customRange.start;
           cutoffEnd = customRange.end;
+        } else if (timeRange === 1) {
+          // "今天"：当天零点到当前时间
+          cutoffStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
         } else if (typeof timeRange === 'number') {
           cutoffStart = new Date(now.getTime() - timeRange * 24 * 60 * 60 * 1000);
           cutoffStart.setHours(0, 0, 0, 0);

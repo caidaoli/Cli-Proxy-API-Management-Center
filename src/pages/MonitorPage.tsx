@@ -266,7 +266,9 @@ export function MonitorPage() {
     }
 
     const now = new Date();
-    const cutoffTime = new Date(now.getTime() - timeRange * 24 * 60 * 60 * 1000);
+    const cutoffTime = timeRange === 1
+      ? new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
+      : new Date(now.getTime() - timeRange * 24 * 60 * 60 * 1000);
 
     const filtered: UsageData = { apis: {} };
 

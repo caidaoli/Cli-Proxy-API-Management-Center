@@ -29,10 +29,23 @@ export interface DisableState {
  */
 export function maskSecret(key: string): string {
   if (!key || key === '-' || key === 'unknown') return key || '-';
-  if (key.length <= 8) {
-    return `${key.slice(0, 4)}***`;
+
+  let cleaned = key;
+  // 去除常见后缀
+  if (cleaned.endsWith('@gmail.com')) {
+    cleaned = cleaned.slice(0, -'@gmail.com'.length);
+  } else if (cleaned.endsWith('.json')) {
+    cleaned = cleaned.slice(0, -'.json'.length);
   }
-  return `${key.slice(0, 4)}***${key.slice(-4)}`;
+  // 去除 gemini- 前缀
+  if (cleaned.startsWith('gemini-')) {
+    cleaned = cleaned.slice('gemini-'.length);
+  }
+
+  if (cleaned.length <= 6) {
+    return `${cleaned.slice(0, 3)}*`;
+  }
+  return `${cleaned.slice(0, 3)}*${cleaned.slice(-3)}`;
 }
 
 /**
@@ -227,6 +240,9 @@ export function filterDataByTimeRange(
   if (timeRange === 'custom' && customRange) {
     cutoffStart = customRange.start;
     cutoffEnd = customRange.end;
+  } else if (timeRange === 1) {
+    // "今天"：当天零点到当前时间
+    cutoffStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
   } else if (typeof timeRange === 'number') {
     cutoffStart = new Date(now.getTime() - timeRange * 24 * 60 * 60 * 1000);
     cutoffStart.setHours(0, 0, 0, 0);
