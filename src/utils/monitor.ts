@@ -64,6 +64,55 @@ export function resolveProvider(
 }
 
 /**
+ * 格式化 Gemini OAuth 文件名（去掉后缀、前缀并脱敏）
+ * @param source 来源标识（如 gemini-putthzli.json 或 xxx@gmail.com）
+ * @returns 脱敏后的名称（如 g-put*zli）
+ */
+export function formatGeminiSource(source: string): string {
+  const lower = source.toLowerCase();
+  // 判断是否是 gemini 类型（gemini- 开头或 .json 结尾）
+  const isGeminiType = lower.startsWith('gemini-') || lower.endsWith('.json');
+
+  let name = source;
+
+  // 去掉 @gmail.com 后缀
+  if (lower.endsWith('@gmail.com')) {
+    name = name.slice(0, -10);
+  }
+
+  // 去掉 .json 后缀
+  if (name.toLowerCase().endsWith('.json')) {
+    name = name.slice(0, -5);
+  }
+
+  // 去掉 gemini- 前缀
+  if (name.toLowerCase().startsWith('gemini-')) {
+    name = name.slice(7);
+  }
+
+  // 确定前缀
+  const prefix = isGeminiType ? 'g-' : '';
+
+  // 如果太短就直接返回
+  if (name.length <= 6) {
+    return `${prefix}${name}`;
+  }
+
+  // 按 abc*jkh 格式显示（前3个字符 + * + 后3个字符）
+  return `${prefix}${name.slice(0, 3)}*${name.slice(-3)}`;
+}
+
+/**
+ * 检查是否是 Gemini OAuth 类型的来源
+ * @param source 来源标识
+ * @returns 是否是 Gemini OAuth 类型
+ */
+function isGeminiOAuthSource(source: string): boolean {
+  const lower = source.toLowerCase();
+  return lower.endsWith('.json') || lower.endsWith('@gmail.com');
+}
+
+/**
  * 格式化渠道显示名称：渠道名 (脱敏后的api-key)
  * @param source 来源标识
  * @param providerMap 渠道映射表
@@ -76,6 +125,12 @@ export function formatProviderDisplay(
   if (!source || source === '-' || source === 'unknown') {
     return source || '-';
   }
+
+  // 检查是否是 gemini 类型（OAuth 文件或 Gmail 账号）
+  if (isGeminiOAuthSource(source)) {
+    return formatGeminiSource(source);
+  }
+
   const provider = resolveProvider(source, providerMap);
   const masked = maskSecret(source);
   if (!provider) return masked;
@@ -95,6 +150,13 @@ export function getProviderDisplayParts(
   if (!source || source === '-' || source === 'unknown') {
     return { provider: null, masked: source || '-' };
   }
+
+  // 检查是否是 gemini 类型（OAuth 文件或 Gmail 账号）
+  if (isGeminiOAuthSource(source)) {
+    const formatted = formatGeminiSource(source);
+    return { provider: null, masked: formatted };
+  }
+
   const provider = resolveProvider(source, providerMap);
   const masked = maskSecret(source);
   return { provider, masked };
