@@ -142,8 +142,14 @@ export function RequestLogs({ data, loading: parentLoading, providerMap, provide
         if (timeRange === 'custom' && customRange) {
           cutoffStart = customRange.start;
           cutoffEnd = customRange.end;
+        } else if ((timeRange === 'yesterday' || timeRange === 'dayBeforeYesterday') && customRange) {
+          cutoffStart = customRange.start;
+          cutoffEnd = customRange.end;
         } else if (typeof timeRange === 'number') {
-          cutoffStart = new Date(now.getTime() - timeRange * 24 * 60 * 60 * 1000);
+          // timeRange=1 表示"今天"，应该从今天 00:00 开始
+          // timeRange=7 表示"最近7天"，应该从 6 天前的 00:00 开始（包含今天共7天）
+          const daysBack = timeRange - 1;
+          cutoffStart = new Date(now.getTime() - daysBack * 24 * 60 * 60 * 1000);
           cutoffStart.setHours(0, 0, 0, 0);
         } else {
           cutoffStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);

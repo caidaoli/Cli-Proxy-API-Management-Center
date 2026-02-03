@@ -203,12 +203,12 @@ export function createDisableState(
 /**
  * 时间范围类型
  */
-export type TimeRangeValue = number | 'custom';
+export type TimeRangeValue = number | 'yesterday' | 'dayBeforeYesterday' | 'custom';
 
 /**
  * 根据时间范围过滤数据
  * @param data 原始数据
- * @param timeRange 时间范围（天数或 'custom'）
+ * @param timeRange 时间范围（天数或 'custom'/'yesterday'/'dayBeforeYesterday'）
  * @param customRange 自定义日期范围
  * @returns 过滤后的数据
  */
@@ -227,8 +227,14 @@ export function filterDataByTimeRange(
   if (timeRange === 'custom' && customRange) {
     cutoffStart = customRange.start;
     cutoffEnd = customRange.end;
+  } else if ((timeRange === 'yesterday' || timeRange === 'dayBeforeYesterday') && customRange) {
+    cutoffStart = customRange.start;
+    cutoffEnd = customRange.end;
   } else if (typeof timeRange === 'number') {
-    cutoffStart = new Date(now.getTime() - timeRange * 24 * 60 * 60 * 1000);
+    // timeRange=1 表示"今天"，应该从今天 00:00 开始
+    // timeRange=7 表示"最近7天"，应该从 6 天前的 00:00 开始（包含今天共7天）
+    const daysBack = timeRange - 1;
+    cutoffStart = new Date(now.getTime() - daysBack * 24 * 60 * 60 * 1000);
     cutoffStart.setHours(0, 0, 0, 0);
   } else {
     cutoffStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);

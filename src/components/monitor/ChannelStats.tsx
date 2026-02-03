@@ -2,7 +2,7 @@ import { useMemo, useState, useCallback, Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/Card';
 import { useDisableModel } from '@/hooks';
-import { TimeRangeSelector, formatTimeRangeCaption, type TimeRange } from './TimeRangeSelector';
+import { TimeRangeSelector, type TimeRange } from './TimeRangeSelector';
 import { DisableModelModal } from './DisableModelModal';
 import {
   formatTimestamp,
@@ -90,10 +90,8 @@ export function ChannelStats({ data, loading, providerMap, providerModels }: Cha
           const source = detail.source || 'unknown';
           // 获取渠道显示信息
           const { provider, masked } = getProviderDisplayParts(source, providerMap);
-          // 只统计在 providerMap 中存在的渠道
-          if (!provider) return;
-
-          const displayName = `${provider} (${masked})`;
+          // 如果找不到 provider，使用脱敏后的 source 作为显示名称
+          const displayName = provider ? `${provider} (${masked})` : masked;
           const timestamp = detail.timestamp ? new Date(detail.timestamp).getTime() : 0;
 
           if (!stats[displayName]) {
@@ -218,12 +216,7 @@ export function ChannelStats({ data, loading, providerMap, providerModels }: Cha
     <>
       <Card
         title={t('monitor.channel.title')}
-        subtitle={
-          <span>
-            {formatTimeRangeCaption(timeRange, customRange, t)} · {t('monitor.channel.subtitle')}
-            <span style={{ color: 'var(--text-tertiary)' }}> · {t('monitor.channel.click_hint')}</span>
-          </span>
-        }
+        subtitle={t('monitor.channel.click_hint')}
         extra={
           <TimeRangeSelector
             value={timeRange}

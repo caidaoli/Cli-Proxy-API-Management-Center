@@ -980,6 +980,8 @@
     "title": "Monitor Center",
     "time_range": "Time Range",
     "today": "Today",
+    "yesterday": "Yesterday",
+    "day_before_yesterday": "2 Days Ago",
     "last_n_days": "Last {{n}} Days",
     "api_filter": "API Query",
     "api_filter_placeholder": "Query API data",
@@ -1063,6 +1065,8 @@
     },
     "time": {
       "today": "Today",
+      "yesterday": "Yesterday",
+      "dayBeforeYesterday": "2 Days Ago",
       "last_n_days": "{{n}} Days",
       "custom": "Custom",
       "to": "to",

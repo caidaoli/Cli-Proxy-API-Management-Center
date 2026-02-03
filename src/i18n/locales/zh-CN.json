@@ -980,6 +980,8 @@
     "title": "监控中心",
     "time_range": "时间范围",
     "today": "今天",
+    "yesterday": "昨天",
+    "day_before_yesterday": "前天",
     "last_n_days": "最近 {{n}} 天",
     "api_filter": "API 查询",
     "api_filter_placeholder": "查询对应 API 数据",
@@ -1063,6 +1065,8 @@
     },
     "time": {
       "today": "今天",
+      "yesterday": "昨天",
+      "dayBeforeYesterday": "前天",
       "last_n_days": "{{n}} 天",
       "custom": "自定义",
       "to": "至",

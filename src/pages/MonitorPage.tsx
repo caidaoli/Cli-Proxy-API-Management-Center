@@ -47,7 +47,7 @@ ChartJS.register(
 );
 
 // 时间范围选项
-type TimeRange = 1 | 7 | 14 | 30;
+type TimeRange = 'yesterday' | 'dayBeforeYesterday' | 1 | 7 | 14 | 30;
 
 export interface UsageDetail {
   timestamp: string;
@@ -80,7 +80,7 @@ export function MonitorPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [usageData, setUsageData] = useState<UsageData | null>(null);
-  const [timeRange, setTimeRange] = useState<TimeRange>(1);
+  const [timeRange, setTimeRange] = useState<TimeRange>(7);
   const [apiFilter, setApiFilter] = useState('');
   const [providerMap, setProviderMap] = useState<Record<string, string>>({});
   const [providerModels, setProviderModels] = useState<Record<string, Set<string>>>({});
@@ -259,7 +259,30 @@ export function MonitorPage() {
     }
 
     const now = new Date();
-    const cutoffTime = new Date(now.getTime() - timeRange * 24 * 60 * 60 * 1000);
+    let startTime: Date;
+    let endTime: Date | null = null;
+
+    if (timeRange === 'yesterday') {
+      // 昨天: 昨天 00:00 到 昨天 23:59:59
+      startTime = new Date(now);
+      startTime.setDate(startTime.getDate() - 1);
+      startTime.setHours(0, 0, 0, 0);
+      endTime = new Date(startTime);
+      endTime.setHours(23, 59, 59, 999);
+    } else if (timeRange === 'dayBeforeYesterday') {
+      // 前天: 前天 00:00 到 前天 23:59:59
+      startTime = new Date(now);
+      startTime.setDate(startTime.getDate() - 2);
+      startTime.setHours(0, 0, 0, 0);
+      endTime = new Date(startTime);
+      endTime.setHours(23, 59, 59, 999);
+    } else {
+      // timeRange=1 表示"今天"，应该从今天 00:00 开始
+      // timeRange=7 表示"最近7天"，应该从 6 天前的 00:00 开始（包含今天共7天）
+      const daysBack = timeRange - 1;
+      startTime = new Date(now.getTime() - daysBack * 24 * 60 * 60 * 1000);
+      startTime.setHours(0, 0, 0, 0);
+    }
 
     const filtered: UsageData = { apis: {} };
 
@@ -284,7 +307,10 @@ export function MonitorPage() {
 
         const filteredDetails = modelData.details.filter((detail) => {
           const timestamp = new Date(detail.timestamp);
-          return timestamp >= cutoffTime;
+          if (endTime) {
+            return timestamp >= startTime && timestamp <= endTime;
+          }
+          return timestamp >= startTime;
         });
 
         if (filteredDetails.length > 0) {
@@ -303,6 +329,14 @@ export function MonitorPage() {
   // 处理时间范围变化
   const handleTimeRangeChange = (range: TimeRange) => {
     setTimeRange(range);
+  };
+
+  // 将 TimeRange 转换为数字（用于子组件显示）
+  const getNumericTimeRange = (range: TimeRange): number => {
+    if (range === 'yesterday' || range === 'dayBeforeYesterday') {
+      return 1;
+    }
+    return range;
   };
 
   // 处理 API 过滤应用（触发数据刷新）
@@ -344,6 +378,18 @@ export function MonitorPage() {
         <div className={styles.filterGroup}>
           <span className={styles.filterLabel}>{t('monitor.time_range')}</span>
           <div className={styles.timeButtons}>
+            <button
+              className={`${styles.timeButton} ${timeRange === 'dayBeforeYesterday' ? styles.active : ''}`}
+              onClick={() => handleTimeRangeChange('dayBeforeYesterday')}
+            >
+              {t('monitor.day_before_yesterday')}
+            </button>
+            <button
+              className={`${styles.timeButton} ${timeRange === 'yesterday' ? styles.active : ''}`}
+              onClick={() => handleTimeRangeChange('yesterday')}
+            >
+              {t('monitor.yesterday')}
+            </button>
             {([1, 7, 14, 30] as TimeRange[]).map((range) => (
               <button
                 key={range}
@@ -371,12 +417,12 @@ export function MonitorPage() {
       </div>
 
       {/* KPI 卡片 */}
-      <KpiCards data={filteredData} loading={loading} timeRange={timeRange} />
+      <KpiCards data={filteredData} loading={loading} timeRange={getNumericTimeRange(timeRange)} />
 
       {/* 图表区域 */}
       <div className={styles.chartsGrid}>
-        <ModelDistributionChart data={filteredData} loading={loading} isDark={isDark} timeRange={timeRange} />
-        <DailyTrendChart data={filteredData} loading={loading} isDark={isDark} timeRange={timeRange} />
+        <ModelDistributionChart data={filteredData} loading={loading} isDark={isDark} timeRange={getNumericTimeRange(timeRange)} />
+        <DailyTrendChart data={filteredData} loading={loading} isDark={isDark} timeRange={getNumericTimeRange(timeRange)} />
       </div>
 
       {/* 小时级图表 */}

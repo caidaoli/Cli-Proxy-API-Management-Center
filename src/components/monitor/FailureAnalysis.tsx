@@ -2,7 +2,7 @@ import { useMemo, useState, useCallback, Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/Card';
 import { useDisableModel } from '@/hooks';
-import { TimeRangeSelector, formatTimeRangeCaption, type TimeRange } from './TimeRangeSelector';
+import { TimeRangeSelector, type TimeRange } from './TimeRangeSelector';
 import { DisableModelModal } from './DisableModelModal';
 import {
   formatTimestamp,
@@ -84,10 +84,7 @@ export function FailureAnalysis({ data, loading, providerMap, providerModels }: 
         modelData.details.forEach((detail) => {
           if (detail.failed) {
             const source = detail.source || 'unknown';
-            const { provider } = getProviderDisplayParts(source, providerMap);
-            if (provider) {
-              failedSources.add(source);
-            }
+            failedSources.add(source);
           }
         });
       });
@@ -225,12 +222,7 @@ export function FailureAnalysis({ data, loading, providerMap, providerModels }: 
     <>
       <Card
         title={t('monitor.failure.title')}
-        subtitle={
-          <span>
-            {formatTimeRangeCaption(timeRange, customRange, t)} · {t('monitor.failure.subtitle')}
-            <span style={{ color: 'var(--text-tertiary)' }}> · {t('monitor.failure.click_hint')}</span>
-          </span>
-        }
+        subtitle={t('monitor.failure.click_hint')}
         extra={
           <TimeRangeSelector
             value={timeRange}
