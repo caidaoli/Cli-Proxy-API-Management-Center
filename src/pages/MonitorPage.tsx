@@ -19,7 +19,7 @@ import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useHeaderRefresh } from '@/hooks/useHeaderRefresh';
 import { useThemeStore } from '@/stores';
-import { usageApi, providersApi } from '@/services/api';
+import { usageApi, providersApi, authFilesApi } from '@/services/api';
 import { KpiCards } from '@/components/monitor/KpiCards';
 import { ModelDistributionChart } from '@/components/monitor/ModelDistributionChart';
 import { DailyTrendChart } from '@/components/monitor/DailyTrendChart';
@@ -94,12 +94,13 @@ export function MonitorPage() {
       const typeMap: Record<string, string> = {};
 
       // 并行加载所有提供商配置
-      const [openaiProviders, geminiKeys, claudeConfigs, codexConfigs, vertexConfigs] = await Promise.all([
+      const [openaiProviders, geminiKeys, claudeConfigs, codexConfigs, vertexConfigs, authFilesRes] = await Promise.all([
         providersApi.getOpenAIProviders().catch(() => []),
         providersApi.getGeminiKeys().catch(() => []),
         providersApi.getClaudeConfigs().catch(() => []),
         providersApi.getCodexConfigs().catch(() => []),
         providersApi.getVertexConfigs().catch(() => []),
+        authFilesApi.list().catch(() => ({ files: [] })),
       ]);
 
       // 处理 OpenAI 兼容提供商
@@ -189,6 +190,28 @@ export function MonitorPage() {
             modelsMap[apiKey] = modelSet;
           }
         }
+      });
+
+      // 处理 OAuth 认证文件
+      const authTypeToProvider: Record<string, string> = {
+        claude: 'Claude',
+        gemini: 'Gemini',
+        'gemini-cli': 'Gemini',
+        codex: 'Codex',
+        vertex: 'Vertex',
+        aistudio: 'AI Studio',
+        qwen: 'Qwen',
+        antigravity: 'Antigravity',
+        iflow: 'iFlow',
+      };
+      const authFiles = authFilesRes?.files || [];
+      authFiles.forEach((file) => {
+        const name = file.name;
+        if (!name) return;
+        const fileType = file.type || 'unknown';
+        const providerName = authTypeToProvider[fileType] || fileType;
+        map[name] = providerName;
+        typeMap[name] = providerName;
       });
 
       setProviderMap(map);
@@ -362,8 +385,8 @@ export function MonitorPage() {
 
       {/* 统计表格 */}
       <div className={styles.statsGrid}>
-        <ChannelStats data={filteredData} loading={loading} providerMap={providerMap} providerModels={providerModels} />
-        <FailureAnalysis data={filteredData} loading={loading} providerMap={providerMap} providerModels={providerModels} />
+        <ChannelStats data={usageData} loading={loading} providerMap={providerMap} providerModels={providerModels} />
+        <FailureAnalysis data={usageData} loading={loading} providerMap={providerMap} providerModels={providerModels} />
       </div>
 
       {/* 请求日志 */}
