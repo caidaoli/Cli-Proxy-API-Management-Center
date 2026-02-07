@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Card } from '@/components/ui/Card';
-import { usageApi } from '@/services/api';
+import { monitorApi, type MonitorRequestLogItem } from '@/services/api';
 import { useDisableModel } from '@/hooks';
 import { TimeRangeSelector, formatTimeRangeCaption, type TimeRange } from './TimeRangeSelector';
 import { DisableModelModal } from './DisableModelModal';
@@ -13,6 +13,7 @@ import {
   formatTimestamp,
   getRateClassName,
   getProviderDisplayParts,
+  buildMonitorTimeRangeParams,
   type DateRange,
 } from '@/utils/monitor';
 import type { UsageData } from '@/pages/MonitorPage';
@@ -33,7 +34,6 @@ interface LogEntry {
   apiKey: string;
   model: string;
   source: string;
-  displayName: string;
   providerName: string | null;
   providerType: string;
   maskedKey: string;
@@ -41,24 +41,14 @@ interface LogEntry {
   inputTokens: number;
   outputTokens: number;
   totalTokens: number;
+  requestCount: number;
+  successRate: number;
+  recentRequests: { failed: boolean; timestamp: number }[];
 }
 
-interface ChannelModelRequest {
-  failed: boolean;
-  timestamp: number;
-}
-
-// 预计算的统计数据缓存
-interface PrecomputedStats {
-  recentRequests: ChannelModelRequest[];
-  successRate: string;
-  totalCount: number;
-}
-
-// 虚拟滚动行高
 const ROW_HEIGHT = 40;
 
-export function RequestLogs({ data, loading: parentLoading, providerMap, providerTypeMap, apiFilter }: RequestLogsProps) {
+export function RequestLogs({ data, loading, providerMap, providerTypeMap, apiFilter }: RequestLogsProps) {
   const { t } = useTranslation();
   const [filterApi, setFilterApi] = useState('');
   const [filterModel, setFilterModel] = useState('');
@@ -68,31 +58,26 @@ export function RequestLogs({ data, loading: parentLoading, providerMap, provide
   const [autoRefresh, setAutoRefresh] = useState(10);
   const [countdown, setCountdown] = useState(0);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  // 用 ref 存储 fetchLogData，避免作为定时器 useEffect 的依赖
   const fetchLogDataRef = useRef<() => Promise<void>>(() => Promise.resolve());
 
-  // 虚拟滚动容器 ref
   const tableContainerRef = useRef<HTMLDivElement>(null);
-  // 固定表头容器 ref
   const headerRef = useRef<HTMLDivElement>(null);
 
-  // 同步表头和内容的水平滚动
-  const handleScroll = useCallback(() => {
-    if (tableContainerRef.current && headerRef.current) {
-      headerRef.current.scrollLeft = tableContainerRef.current.scrollLeft;
-    }
-  }, []);
-
-  // 时间范围状态
   const [timeRange, setTimeRange] = useState<TimeRange>(1);
   const [customRange, setCustomRange] = useState<DateRange | undefined>();
 
-  // 日志独立数据状态
-  const [logData, setLogData] = useState<UsageData | null>(null);
+  const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
   const [logLoading, setLogLoading] = useState(false);
-  const [isFirstLoad, setIsFirstLoad] = useState(true);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [filterOptions, setFilterOptions] = useState<{ apis: string[]; models: string[]; sources: string[] }>({
+    apis: [],
+    models: [],
+    sources: [],
+  });
 
-  // 使用禁用模型 Hook
   const {
     disableState,
     unsupportedState,
@@ -104,124 +89,104 @@ export function RequestLogs({ data, loading: parentLoading, providerMap, provide
     handleCloseUnsupported,
   } = useDisableModel({ providerMap, providerTypeMap });
 
-  // 处理时间范围变化
-  const handleTimeRangeChange = useCallback((range: TimeRange, custom?: DateRange) => {
-    setTimeRange(range);
-    if (custom) {
-      setCustomRange(custom);
+  const handleScroll = useCallback(() => {
+    if (tableContainerRef.current && headerRef.current) {
+      headerRef.current.scrollLeft = tableContainerRef.current.scrollLeft;
     }
   }, []);
 
-  // 使用日志独立数据或父组件数据
-  const effectiveData = logData || data;
-  // 只在首次加载且没有数据时显示 loading 状态
-  const showLoading = (parentLoading && isFirstLoad && !effectiveData) || (logLoading && !effectiveData);
+  const handleTimeRangeChange = useCallback((range: TimeRange, custom?: DateRange) => {
+    setTimeRange(range);
+    setCustomRange(custom);
+    setPage(1);
+  }, []);
 
-  // 当父组件数据加载完成时，标记首次加载完成
-  useEffect(() => {
-    if (!parentLoading && data) {
-      setIsFirstLoad(false);
-    }
-  }, [parentLoading, data]);
+  const toLogEntry = useCallback((item: MonitorRequestLogItem, index: number): LogEntry => {
+    const source = item.source || 'unknown';
+    const { provider, masked } = getProviderDisplayParts(source, providerMap);
+    const timestampMs = item.timestamp ? new Date(item.timestamp).getTime() : 0;
+    return {
+      id: `${item.timestamp}-${item.api_key}-${item.model}-${index}`,
+      timestamp: item.timestamp,
+      timestampMs,
+      apiKey: item.api_key,
+      model: item.model,
+      source,
+      providerName: provider,
+      providerType: providerTypeMap[source] || '--',
+      maskedKey: masked,
+      failed: item.failed,
+      inputTokens: item.input_tokens || 0,
+      outputTokens: item.output_tokens || 0,
+      totalTokens: item.total_tokens || 0,
+      requestCount: item.request_count || 0,
+      successRate: item.success_rate || 0,
+      recentRequests: (item.recent_requests || []).map((req) => ({
+        failed: !!req.failed,
+        timestamp: req.timestamp ? new Date(req.timestamp).getTime() : 0,
+      })),
+    };
+  }, [providerMap, providerTypeMap]);
 
-  // 独立获取日志数据
   const fetchLogData = useCallback(async () => {
     setLogLoading(true);
     try {
-      const response = await usageApi.getUsage();
-      const usageData = response?.usage ?? response;
+      const params = {
+        page,
+        page_size: pageSize,
+        api: filterApi || undefined,
+        api_filter: apiFilter || undefined,
+        model: filterModel || undefined,
+        source: filterSource || undefined,
+        status: filterStatus || undefined,
+        ...buildMonitorTimeRangeParams(timeRange, customRange),
+      };
 
-      // 应用时间范围过滤
-      if (usageData?.apis) {
-        const apis = usageData.apis as UsageData['apis'];
-        const now = new Date();
-        let cutoffStart: Date;
-        let cutoffEnd: Date = new Date(now.getTime());
-        cutoffEnd.setHours(23, 59, 59, 999);
+      const response = await monitorApi.getRequestLogs(params);
+      const items = (response.items || []).map(toLogEntry);
+      setLogEntries(items);
+      setTotal(response.total || 0);
+      setTotalPages(response.total_pages || 0);
+      setFilterOptions({
+        apis: response.filters?.apis || [],
+        models: response.filters?.models || [],
+        sources: response.filters?.sources || [],
+      });
 
-        if (timeRange === 'custom' && customRange) {
-          cutoffStart = customRange.start;
-          cutoffEnd = customRange.end;
-        } else if ((timeRange === 'yesterday' || timeRange === 'dayBeforeYesterday') && customRange) {
-          cutoffStart = customRange.start;
-          cutoffEnd = customRange.end;
-        } else if (typeof timeRange === 'number') {
-          // timeRange=1 表示"今天"，应该从今天 00:00 开始
-          // timeRange=7 表示"最近7天"，应该从 6 天前的 00:00 开始（包含今天共7天）
-          const daysBack = timeRange - 1;
-          cutoffStart = new Date(now.getTime() - daysBack * 24 * 60 * 60 * 1000);
-          cutoffStart.setHours(0, 0, 0, 0);
-        } else {
-          cutoffStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-          cutoffStart.setHours(0, 0, 0, 0);
-        }
-
-        const filtered: UsageData = { apis: {} };
-
-        Object.entries(apis).forEach(([apiKey, apiData]) => {
-          // 如果有 API 过滤器，检查是否匹配
-          if (apiFilter && !apiKey.toLowerCase().includes(apiFilter.toLowerCase())) {
-            return;
-          }
-
-          if (!apiData?.models) return;
-
-          const filteredModels: Record<string, { details: UsageData['apis'][string]['models'][string]['details'] }> = {};
-
-          Object.entries(apiData.models).forEach(([modelName, modelData]) => {
-            if (!modelData?.details || !Array.isArray(modelData.details)) return;
-
-            const filteredDetails = modelData.details.filter((detail) => {
-              const timestamp = new Date(detail.timestamp);
-              return timestamp >= cutoffStart && timestamp <= cutoffEnd;
-            });
-
-            if (filteredDetails.length > 0) {
-              filteredModels[modelName] = { details: filteredDetails };
-            }
-          });
-
-          if (Object.keys(filteredModels).length > 0) {
-            filtered.apis[apiKey] = { models: filteredModels };
-          }
-        });
-
-        setLogData(filtered);
+      const safePage = response.page || page;
+      if (safePage !== page) {
+        setPage(safePage);
       }
     } catch (err) {
       console.error('日志刷新失败：', err);
+      setLogEntries([]);
+      setTotal(0);
+      setTotalPages(0);
     } finally {
       setLogLoading(false);
     }
-  }, [timeRange, customRange, apiFilter]);
+  }, [page, pageSize, filterApi, apiFilter, filterModel, filterSource, filterStatus, timeRange, customRange, toLogEntry]);
 
-  // 同步 fetchLogData 到 ref，确保定时器始终调用最新版本
   useEffect(() => {
     fetchLogDataRef.current = fetchLogData;
   }, [fetchLogData]);
 
-  // 统一的自动刷新定时器管理
   useEffect(() => {
-    // 清理旧定时器
     if (countdownRef.current) {
       clearInterval(countdownRef.current);
       countdownRef.current = null;
     }
 
-    // 禁用自动刷新时
     if (autoRefresh <= 0) {
       setCountdown(0);
       return;
     }
 
-    // 设置初始倒计时
     setCountdown(autoRefresh);
 
-    // 创建新定时器
     countdownRef.current = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
-          // 倒计时结束，触发刷新并重置倒计时
           fetchLogDataRef.current();
           return autoRefresh;
         }
@@ -229,7 +194,6 @@ export function RequestLogs({ data, loading: parentLoading, providerMap, provide
       });
     }, 1000);
 
-    // 组件卸载或 autoRefresh 变化时清理
     return () => {
       if (countdownRef.current) {
         clearInterval(countdownRef.current);
@@ -238,13 +202,37 @@ export function RequestLogs({ data, loading: parentLoading, providerMap, provide
     };
   }, [autoRefresh]);
 
-  // 时间范围变化时立即刷新数据
   useEffect(() => {
     fetchLogData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timeRange, customRange]);
+  }, [fetchLogData, data]);
 
-  // 获取倒计时显示文本
+  const providerTypes = useMemo(() => {
+    const typeSet = new Set<string>();
+    filterOptions.sources.forEach((source) => {
+      const providerType = providerTypeMap[source];
+      if (providerType && providerType !== '--') {
+        typeSet.add(providerType);
+      }
+    });
+    return Array.from(typeSet).sort();
+  }, [filterOptions.sources, providerTypeMap]);
+
+  const filteredEntries = useMemo(() => {
+    if (!filterProviderType) {
+      return logEntries;
+    }
+    return logEntries.filter((entry) => entry.providerType === filterProviderType);
+  }, [logEntries, filterProviderType]);
+
+  const rowVirtualizer = useVirtualizer({
+    count: filteredEntries.length,
+    getScrollElement: () => tableContainerRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 10,
+  });
+
+  const showLoading = (logLoading || loading) && logEntries.length === 0;
+
   const getCountdownText = () => {
     if (logLoading) {
       return t('monitor.logs.refreshing');
@@ -258,173 +246,22 @@ export function RequestLogs({ data, loading: parentLoading, providerMap, provide
     return t('monitor.logs.refreshing');
   };
 
-  // 将数据转换为日志条目
-  const logEntries = useMemo(() => {
-    if (!effectiveData?.apis) return [];
+  const formatNumber = (num: number) => num.toLocaleString('zh-CN');
 
-    const entries: LogEntry[] = [];
-    let idCounter = 0;
-
-    Object.entries(effectiveData.apis).forEach(([apiKey, apiData]) => {
-      Object.entries(apiData.models).forEach(([modelName, modelData]) => {
-        modelData.details.forEach((detail) => {
-          const source = detail.source || 'unknown';
-          const { provider, masked } = getProviderDisplayParts(source, providerMap);
-          const displayName = provider ? `${provider} (${masked})` : masked;
-          const timestampMs = detail.timestamp ? new Date(detail.timestamp).getTime() : 0;
-          // 获取提供商类型
-          const providerType = providerTypeMap[source] || '--';
-          entries.push({
-            id: `${idCounter++}`,
-            timestamp: detail.timestamp,
-            timestampMs,
-            apiKey,
-            model: modelName,
-            source,
-            displayName,
-            providerName: provider,
-            providerType,
-            maskedKey: masked,
-            failed: detail.failed,
-            inputTokens: detail.tokens.input_tokens || 0,
-            outputTokens: detail.tokens.output_tokens || 0,
-            totalTokens: detail.tokens.total_tokens || 0,
-          });
-        });
-      });
-    });
-
-    // 按时间倒序排序
-    return entries.sort((a, b) => b.timestampMs - a.timestampMs);
-  }, [effectiveData, providerMap, providerTypeMap]);
-
-  // 预计算所有条目的统计数据（一次性计算，避免渲染时重复计算）
-  const precomputedStats = useMemo(() => {
-    const statsMap = new Map<string, PrecomputedStats>();
-
-    // 首先按渠道+模型分组，并按时间排序
-    const channelModelGroups: Record<string, { entry: LogEntry; index: number }[]> = {};
-
-    logEntries.forEach((entry, index) => {
-      const key = `${entry.source}|||${entry.model}`;
-      if (!channelModelGroups[key]) {
-        channelModelGroups[key] = [];
-      }
-      channelModelGroups[key].push({ entry, index });
-    });
-
-    // 对每个分组按时间正序排序（用于计算累计统计）
-    Object.values(channelModelGroups).forEach((group) => {
-      group.sort((a, b) => a.entry.timestampMs - b.entry.timestampMs);
-    });
-
-    // 计算每个条目的统计数据
-    Object.entries(channelModelGroups).forEach(([, group]) => {
-      let successCount = 0;
-      let totalCount = 0;
-      const recentRequests: ChannelModelRequest[] = [];
-
-      group.forEach(({ entry }) => {
-        totalCount++;
-        if (!entry.failed) {
-          successCount++;
-        }
-
-        // 维护最近 10 次请求
-        recentRequests.push({ failed: entry.failed, timestamp: entry.timestampMs });
-        if (recentRequests.length > 10) {
-          recentRequests.shift();
-        }
-
-        // 计算成功率
-        const successRate = totalCount > 0 ? ((successCount / totalCount) * 100).toFixed(1) : '0.0';
-
-        // 存储该条目的统计数据
-        statsMap.set(entry.id, {
-          recentRequests: [...recentRequests],
-          successRate,
-          totalCount,
-        });
-      });
-    });
-
-    return statsMap;
-  }, [logEntries]);
-
-  // 获取筛选选项
-  const { apis, models, sources, providerTypes } = useMemo(() => {
-    const apiSet = new Set<string>();
-    const modelSet = new Set<string>();
-    const sourceSet = new Set<string>();
-    const providerTypeSet = new Set<string>();
-
-    logEntries.forEach((entry) => {
-      apiSet.add(entry.apiKey);
-      modelSet.add(entry.model);
-      sourceSet.add(entry.source);
-      if (entry.providerType && entry.providerType !== '--') {
-        providerTypeSet.add(entry.providerType);
-      }
-    });
-
-    return {
-      apis: Array.from(apiSet).sort(),
-      models: Array.from(modelSet).sort(),
-      sources: Array.from(sourceSet).sort(),
-      providerTypes: Array.from(providerTypeSet).sort(),
-    };
-  }, [logEntries]);
-
-  // 过滤后的数据
-  const filteredEntries = useMemo(() => {
-    return logEntries.filter((entry) => {
-      if (filterApi && entry.apiKey !== filterApi) return false;
-      if (filterModel && entry.model !== filterModel) return false;
-      if (filterSource && entry.source !== filterSource) return false;
-      if (filterStatus === 'success' && entry.failed) return false;
-      if (filterStatus === 'failed' && !entry.failed) return false;
-      if (filterProviderType && entry.providerType !== filterProviderType) return false;
-      return true;
-    });
-  }, [logEntries, filterApi, filterModel, filterSource, filterStatus, filterProviderType]);
-
-  // 虚拟滚动配置
-  const rowVirtualizer = useVirtualizer({
-    count: filteredEntries.length,
-    getScrollElement: () => tableContainerRef.current,
-    estimateSize: () => ROW_HEIGHT,
-    overscan: 10, // 预渲染上下各 10 行
-  });
-
-  // 格式化数字
-  const formatNumber = (num: number) => {
-    return num.toLocaleString('zh-CN');
+  const goToPage = (nextPage: number) => {
+    if (nextPage < 1) return;
+    if (totalPages > 0 && nextPage > totalPages) return;
+    setPage(nextPage);
   };
 
-  // 获取预计算的统计数据
-  const getStats = (entry: LogEntry): PrecomputedStats => {
-    return precomputedStats.get(entry.id) || {
-      recentRequests: [],
-      successRate: '0.0',
-      totalCount: 0,
-    };
-  };
-
-  // 渲染单行
   const renderRow = (entry: LogEntry) => {
-    const stats = getStats(entry);
-    const rateValue = parseFloat(stats.successRate);
     const disabled = isModelDisabled(entry.source, entry.model);
 
     return (
       <>
-        <td title={entry.apiKey}>
-          {maskSecret(entry.apiKey)}
-        </td>
+        <td title={entry.apiKey}>{maskSecret(entry.apiKey)}</td>
         <td>{entry.providerType}</td>
-        <td title={entry.model}>
-          {entry.model}
-        </td>
+        <td title={entry.model}>{entry.model}</td>
         <td title={entry.source}>
           {entry.providerName ? (
             <>
@@ -442,7 +279,7 @@ export function RequestLogs({ data, loading: parentLoading, providerMap, provide
         </td>
         <td>
           <div className={styles.statusBars}>
-            {stats.recentRequests.map((req, idx) => (
+            {entry.recentRequests.map((req, idx) => (
               <div
                 key={idx}
                 className={`${styles.statusBar} ${req.failed ? styles.failure : styles.success}`}
@@ -450,10 +287,10 @@ export function RequestLogs({ data, loading: parentLoading, providerMap, provide
             ))}
           </div>
         </td>
-        <td className={getRateClassName(rateValue, styles)}>
-          {stats.successRate}%
+        <td className={getRateClassName(entry.successRate, styles)}>
+          {entry.successRate.toFixed(1)}%
         </td>
-        <td>{formatNumber(stats.totalCount)}</td>
+        <td>{formatNumber(entry.requestCount)}</td>
         <td>{formatNumber(entry.inputTokens)}</td>
         <td>{formatNumber(entry.outputTokens)}</td>
         <td>{formatNumber(entry.totalTokens)}</td>
@@ -461,9 +298,7 @@ export function RequestLogs({ data, loading: parentLoading, providerMap, provide
         <td>
           {entry.source && entry.source !== '-' && entry.source !== 'unknown' ? (
             disabled ? (
-              <span className={styles.disabledLabel}>
-                {t('monitor.logs.disabled')}
-              </span>
+              <span className={styles.disabledLabel}>{t('monitor.logs.disabled')}</span>
             ) : (
               <button
                 className={styles.disableBtn}
@@ -481,13 +316,16 @@ export function RequestLogs({ data, loading: parentLoading, providerMap, provide
     );
   };
 
+  const pageStart = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const pageEnd = total === 0 ? 0 : Math.min(page * pageSize, total);
+
   return (
     <>
       <Card
         title={t('monitor.logs.title')}
         subtitle={
           <span>
-            {formatTimeRangeCaption(timeRange, customRange, t)} · {t('monitor.logs.total_count', { count: logEntries.length })}
+            {formatTimeRangeCaption(timeRange, customRange, t)} · {t('monitor.logs.showing', { start: pageStart, end: pageEnd, total })}
             <span style={{ color: 'var(--text-tertiary)' }}> · {t('monitor.logs.scroll_hint')}</span>
           </span>
         }
@@ -499,18 +337,18 @@ export function RequestLogs({ data, loading: parentLoading, providerMap, provide
           />
         }
       >
-        {/* 筛选器 */}
         <div className={styles.logFilters}>
           <select
             className={styles.logSelect}
             value={filterApi}
-            onChange={(e) => setFilterApi(e.target.value)}
+            onChange={(e) => {
+              setFilterApi(e.target.value);
+              setPage(1);
+            }}
           >
             <option value="">{t('monitor.logs.all_apis')}</option>
-            {apis.map((api) => (
-              <option key={api} value={api}>
-                {maskSecret(api)}
-              </option>
+            {filterOptions.apis.map((api) => (
+              <option key={api} value={api}>{maskSecret(api)}</option>
             ))}
           </select>
           <select
@@ -526,38 +364,43 @@ export function RequestLogs({ data, loading: parentLoading, providerMap, provide
           <select
             className={styles.logSelect}
             value={filterModel}
-            onChange={(e) => setFilterModel(e.target.value)}
+            onChange={(e) => {
+              setFilterModel(e.target.value);
+              setPage(1);
+            }}
           >
             <option value="">{t('monitor.logs.all_models')}</option>
-            {models.map((model) => (
+            {filterOptions.models.map((model) => (
               <option key={model} value={model}>{model}</option>
             ))}
           </select>
           <select
             className={styles.logSelect}
             value={filterSource}
-            onChange={(e) => setFilterSource(e.target.value)}
+            onChange={(e) => {
+              setFilterSource(e.target.value);
+              setPage(1);
+            }}
           >
             <option value="">{t('monitor.logs.all_sources')}</option>
-            {sources.map((source) => (
-              <option key={source} value={source}>
-                {formatProviderDisplay(source, providerMap)}
-              </option>
+            {filterOptions.sources.map((source) => (
+              <option key={source} value={source}>{formatProviderDisplay(source, providerMap)}</option>
             ))}
           </select>
           <select
             className={styles.logSelect}
             value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value as '' | 'success' | 'failed')}
+            onChange={(e) => {
+              setFilterStatus(e.target.value as '' | 'success' | 'failed');
+              setPage(1);
+            }}
           >
             <option value="">{t('monitor.logs.all_status')}</option>
             <option value="success">{t('monitor.logs.success')}</option>
             <option value="failed">{t('monitor.logs.failed')}</option>
           </select>
 
-          <span className={styles.logLastUpdate}>
-            {getCountdownText()}
-          </span>
+          <span className={styles.logLastUpdate}>{getCountdownText()}</span>
 
           <select
             className={styles.logSelect}
@@ -571,9 +414,21 @@ export function RequestLogs({ data, loading: parentLoading, providerMap, provide
             <option value="30">{t('monitor.logs.refresh_30s')}</option>
             <option value="60">{t('monitor.logs.refresh_60s')}</option>
           </select>
+
+          <select
+            className={styles.logSelect}
+            value={pageSize}
+            onChange={(e) => {
+              setPageSize(Number(e.target.value));
+              setPage(1);
+            }}
+          >
+            <option value="20">{t('monitor.logs.page_size_20')}</option>
+            <option value="50">{t('monitor.logs.page_size_50')}</option>
+            <option value="100">{t('monitor.logs.page_size_100')}</option>
+          </select>
         </div>
 
-        {/* 虚拟滚动表格 */}
         <div className={styles.tableWrapper}>
           {showLoading ? (
             <div className={styles.emptyState}>{t('common.loading')}</div>
@@ -581,7 +436,6 @@ export function RequestLogs({ data, loading: parentLoading, providerMap, provide
             <div className={styles.emptyState}>{t('monitor.no_data')}</div>
           ) : (
             <>
-              {/* 固定表头 */}
               <div ref={headerRef} className={styles.stickyHeader}>
                 <table className={`${styles.table} ${styles.virtualTable}`}>
                   <thead>
@@ -604,7 +458,6 @@ export function RequestLogs({ data, loading: parentLoading, providerMap, provide
                 </table>
               </div>
 
-              {/* 虚拟滚动容器 */}
               <div
                 ref={tableContainerRef}
                 className={styles.virtualScrollContainer}
@@ -652,15 +505,23 @@ export function RequestLogs({ data, loading: parentLoading, providerMap, provide
           )}
         </div>
 
-        {/* 统计信息 */}
+        {totalPages > 0 && (
+          <div className={styles.pagination}>
+            <button className={styles.pageBtn} onClick={() => goToPage(1)} disabled={page <= 1}>{t('monitor.logs.first_page')}</button>
+            <button className={styles.pageBtn} onClick={() => goToPage(page - 1)} disabled={page <= 1}>{t('monitor.logs.prev_page')}</button>
+            <span className={styles.pageBtn}>{t('monitor.logs.page_info', { current: page, total: totalPages })}</span>
+            <button className={styles.pageBtn} onClick={() => goToPage(page + 1)} disabled={page >= totalPages}>{t('monitor.logs.next_page')}</button>
+            <button className={styles.pageBtn} onClick={() => goToPage(totalPages)} disabled={page >= totalPages}>{t('monitor.logs.last_page')}</button>
+          </div>
+        )}
+
         {filteredEntries.length > 0 && (
           <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--text-tertiary)', marginTop: 8 }}>
-            {t('monitor.logs.total_count', { count: filteredEntries.length })}
+            {t('monitor.logs.total_count', { count: total })}
           </div>
         )}
       </Card>
 
-      {/* 禁用确认弹窗 */}
       <DisableModelModal
         disableState={disableState}
         disabling={disabling}
@@ -668,7 +529,6 @@ export function RequestLogs({ data, loading: parentLoading, providerMap, provide
         onCancel={handleCancelDisable}
       />
 
-      {/* 不支持自动禁用提示弹窗 */}
       <UnsupportedDisableModal
         state={unsupportedState}
         onClose={handleCloseUnsupported}

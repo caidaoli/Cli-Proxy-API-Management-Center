@@ -13,6 +13,40 @@ export interface DateRange {
 }
 
 /**
+ * 监控接口查询时间范围类型
+ */
+export type MonitorQueryRange = number | 'yesterday' | 'dayBeforeYesterday' | 'custom';
+
+/**
+ * 构造监控接口的时间查询参数
+ */
+export function buildMonitorTimeRangeParams(
+  range: MonitorQueryRange,
+  customRange?: DateRange
+): Record<string, string> {
+  if (customRange) {
+    return {
+      start_time: customRange.start.toISOString(),
+      end_time: customRange.end.toISOString(),
+    };
+  }
+
+  if (range === 'custom') {
+    return {};
+  }
+
+  if (range === 'dayBeforeYesterday') {
+    return { time_range: 'dayBeforeYesterday' };
+  }
+
+  if (range === 'yesterday') {
+    return { time_range: 'yesterday' };
+  }
+
+  return { time_range: String(range) };
+}
+
+/**
  * 禁用模型状态接口
  */
 export interface DisableState {

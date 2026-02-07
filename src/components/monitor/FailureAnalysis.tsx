@@ -1,14 +1,15 @@
-import { useMemo, useState, useCallback, Fragment } from 'react';
+import { useMemo, useState, useCallback, Fragment, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/Card';
+import { monitorApi, type MonitorFailureStatsItem } from '@/services/api';
 import { useDisableModel } from '@/hooks';
 import { TimeRangeSelector, type TimeRange } from './TimeRangeSelector';
 import { DisableModelModal } from './DisableModelModal';
 import {
   formatTimestamp,
   getRateClassName,
-  filterDataByTimeRange,
   getProviderDisplayParts,
+  buildMonitorTimeRangeParams,
   type DateRange,
 } from '@/utils/monitor';
 import type { UsageData } from '@/pages/MonitorPage';
@@ -40,17 +41,24 @@ interface FailureStat {
   models: Record<string, ModelFailureStat>;
 }
 
+interface ChannelFilterOption {
+  source: string;
+  label: string;
+}
+
 export function FailureAnalysis({ data, loading, providerMap, providerModels }: FailureAnalysisProps) {
   const { t } = useTranslation();
   const [expandedChannel, setExpandedChannel] = useState<string | null>(null);
   const [filterChannel, setFilterChannel] = useState('');
   const [filterModel, setFilterModel] = useState('');
 
-  // 时间范围状态
   const [timeRange, setTimeRange] = useState<TimeRange>(1);
   const [customRange, setCustomRange] = useState<DateRange | undefined>();
 
-  // 使用禁用模型 Hook
+  const [failureStats, setFailureStats] = useState<FailureStat[]>([]);
+  const [filters, setFilters] = useState<{ channels: ChannelFilterOption[]; models: string[] }>({ channels: [], models: [] });
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+
   const {
     disableState,
     disabling,
@@ -60,159 +68,121 @@ export function FailureAnalysis({ data, loading, providerMap, providerModels }: 
     handleCancelDisable,
   } = useDisableModel({ providerMap, providerModels });
 
-  // 处理时间范围变化
   const handleTimeRangeChange = useCallback((range: TimeRange, custom?: DateRange) => {
     setTimeRange(range);
-    if (custom) {
-      setCustomRange(custom);
-    }
+    setCustomRange(custom);
   }, []);
 
-  // 根据时间范围过滤数据
-  const timeFilteredData = useMemo(() => {
-    return filterDataByTimeRange(data, timeRange, customRange);
-  }, [data, timeRange, customRange]);
+  const formatChannelLabel = useCallback((source: string): string => {
+    const normalizedSource = source || 'unknown';
+    const { provider, masked } = getProviderDisplayParts(normalizedSource, providerMap);
+    return provider ? `${provider} (${masked})` : masked;
+  }, [providerMap]);
 
-  // 计算失败统计数据
-  const failureStats = useMemo(() => {
-    if (!timeFilteredData?.apis) return [];
+  const mapFailureStat = useCallback((item: MonitorFailureStatsItem): FailureStat => {
+    const source = item.source || 'unknown';
+    const { provider, masked } = getProviderDisplayParts(source, providerMap);
+    const displayName = provider ? `${provider} (${masked})` : masked;
 
-    // 首先收集有失败记录的渠道
-    const failedSources = new Set<string>();
-    Object.values(timeFilteredData.apis).forEach((apiData) => {
-      Object.values(apiData.models).forEach((modelData) => {
-        modelData.details.forEach((detail) => {
-          if (detail.failed) {
-            const source = detail.source || 'unknown';
-            failedSources.add(source);
-          }
-        });
-      });
-    });
-
-    // 统计这些渠道的所有请求
-    const stats: Record<string, FailureStat> = {};
-
-    Object.values(timeFilteredData.apis).forEach((apiData) => {
-      Object.entries(apiData.models).forEach(([modelName, modelData]) => {
-        modelData.details.forEach((detail) => {
-          const source = detail.source || 'unknown';
-          // 只统计有失败记录的渠道
-          if (!failedSources.has(source)) return;
-
-          const { provider, masked } = getProviderDisplayParts(source, providerMap);
-          const displayName = provider ? `${provider} (${masked})` : masked;
-          const timestamp = detail.timestamp ? new Date(detail.timestamp).getTime() : 0;
-
-          if (!stats[displayName]) {
-            stats[displayName] = {
-              source,
-              displayName,
-              providerName: provider,
-              maskedKey: masked,
-              failedCount: 0,
-              lastFailTime: 0,
-              models: {},
-            };
-          }
-
-          if (detail.failed) {
-            stats[displayName].failedCount++;
-            if (timestamp > stats[displayName].lastFailTime) {
-              stats[displayName].lastFailTime = timestamp;
-            }
-          }
-
-          // 按模型统计
-          if (!stats[displayName].models[modelName]) {
-            stats[displayName].models[modelName] = {
-              success: 0,
-              failure: 0,
-              total: 0,
-              successRate: 0,
-              recentRequests: [],
-              lastTimestamp: 0,
-            };
-          }
-          stats[displayName].models[modelName].total++;
-          if (detail.failed) {
-            stats[displayName].models[modelName].failure++;
-          } else {
-            stats[displayName].models[modelName].success++;
-          }
-          stats[displayName].models[modelName].recentRequests.push({ failed: detail.failed, timestamp });
-          if (timestamp > stats[displayName].models[modelName].lastTimestamp) {
-            stats[displayName].models[modelName].lastTimestamp = timestamp;
-          }
-        });
-      });
-    });
-
-    // 计算成功率并排序请求
-    Object.values(stats).forEach((stat) => {
-      Object.values(stat.models).forEach((model) => {
-        model.successRate = model.total > 0
-          ? (model.success / model.total) * 100
-          : 0;
-        model.recentRequests.sort((a, b) => a.timestamp - b.timestamp);
-        model.recentRequests = model.recentRequests.slice(-12);
-      });
-    });
-
-    return Object.values(stats)
-      .filter((stat) => stat.failedCount > 0)
-      .sort((a, b) => b.failedCount - a.failedCount)
-      .slice(0, 10);
-  }, [timeFilteredData, providerMap]);
-
-  // 获取所有渠道和模型列表
-  const { channels, models } = useMemo(() => {
-    const channelSet = new Set<string>();
-    const modelSet = new Set<string>();
-
-    failureStats.forEach((stat) => {
-      channelSet.add(stat.displayName);
-      Object.keys(stat.models).forEach((model) => modelSet.add(model));
+    const models: Record<string, ModelFailureStat> = {};
+    (item.models || []).forEach((model) => {
+      models[model.model] = {
+        success: model.success || 0,
+        failure: model.failed || 0,
+        total: model.requests || 0,
+        successRate: model.success_rate || 0,
+        recentRequests: (model.recent_requests || []).map((req) => ({
+          failed: !!req.failed,
+          timestamp: req.timestamp ? new Date(req.timestamp).getTime() : 0,
+        })),
+        lastTimestamp: model.last_request_at ? new Date(model.last_request_at).getTime() : 0,
+      };
     });
 
     return {
-      channels: Array.from(channelSet).sort(),
-      models: Array.from(modelSet).sort(),
+      source,
+      displayName,
+      providerName: provider,
+      maskedKey: masked,
+      failedCount: item.failed_count || 0,
+      lastFailTime: item.last_failed_at ? new Date(item.last_failed_at).getTime() : 0,
+      models,
     };
-  }, [failureStats]);
+  }, [providerMap]);
 
-  // 过滤后的数据
+  const loadFailureAnalysis = useCallback(async () => {
+    setAnalysisLoading(true);
+    try {
+      const response = await monitorApi.getFailureAnalysis({
+        limit: 10,
+        source: filterChannel || undefined,
+        model: filterModel || undefined,
+        ...buildMonitorTimeRangeParams(timeRange, customRange),
+      });
+
+      const mapped = (response.items || []).map(mapFailureStat);
+      setFailureStats(mapped);
+
+      const sourceSet = new Set<string>(
+        (response.filters?.sources && response.filters.sources.length > 0)
+          ? response.filters.sources
+          : mapped.map((stat) => stat.source)
+      );
+      const channels = Array.from(sourceSet)
+        .filter((source) => !!source)
+        .map((source) => ({ source, label: formatChannelLabel(source) }))
+        .sort((a, b) => a.label.localeCompare(b.label, 'zh-Hans-CN'));
+
+      const modelSet = new Set<string>(
+        (response.filters?.models && response.filters.models.length > 0)
+          ? response.filters.models
+          : mapped.flatMap((stat) => Object.keys(stat.models))
+      );
+      setFilters({ channels, models: Array.from(modelSet).sort() });
+    } catch (err) {
+      console.error('失败分析加载失败：', err);
+      setFailureStats([]);
+      setFilters({ channels: [], models: [] });
+    } finally {
+      setAnalysisLoading(false);
+    }
+  }, [filterChannel, filterModel, timeRange, customRange, mapFailureStat, formatChannelLabel]);
+
+  useEffect(() => {
+    loadFailureAnalysis();
+  }, [loadFailureAnalysis, data]);
+
   const filteredStats = useMemo(() => {
     return failureStats.filter((stat) => {
-      if (filterChannel && stat.displayName !== filterChannel) return false;
-      if (filterModel && !stat.models[filterModel]) return false;
+      if (filterChannel && stat.source !== filterChannel) return false;
       return true;
     });
-  }, [failureStats, filterChannel, filterModel]);
+  }, [failureStats, filterChannel]);
 
-  // 切换展开状态
-  const toggleExpand = (displayName: string) => {
-    setExpandedChannel(expandedChannel === displayName ? null : displayName);
+  useEffect(() => {
+    if (expandedChannel && !filteredStats.some((stat) => stat.source === expandedChannel)) {
+      setExpandedChannel(null);
+    }
+  }, [expandedChannel, filteredStats]);
+
+  const toggleExpand = (source: string) => {
+    setExpandedChannel(expandedChannel === source ? null : source);
   };
 
-  // 获取主要失败模型（前2个，已禁用的排在后面）
   const getTopFailedModels = (source: string, modelsMap: Record<string, ModelFailureStat>) => {
     return Object.entries(modelsMap)
       .filter(([, stat]) => stat.failure > 0)
       .sort((a, b) => {
         const aDisabled = isModelDisabled(source, a[0]);
         const bDisabled = isModelDisabled(source, b[0]);
-        // 已禁用的排在后面
         if (aDisabled !== bDisabled) {
           return aDisabled ? 1 : -1;
         }
-        // 然后按失败数降序
         return b[1].failure - a[1].failure;
       })
       .slice(0, 2);
   };
 
-  // 开始禁用流程（阻止事件冒泡）
   const handleDisableClick = (source: string, model: string, e: React.MouseEvent) => {
     e.stopPropagation();
     onDisableClick(source, model);
@@ -231,7 +201,6 @@ export function FailureAnalysis({ data, loading, providerMap, providerModels }: 
           />
         }
       >
-        {/* 筛选器 */}
         <div className={styles.logFilters}>
           <select
             className={styles.logSelect}
@@ -239,8 +208,8 @@ export function FailureAnalysis({ data, loading, providerMap, providerModels }: 
             onChange={(e) => setFilterChannel(e.target.value)}
           >
             <option value="">{t('monitor.channel.all_channels')}</option>
-            {channels.map((channel) => (
-              <option key={channel} value={channel}>{channel}</option>
+            {filters.channels.map((channel) => (
+              <option key={channel.source} value={channel.source}>{channel.label}</option>
             ))}
           </select>
           <select
@@ -249,15 +218,14 @@ export function FailureAnalysis({ data, loading, providerMap, providerModels }: 
             onChange={(e) => setFilterModel(e.target.value)}
           >
             <option value="">{t('monitor.channel.all_models')}</option>
-            {models.map((model) => (
+            {filters.models.map((model) => (
               <option key={model} value={model}>{model}</option>
             ))}
           </select>
         </div>
 
-        {/* 表格 */}
         <div className={styles.tableWrapper}>
-          {loading ? (
+          {(analysisLoading || loading) ? (
             <div className={styles.emptyState}>{t('common.loading')}</div>
           ) : filteredStats.length === 0 ? (
             <div className={styles.emptyState}>{t('monitor.failure.no_failures')}</div>
@@ -274,13 +242,13 @@ export function FailureAnalysis({ data, loading, providerMap, providerModels }: 
               <tbody>
                 {filteredStats.map((stat) => {
                   const topModels = getTopFailedModels(stat.source, stat.models);
-                  const totalFailedModels = Object.values(stat.models).filter(m => m.failure > 0).length;
+                  const totalFailedModels = Object.values(stat.models).filter((m) => m.failure > 0).length;
 
                   return (
-                    <Fragment key={stat.displayName}>
+                    <Fragment key={stat.source}>
                       <tr
                         className={styles.expandable}
-                        onClick={() => toggleExpand(stat.displayName)}
+                        onClick={() => toggleExpand(stat.source)}
                       >
                         <td>
                           {stat.providerName ? (
@@ -296,8 +264,8 @@ export function FailureAnalysis({ data, loading, providerMap, providerModels }: 
                         <td>{formatTimestamp(stat.lastFailTime)}</td>
                         <td>
                           {topModels.map(([model, modelStat]) => {
-                            const percent = ((modelStat.failure / stat.failedCount) * 100).toFixed(0);
-                            const shortModel = model.length > 16 ? model.slice(0, 13) + '...' : model;
+                            const percent = stat.failedCount > 0 ? ((modelStat.failure / stat.failedCount) * 100).toFixed(0) : '0';
+                            const shortModel = model.length > 16 ? `${model.slice(0, 13)}...` : model;
                             const disabled = isModelDisabled(stat.source, model);
                             return (
                               <span
@@ -310,83 +278,79 @@ export function FailureAnalysis({ data, loading, providerMap, providerModels }: 
                             );
                           })}
                           {totalFailedModels > 2 && (
-                            <span className={styles.moreModelsHint}>
-                              +{totalFailedModels - 2}
-                            </span>
+                            <span className={styles.moreModelsHint}>+{totalFailedModels - 2}</span>
                           )}
                         </td>
                       </tr>
-                      {expandedChannel === stat.displayName && (
-                        <tr key={`${stat.displayName}-detail`}>
+                      {expandedChannel === stat.source && (
+                        <tr key={`${stat.source}-detail`}>
                           <td colSpan={4} className={styles.expandDetail}>
                             <div className={styles.expandTableWrapper}>
-                            <table className={styles.table}>
-                              <thead>
-                                <tr>
-                                  <th>{t('monitor.channel.model')}</th>
-                                  <th>{t('monitor.channel.header_count')}</th>
-                                  <th>{t('monitor.channel.header_rate')}</th>
-                                  <th>{t('monitor.channel.success')}/{t('monitor.channel.failed')}</th>
-                                  <th>{t('monitor.channel.header_recent')}</th>
-                                  <th>{t('monitor.channel.header_time')}</th>
-                                  <th>{t('monitor.logs.header_actions')}</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {Object.entries(stat.models)
-                                  .filter(([, m]) => m.failure > 0)
-                                  .sort((a, b) => {
-                                    const aDisabled = isModelDisabled(stat.source, a[0]);
-                                    const bDisabled = isModelDisabled(stat.source, b[0]);
-                                    // 已禁用的排在后面
-                                    if (aDisabled !== bDisabled) {
-                                      return aDisabled ? 1 : -1;
-                                    }
-                                    // 然后按失败数降序
-                                    return b[1].failure - a[1].failure;
-                                  })
-                                  .map(([modelName, modelStat]) => {
-                                    const disabled = isModelDisabled(stat.source, modelName);
-                                    return (
-                                      <tr key={modelName} className={disabled ? styles.modelDisabled : ''}>
-                                        <td>{modelName}</td>
-                                        <td>{modelStat.total.toLocaleString()}</td>
-                                        <td className={getRateClassName(modelStat.successRate, styles)}>
-                                          {modelStat.successRate.toFixed(1)}%
-                                        </td>
-                                        <td>
-                                          <span className={styles.kpiSuccess}>{modelStat.success}</span>
-                                          {' / '}
-                                          <span className={styles.kpiFailure}>{modelStat.failure}</span>
-                                        </td>
-                                        <td>
-                                          <div className={styles.statusBars}>
-                                            {modelStat.recentRequests.map((req, i) => (
-                                              <div
-                                                key={i}
-                                                className={`${styles.statusBar} ${req.failed ? styles.failure : styles.success}`}
-                                              />
-                                            ))}
-                                          </div>
-                                        </td>
-                                        <td>{formatTimestamp(modelStat.lastTimestamp)}</td>
-                                        <td>
-                                          {disabled ? (
-                                            <span className={styles.disabledLabel}>{t('monitor.logs.removed')}</span>
-                                          ) : stat.source && stat.source !== '-' && stat.source !== 'unknown' ? (
-                                            <button
-                                              className={styles.disableBtn}
-                                              onClick={(e) => handleDisableClick(stat.source, modelName, e)}
-                                            >
-                                              {t('monitor.logs.disable')}
-                                            </button>
-                                          ) : '-'}
-                                        </td>
-                                      </tr>
-                                    );
-                                  })}
-                              </tbody>
-                            </table>
+                              <table className={styles.table}>
+                                <thead>
+                                  <tr>
+                                    <th>{t('monitor.channel.model')}</th>
+                                    <th>{t('monitor.channel.header_count')}</th>
+                                    <th>{t('monitor.channel.header_rate')}</th>
+                                    <th>{t('monitor.channel.success')}/{t('monitor.channel.failed')}</th>
+                                    <th>{t('monitor.channel.header_recent')}</th>
+                                    <th>{t('monitor.channel.header_time')}</th>
+                                    <th>{t('monitor.logs.header_actions')}</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {Object.entries(stat.models)
+                                    .filter(([, m]) => m.failure > 0)
+                                    .sort((a, b) => {
+                                      const aDisabled = isModelDisabled(stat.source, a[0]);
+                                      const bDisabled = isModelDisabled(stat.source, b[0]);
+                                      if (aDisabled !== bDisabled) {
+                                        return aDisabled ? 1 : -1;
+                                      }
+                                      return b[1].failure - a[1].failure;
+                                    })
+                                    .map(([modelName, modelStat]) => {
+                                      const disabled = isModelDisabled(stat.source, modelName);
+                                      return (
+                                        <tr key={modelName} className={disabled ? styles.modelDisabled : ''}>
+                                          <td>{modelName}</td>
+                                          <td>{modelStat.total.toLocaleString()}</td>
+                                          <td className={getRateClassName(modelStat.successRate, styles)}>
+                                            {modelStat.successRate.toFixed(1)}%
+                                          </td>
+                                          <td>
+                                            <span className={styles.kpiSuccess}>{modelStat.success}</span>
+                                            {' / '}
+                                            <span className={styles.kpiFailure}>{modelStat.failure}</span>
+                                          </td>
+                                          <td>
+                                            <div className={styles.statusBars}>
+                                              {modelStat.recentRequests.map((req, i) => (
+                                                <div
+                                                  key={i}
+                                                  className={`${styles.statusBar} ${req.failed ? styles.failure : styles.success}`}
+                                                />
+                                              ))}
+                                            </div>
+                                          </td>
+                                          <td>{formatTimestamp(modelStat.lastTimestamp)}</td>
+                                          <td>
+                                            {disabled ? (
+                                              <span className={styles.disabledLabel}>{t('monitor.logs.removed')}</span>
+                                            ) : stat.source && stat.source !== '-' && stat.source !== 'unknown' ? (
+                                              <button
+                                                className={styles.disableBtn}
+                                                onClick={(e) => handleDisableClick(stat.source, modelName, e)}
+                                              >
+                                                {t('monitor.logs.disable')}
+                                              </button>
+                                            ) : '-'}
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                </tbody>
+                              </table>
                             </div>
                           </td>
                         </tr>
@@ -400,7 +364,6 @@ export function FailureAnalysis({ data, loading, providerMap, providerModels }: 
         </div>
       </Card>
 
-      {/* 禁用确认弹窗 */}
       <DisableModelModal
         disableState={disableState}
         disabling={disabling}
