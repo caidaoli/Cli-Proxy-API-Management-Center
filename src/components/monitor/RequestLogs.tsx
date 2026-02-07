@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Card } from '@/components/ui/Card';
-import { monitorApi, type MonitorRequestLogItem } from '@/services/api';
+import { monitorApi, type MonitorRequestLogItem, authFilesApi } from '@/services/api';
 import { useDisableModel } from '@/hooks';
 import { TimeRangeSelector, formatTimeRangeCaption, type TimeRange } from './TimeRangeSelector';
 import { DisableModelModal } from './DisableModelModal';
@@ -44,6 +44,7 @@ interface LogEntry {
   requestCount: number;
   successRate: number;
   recentRequests: { failed: boolean; timestamp: number }[];
+  authIndex: string;
 }
 
 const ROW_HEIGHT = 40;
@@ -78,6 +79,10 @@ export function RequestLogs({ data, loading, providerMap, providerTypeMap, apiFi
     sources: [],
   });
 
+  // 认证文件索引到名称的映射
+  const [authIndexMap, setAuthIndexMap] = useState<Record<string, string>>({});
+
+  // 使用禁用模型 Hook
   const {
     disableState,
     unsupportedState,
@@ -125,9 +130,38 @@ export function RequestLogs({ data, loading, providerMap, providerTypeMap, apiFi
         failed: !!req.failed,
         timestamp: req.timestamp ? new Date(req.timestamp).getTime() : 0,
       })),
+      authIndex: item.auth_index || '',
     };
   }, [providerMap, providerTypeMap]);
 
+  // 加载认证文件映射（authIndex -> 文件名）
+  const loadAuthIndexMap = useCallback(async () => {
+    try {
+      const response = await authFilesApi.list();
+      const files = response?.files || [];
+      const map: Record<string, string> = {};
+      files.forEach((file) => {
+        // 兼容 auth_index 和 authIndex 两种字段名（API 返回的是 auth_index）
+        const rawAuthIndex = (file as Record<string, unknown>)['auth_index'] ?? file.authIndex;
+        if (rawAuthIndex !== undefined && rawAuthIndex !== null) {
+          const authIndexKey = String(rawAuthIndex).trim();
+          if (authIndexKey) {
+            map[authIndexKey] = file.name;
+          }
+        }
+      });
+      setAuthIndexMap(map);
+    } catch (err) {
+      console.warn('Failed to load auth files for index mapping:', err);
+    }
+  }, []);
+
+  // 初始加载认证文件映射
+  useEffect(() => {
+    loadAuthIndexMap();
+  }, [loadAuthIndexMap]);
+
+  // 独立获取日志数据
   const fetchLogData = useCallback(async () => {
     setLogLoading(true);
     try {
@@ -256,9 +290,14 @@ export function RequestLogs({ data, loading, providerMap, providerTypeMap, apiFi
 
   const renderRow = (entry: LogEntry) => {
     const disabled = isModelDisabled(entry.source, entry.model);
+    // 将 authIndex 映射为文件名
+    const authDisplayName = entry.authIndex ? (authIndexMap[entry.authIndex] || entry.authIndex) : '-';
 
     return (
       <>
+        <td title={authDisplayName}>
+          {authDisplayName}
+        </td>
         <td title={entry.apiKey}>{maskSecret(entry.apiKey)}</td>
         <td>{entry.providerType}</td>
         <td title={entry.model}>{entry.model}</td>
@@ -440,6 +479,7 @@ export function RequestLogs({ data, loading, providerMap, providerTypeMap, apiFi
                 <table className={`${styles.table} ${styles.virtualTable}`}>
                   <thead>
                     <tr>
+                      <th>{t('monitor.logs.header_auth')}</th>
                       <th>{t('monitor.logs.header_api')}</th>
                       <th>{t('monitor.logs.header_request_type')}</th>
                       <th>{t('monitor.logs.header_model')}</th>
