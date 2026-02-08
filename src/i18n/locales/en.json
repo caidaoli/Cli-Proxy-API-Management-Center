@@ -1296,6 +1296,7 @@
       "header_input": "Input",
       "header_output": "Output",
       "header_total": "Total Tokens",
+      "header_cache": "Cache",
       "header_time": "Time",
       "header_actions": "Actions",
       "showing": "Showing {{start}}-{{end}} of {{total}}",

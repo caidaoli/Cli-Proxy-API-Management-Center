@@ -152,10 +152,7 @@ function isGeminiOAuthSource(source: string): boolean {
  * @param providerMap 渠道映射表
  * @returns 格式化后的显示名称
  */
-export function formatProviderDisplay(
-  source: string,
-  providerMap: Record<string, string>
-): string {
+export function formatProviderDisplay(source: string, providerMap: Record<string, string>): string {
   if (!source || source === '-' || source === 'unknown') {
     return source || '-';
   }
@@ -214,15 +211,39 @@ export function formatTimestamp(timestamp: number | string): string {
 }
 
 /**
+ * 按 K/M 紧凑格式显示 token 数
+ * @param value token 数值
+ * @returns 紧凑格式字符串（如 12.4K、3.2M）
+ */
+export function formatCompactTokenNumber(value: number): string {
+  const num = Number(value);
+  if (!Number.isFinite(num)) {
+    return '0';
+  }
+
+  const abs = Math.abs(num);
+  const trimTrailingZero = (text: string) => text.replace(/\.0$/, '');
+
+  if (abs >= 1_000_000) {
+    const digits = abs >= 10_000_000 ? 0 : 1;
+    return `${trimTrailingZero((num / 1_000_000).toFixed(digits))}M`;
+  }
+
+  if (abs >= 1_000) {
+    const digits = abs >= 10_000 ? 0 : 1;
+    return `${trimTrailingZero((num / 1_000).toFixed(digits))}K`;
+  }
+
+  return Math.round(num).toLocaleString('zh-CN');
+}
+
+/**
  * 获取成功率对应的样式类名
  * @param rate 成功率（0-100）
  * @param styles 样式模块对象
  * @returns 样式类名
  */
-export function getRateClassName(
-  rate: number,
-  styles: Record<string, string>
-): string {
+export function getRateClassName(rate: number, styles: Record<string, string>): string {
   if (rate >= 90) return styles.rateHigh || '';
   if (rate >= 70) return styles.rateMedium || '';
   return styles.rateLow || '';
@@ -342,7 +363,10 @@ export function filterDataByTimeRange(
   Object.entries(data.apis).forEach(([apiKey, apiData]) => {
     if (!apiData?.models) return;
 
-    const filteredModels: Record<string, { details: UsageData['apis'][string]['models'][string]['details'] }> = {};
+    const filteredModels: Record<
+      string,
+      { details: UsageData['apis'][string]['models'][string]['details'] }
+    > = {};
 
     Object.entries(apiData.models).forEach(([modelName, modelData]) => {
       if (!modelData?.details || !Array.isArray(modelData.details)) return;

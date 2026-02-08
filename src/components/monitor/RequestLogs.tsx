@@ -14,6 +14,7 @@ import {
   getRateClassName,
   getProviderDisplayParts,
   buildMonitorTimeRangeParams,
+  formatCompactTokenNumber,
   type DateRange,
 } from '@/utils/monitor';
 import type { UsageData } from '@/pages/MonitorPage';
@@ -40,7 +41,7 @@ interface LogEntry {
   failed: boolean;
   inputTokens: number;
   outputTokens: number;
-  totalTokens: number;
+  cachedTokens: number;
   requestCount: number;
   successRate: number;
   recentRequests: { failed: boolean; timestamp: number }[];
@@ -49,7 +50,13 @@ interface LogEntry {
 
 const ROW_HEIGHT = 40;
 
-export function RequestLogs({ data, loading, providerMap, providerTypeMap, apiFilter }: RequestLogsProps) {
+export function RequestLogs({
+  data,
+  loading,
+  providerMap,
+  providerTypeMap,
+  apiFilter,
+}: RequestLogsProps) {
   const { t } = useTranslation();
   const [filterApi, setFilterApi] = useState('');
   const [filterModel, setFilterModel] = useState('');
@@ -73,7 +80,11 @@ export function RequestLogs({ data, loading, providerMap, providerTypeMap, apiFi
   const [pageSize, setPageSize] = useState(20);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
-  const [filterOptions, setFilterOptions] = useState<{ apis: string[]; models: string[]; sources: string[] }>({
+  const [filterOptions, setFilterOptions] = useState<{
+    apis: string[];
+    models: string[];
+    sources: string[];
+  }>({
     apis: [],
     models: [],
     sources: [],
@@ -106,33 +117,36 @@ export function RequestLogs({ data, loading, providerMap, providerTypeMap, apiFi
     setPage(1);
   }, []);
 
-  const toLogEntry = useCallback((item: MonitorRequestLogItem, index: number): LogEntry => {
-    const source = item.source || 'unknown';
-    const { provider, masked } = getProviderDisplayParts(source, providerMap);
-    const timestampMs = item.timestamp ? new Date(item.timestamp).getTime() : 0;
-    return {
-      id: `${item.timestamp}-${item.api_key}-${item.model}-${index}`,
-      timestamp: item.timestamp,
-      timestampMs,
-      apiKey: item.api_key,
-      model: item.model,
-      source,
-      providerName: provider,
-      providerType: providerTypeMap[source] || '--',
-      maskedKey: masked,
-      failed: item.failed,
-      inputTokens: item.input_tokens || 0,
-      outputTokens: item.output_tokens || 0,
-      totalTokens: item.total_tokens || 0,
-      requestCount: item.request_count || 0,
-      successRate: item.success_rate || 0,
-      recentRequests: (item.recent_requests || []).map((req) => ({
-        failed: !!req.failed,
-        timestamp: req.timestamp ? new Date(req.timestamp).getTime() : 0,
-      })),
-      authIndex: item.auth_index || '',
-    };
-  }, [providerMap, providerTypeMap]);
+  const toLogEntry = useCallback(
+    (item: MonitorRequestLogItem, index: number): LogEntry => {
+      const source = item.source || 'unknown';
+      const { provider, masked } = getProviderDisplayParts(source, providerMap);
+      const timestampMs = item.timestamp ? new Date(item.timestamp).getTime() : 0;
+      return {
+        id: `${item.timestamp}-${item.api_key}-${item.model}-${index}`,
+        timestamp: item.timestamp,
+        timestampMs,
+        apiKey: item.api_key,
+        model: item.model,
+        source,
+        providerName: provider,
+        providerType: providerTypeMap[source] || '--',
+        maskedKey: masked,
+        failed: item.failed,
+        inputTokens: item.input_tokens || 0,
+        outputTokens: item.output_tokens || 0,
+        cachedTokens: item.cached_tokens || 0,
+        requestCount: item.request_count || 0,
+        successRate: item.success_rate || 0,
+        recentRequests: (item.recent_requests || []).map((req) => ({
+          failed: !!req.failed,
+          timestamp: req.timestamp ? new Date(req.timestamp).getTime() : 0,
+        })),
+        authIndex: item.auth_index || '',
+      };
+    },
+    [providerMap, providerTypeMap]
+  );
 
   // 加载认证文件映射（authIndex -> 文件名）
   const loadAuthIndexMap = useCallback(async () => {
@@ -199,7 +213,18 @@ export function RequestLogs({ data, loading, providerMap, providerTypeMap, apiFi
     } finally {
       setLogLoading(false);
     }
-  }, [page, pageSize, filterApi, apiFilter, filterModel, filterSource, filterStatus, timeRange, customRange, toLogEntry]);
+  }, [
+    page,
+    pageSize,
+    filterApi,
+    apiFilter,
+    filterModel,
+    filterSource,
+    filterStatus,
+    timeRange,
+    customRange,
+    toLogEntry,
+  ]);
 
   useEffect(() => {
     fetchLogDataRef.current = fetchLogData;
@@ -291,13 +316,13 @@ export function RequestLogs({ data, loading, providerMap, providerTypeMap, apiFi
   const renderRow = (entry: LogEntry) => {
     const disabled = isModelDisabled(entry.source, entry.model);
     // 将 authIndex 映射为文件名
-    const authDisplayName = entry.authIndex ? (authIndexMap[entry.authIndex] || entry.authIndex) : '-';
+    const authDisplayName = entry.authIndex
+      ? authIndexMap[entry.authIndex] || entry.authIndex
+      : '-';
 
     return (
       <>
-        <td title={authDisplayName}>
-          {authDisplayName}
-        </td>
+        <td title={authDisplayName}>{authDisplayName}</td>
         <td title={entry.apiKey}>{maskSecret(entry.apiKey)}</td>
         <td>{entry.providerType}</td>
         <td title={entry.model}>{entry.model}</td>
@@ -330,9 +355,15 @@ export function RequestLogs({ data, loading, providerMap, providerTypeMap, apiFi
           {entry.successRate.toFixed(1)}%
         </td>
         <td>{formatNumber(entry.requestCount)}</td>
-        <td>{formatNumber(entry.inputTokens)}</td>
-        <td>{formatNumber(entry.outputTokens)}</td>
-        <td>{formatNumber(entry.totalTokens)}</td>
+        <td className={styles.tokenCell} title={formatNumber(entry.inputTokens)}>
+          {formatCompactTokenNumber(entry.inputTokens)}
+        </td>
+        <td className={styles.tokenCell} title={formatNumber(entry.outputTokens)}>
+          {formatCompactTokenNumber(entry.outputTokens)}
+        </td>
+        <td className={styles.tokenCell} title={formatNumber(entry.cachedTokens)}>
+          {formatCompactTokenNumber(entry.cachedTokens)}
+        </td>
         <td>{formatTimestamp(entry.timestamp)}</td>
         <td>
           {entry.source && entry.source !== '-' && entry.source !== 'unknown' ? (
@@ -364,8 +395,12 @@ export function RequestLogs({ data, loading, providerMap, providerTypeMap, apiFi
         title={t('monitor.logs.title')}
         subtitle={
           <span>
-            {formatTimeRangeCaption(timeRange, customRange, t)} · {t('monitor.logs.showing', { start: pageStart, end: pageEnd, total })}
-            <span style={{ color: 'var(--text-tertiary)' }}> · {t('monitor.logs.scroll_hint')}</span>
+            {formatTimeRangeCaption(timeRange, customRange, t)} ·{' '}
+            {t('monitor.logs.showing', { start: pageStart, end: pageEnd, total })}
+            <span style={{ color: 'var(--text-tertiary)' }}>
+              {' '}
+              · {t('monitor.logs.scroll_hint')}
+            </span>
           </span>
         }
         extra={
@@ -387,7 +422,9 @@ export function RequestLogs({ data, loading, providerMap, providerTypeMap, apiFi
           >
             <option value="">{t('monitor.logs.all_apis')}</option>
             {filterOptions.apis.map((api) => (
-              <option key={api} value={api}>{maskSecret(api)}</option>
+              <option key={api} value={api}>
+                {maskSecret(api)}
+              </option>
             ))}
           </select>
           <select
@@ -397,7 +434,9 @@ export function RequestLogs({ data, loading, providerMap, providerTypeMap, apiFi
           >
             <option value="">{t('monitor.logs.all_provider_types')}</option>
             {providerTypes.map((type) => (
-              <option key={type} value={type}>{type}</option>
+              <option key={type} value={type}>
+                {type}
+              </option>
             ))}
           </select>
           <select
@@ -410,7 +449,9 @@ export function RequestLogs({ data, loading, providerMap, providerTypeMap, apiFi
           >
             <option value="">{t('monitor.logs.all_models')}</option>
             {filterOptions.models.map((model) => (
-              <option key={model} value={model}>{model}</option>
+              <option key={model} value={model}>
+                {model}
+              </option>
             ))}
           </select>
           <select
@@ -423,7 +464,9 @@ export function RequestLogs({ data, loading, providerMap, providerTypeMap, apiFi
           >
             <option value="">{t('monitor.logs.all_sources')}</option>
             {filterOptions.sources.map((source) => (
-              <option key={source} value={source}>{formatProviderDisplay(source, providerMap)}</option>
+              <option key={source} value={source}>
+                {formatProviderDisplay(source, providerMap)}
+              </option>
             ))}
           </select>
           <select
@@ -490,7 +533,7 @@ export function RequestLogs({ data, loading, providerMap, providerTypeMap, apiFi
                       <th>{t('monitor.logs.header_count')}</th>
                       <th>{t('monitor.logs.header_input')}</th>
                       <th>{t('monitor.logs.header_output')}</th>
-                      <th>{t('monitor.logs.header_total')}</th>
+                      <th>{t('monitor.logs.header_cache')}</th>
                       <th>{t('monitor.logs.header_time')}</th>
                       <th>{t('monitor.logs.header_actions')}</th>
                     </tr>
@@ -547,16 +590,45 @@ export function RequestLogs({ data, loading, providerMap, providerTypeMap, apiFi
 
         {totalPages > 0 && (
           <div className={styles.pagination}>
-            <button className={styles.pageBtn} onClick={() => goToPage(1)} disabled={page <= 1}>{t('monitor.logs.first_page')}</button>
-            <button className={styles.pageBtn} onClick={() => goToPage(page - 1)} disabled={page <= 1}>{t('monitor.logs.prev_page')}</button>
-            <span className={styles.pageBtn}>{t('monitor.logs.page_info', { current: page, total: totalPages })}</span>
-            <button className={styles.pageBtn} onClick={() => goToPage(page + 1)} disabled={page >= totalPages}>{t('monitor.logs.next_page')}</button>
-            <button className={styles.pageBtn} onClick={() => goToPage(totalPages)} disabled={page >= totalPages}>{t('monitor.logs.last_page')}</button>
+            <button className={styles.pageBtn} onClick={() => goToPage(1)} disabled={page <= 1}>
+              {t('monitor.logs.first_page')}
+            </button>
+            <button
+              className={styles.pageBtn}
+              onClick={() => goToPage(page - 1)}
+              disabled={page <= 1}
+            >
+              {t('monitor.logs.prev_page')}
+            </button>
+            <span className={styles.pageBtn}>
+              {t('monitor.logs.page_info', { current: page, total: totalPages })}
+            </span>
+            <button
+              className={styles.pageBtn}
+              onClick={() => goToPage(page + 1)}
+              disabled={page >= totalPages}
+            >
+              {t('monitor.logs.next_page')}
+            </button>
+            <button
+              className={styles.pageBtn}
+              onClick={() => goToPage(totalPages)}
+              disabled={page >= totalPages}
+            >
+              {t('monitor.logs.last_page')}
+            </button>
           </div>
         )}
 
         {filteredEntries.length > 0 && (
-          <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--text-tertiary)', marginTop: 8 }}>
+          <div
+            style={{
+              textAlign: 'center',
+              fontSize: 12,
+              color: 'var(--text-tertiary)',
+              marginTop: 8,
+            }}
+          >
             {t('monitor.logs.total_count', { count: total })}
           </div>
         )}
@@ -569,10 +641,7 @@ export function RequestLogs({ data, loading, providerMap, providerTypeMap, apiFi
         onCancel={handleCancelDisable}
       />
 
-      <UnsupportedDisableModal
-        state={unsupportedState}
-        onClose={handleCloseUnsupported}
-      />
+      <UnsupportedDisableModal state={unsupportedState} onClose={handleCloseUnsupported} />
     </>
   );
 }
