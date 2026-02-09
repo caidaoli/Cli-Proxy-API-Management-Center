@@ -1,14 +1,15 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Doughnut } from 'react-chartjs-2';
-import type { UsageData } from '@/pages/MonitorPage';
+import type { TimeRange } from '@/pages/MonitorPage';
+import { monitorApi, type MonitorModelDistributionItem } from '@/services/api/monitor';
+import { buildMonitorTimeRangeParams } from '@/utils/monitor';
 import styles from '@/pages/MonitorPage.module.scss';
 
 interface ModelDistributionChartProps {
-  data: UsageData | null;
-  loading: boolean;
+  timeRange: TimeRange;
+  apiFilter: string;
   isDark: boolean;
-  timeRange: number;
 }
 
 // 颜色调色板
@@ -27,73 +28,69 @@ const COLORS = [
 
 type ViewMode = 'request' | 'token';
 
-export function ModelDistributionChart({ data, loading, isDark, timeRange }: ModelDistributionChartProps) {
+export function ModelDistributionChart({ timeRange, apiFilter, isDark }: ModelDistributionChartProps) {
   const { t } = useTranslation();
   const [viewMode, setViewMode] = useState<ViewMode>('request');
+  const [loading, setLoading] = useState(true);
+  const [distributionItems, setDistributionItems] = useState<MonitorModelDistributionItem[]>([]);
 
-  const timeRangeLabel = timeRange === 1
-    ? t('monitor.today')
-    : t('monitor.last_n_days', { n: timeRange });
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
 
-  // 计算模型分布数据
-  const distributionData = useMemo(() => {
-    if (!data?.apis) return [];
+    const params = {
+      sort: viewMode === 'request' ? 'requests' as const : 'tokens' as const,
+      limit: 10,
+      ...buildMonitorTimeRangeParams(timeRange),
+      ...(apiFilter ? { api_filter: apiFilter } : {}),
+    };
 
-    const modelStats: Record<string, { requests: number; tokens: number }> = {};
-
-    Object.values(data.apis).forEach((apiData) => {
-      Object.entries(apiData.models).forEach(([modelName, modelData]) => {
-        if (!modelStats[modelName]) {
-          modelStats[modelName] = { requests: 0, tokens: 0 };
-        }
-        modelData.details.forEach((detail) => {
-          modelStats[modelName].requests++;
-          modelStats[modelName].tokens += detail.tokens.total_tokens || 0;
-        });
-      });
+    monitorApi.getModelDistribution(params).then((data) => {
+      if (!cancelled) {
+        setDistributionItems(data.items || []);
+        setLoading(false);
+      }
+    }).catch((err) => {
+      console.error('Model distribution load failed:', err);
+      if (!cancelled) {
+        setDistributionItems([]);
+        setLoading(false);
+      }
     });
 
-    // 转换为数组并排序
-    const sorted = Object.entries(modelStats)
-      .map(([name, stats]) => ({
-        name,
-        requests: stats.requests,
-        tokens: stats.tokens,
-      }))
-      .sort((a, b) => {
-        if (viewMode === 'request') {
-          return b.requests - a.requests;
-        }
-        return b.tokens - a.tokens;
-      });
+    return () => { cancelled = true; };
+  }, [timeRange, apiFilter, viewMode]);
 
-    // 取 Top 10
-    return sorted.slice(0, 10);
-  }, [data, viewMode]);
+  const timeRangeLabel = (() => {
+    if (timeRange === 'yesterday') return t('monitor.yesterday');
+    if (timeRange === 'dayBeforeYesterday') return t('monitor.day_before_yesterday');
+    if (timeRange === 1) return t('monitor.today');
+    return t('monitor.last_n_days', { n: timeRange });
+  })();
 
   // 计算总数
   const total = useMemo(() => {
-    return distributionData.reduce((sum, item) => {
+    return distributionItems.reduce((sum, item) => {
       return sum + (viewMode === 'request' ? item.requests : item.tokens);
     }, 0);
-  }, [distributionData, viewMode]);
+  }, [distributionItems, viewMode]);
 
   // 图表数据
   const chartData = useMemo(() => {
     return {
-      labels: distributionData.map((item) => item.name),
+      labels: distributionItems.map((item) => item.model),
       datasets: [
         {
-          data: distributionData.map((item) =>
+          data: distributionItems.map((item) =>
             viewMode === 'request' ? item.requests : item.tokens
           ),
-          backgroundColor: COLORS.slice(0, distributionData.length),
+          backgroundColor: COLORS.slice(0, distributionItems.length),
           borderColor: isDark ? '#1f2937' : '#ffffff',
           borderWidth: 2,
         },
       ],
     };
-  }, [distributionData, viewMode, isDark]);
+  }, [distributionItems, viewMode, isDark]);
 
   // 图表配置
   const chartOptions = useMemo(() => ({
@@ -162,7 +159,7 @@ export function ModelDistributionChart({ data, loading, isDark, timeRange }: Mod
         </div>
       </div>
 
-      {loading || distributionData.length === 0 ? (
+      {loading || distributionItems.length === 0 ? (
         <div className={styles.chartContent}>
           <div className={styles.chartEmpty}>
             {loading ? t('common.loading') : t('monitor.no_data')}
@@ -179,17 +176,17 @@ export function ModelDistributionChart({ data, loading, isDark, timeRange }: Mod
             </div>
           </div>
           <div className={styles.legendList}>
-            {distributionData.map((item, index) => {
+            {distributionItems.map((item, index) => {
               const value = viewMode === 'request' ? item.requests : item.tokens;
               const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0';
               return (
-                <div key={item.name} className={styles.legendItem}>
+                <div key={item.model} className={styles.legendItem}>
                   <span
                     className={styles.legendDot}
                     style={{ backgroundColor: COLORS[index] }}
                   />
-                  <span className={styles.legendName} title={item.name}>
-                    {item.name}
+                  <span className={styles.legendName} title={item.model}>
+                    {item.model}
                   </span>
                   <span className={styles.legendValue}>
                     {formatValue(value)} ({percentage}%)

@@ -1,88 +1,59 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Chart } from 'react-chartjs-2';
-import type { UsageData } from '@/pages/MonitorPage';
+import type { TimeRange } from '@/pages/MonitorPage';
+import { monitorApi, type MonitorHourlyTokensData } from '@/services/api/monitor';
+import { buildMonitorTimeRangeParams } from '@/utils/monitor';
 import styles from '@/pages/MonitorPage.module.scss';
 
 interface HourlyTokenChartProps {
-  data: UsageData | null;
-  loading: boolean;
+  timeRange: TimeRange;
+  apiFilter: string;
   isDark: boolean;
 }
 
 type HourRange = 6 | 12 | 24;
 
-export function HourlyTokenChart({ data, loading, isDark }: HourlyTokenChartProps) {
+const EMPTY_DATA: MonitorHourlyTokensData = {
+  hours: [],
+  total_tokens: [],
+  input_tokens: [],
+  output_tokens: [],
+  reasoning_tokens: [],
+  cached_tokens: [],
+};
+
+export function HourlyTokenChart({ timeRange, apiFilter, isDark }: HourlyTokenChartProps) {
   const { t } = useTranslation();
   const [hourRange, setHourRange] = useState<HourRange>(12);
+  const [loading, setLoading] = useState(true);
+  const [hourlyData, setHourlyData] = useState<MonitorHourlyTokensData>(EMPTY_DATA);
 
-  // 按小时聚合 Token 数据
-  const hourlyData = useMemo(() => {
-    if (!data?.apis) return { hours: [], totalTokens: [], inputTokens: [], outputTokens: [], reasoningTokens: [], cachedTokens: [] };
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
 
-    const now = new Date();
-    let cutoffTime: Date;
-    let hoursCount: number;
-
-    cutoffTime = new Date(now.getTime() - hourRange * 60 * 60 * 1000);
-    cutoffTime.setMinutes(0, 0, 0);
-    hoursCount = hourRange + 1;
-
-    // 生成所有小时的时间点
-    const allHours: string[] = [];
-    for (let i = 0; i < hoursCount; i++) {
-      const hourTime = new Date(cutoffTime.getTime() + i * 60 * 60 * 1000);
-      const hourKey = hourTime.toISOString().slice(0, 13); // YYYY-MM-DDTHH
-      allHours.push(hourKey);
-    }
-
-    // 初始化所有小时的数据为0
-    const hourlyStats: Record<string, {
-      total: number;
-      input: number;
-      output: number;
-      reasoning: number;
-      cached: number;
-    }> = {};
-    allHours.forEach((hour) => {
-      hourlyStats[hour] = { total: 0, input: 0, output: 0, reasoning: 0, cached: 0 };
-    });
-
-    // 收集每小时的 Token 数据（只统计成功请求）
-    Object.values(data.apis).forEach((apiData) => {
-      Object.values(apiData.models).forEach((modelData) => {
-        modelData.details.forEach((detail) => {
-          // 跳过失败请求，失败请求的 Token 数据不准确
-          if (detail.failed) return;
-
-          const timestamp = new Date(detail.timestamp);
-          if (timestamp < cutoffTime) return;
-
-          const hourKey = timestamp.toISOString().slice(0, 13); // YYYY-MM-DDTHH
-          if (!hourlyStats[hourKey]) {
-            hourlyStats[hourKey] = { total: 0, input: 0, output: 0, reasoning: 0, cached: 0 };
-          }
-          hourlyStats[hourKey].total += detail.tokens.total_tokens || 0;
-          hourlyStats[hourKey].input += detail.tokens.input_tokens || 0;
-          hourlyStats[hourKey].output += detail.tokens.output_tokens || 0;
-          hourlyStats[hourKey].reasoning += detail.tokens.reasoning_tokens || 0;
-          hourlyStats[hourKey].cached += detail.tokens.cached_tokens || 0;
-        });
-      });
-    });
-
-    // 获取排序后的小时列表
-    const hours = allHours.sort();
-
-    return {
-      hours,
-      totalTokens: hours.map((h) => (hourlyStats[h]?.total || 0) / 1000),
-      inputTokens: hours.map((h) => (hourlyStats[h]?.input || 0) / 1000),
-      outputTokens: hours.map((h) => (hourlyStats[h]?.output || 0) / 1000),
-      reasoningTokens: hours.map((h) => (hourlyStats[h]?.reasoning || 0) / 1000),
-      cachedTokens: hours.map((h) => (hourlyStats[h]?.cached || 0) / 1000),
+    const params = {
+      hours: hourRange,
+      ...buildMonitorTimeRangeParams(timeRange),
+      ...(apiFilter ? { api_filter: apiFilter } : {}),
     };
-  }, [data, hourRange]);
+
+    monitorApi.getHourlyTokens(params).then((data) => {
+      if (!cancelled) {
+        setHourlyData(data);
+        setLoading(false);
+      }
+    }).catch((err) => {
+      console.error('Hourly tokens load failed:', err);
+      if (!cancelled) {
+        setHourlyData(EMPTY_DATA);
+        setLoading(false);
+      }
+    });
+
+    return () => { cancelled = true; };
+  }, [timeRange, apiFilter, hourRange]);
 
   // 获取时间范围标签
   const hourRangeLabel = useMemo(() => {
@@ -91,10 +62,10 @@ export function HourlyTokenChart({ data, loading, isDark }: HourlyTokenChartProp
     return t('monitor.hourly.last_24h');
   }, [hourRange, t]);
 
-  // 图表数据
+  // 图表数据 - 服务端返回原始 token 数，前端 /1000 转为 K
   const chartData = useMemo(() => {
     const labels = hourlyData.hours.map((hour) => {
-      const date = new Date(hour + ':00:00Z'); // 添加 Z 表示 UTC 时间，确保正确转换为本地时间显示
+      const date = new Date(hour + ':00:00Z');
       return `${date.getHours()}:00`;
     });
 
@@ -104,7 +75,7 @@ export function HourlyTokenChart({ data, loading, isDark }: HourlyTokenChartProp
         {
           type: 'line' as const,
           label: t('monitor.hourly_token.input'),
-          data: hourlyData.inputTokens,
+          data: hourlyData.input_tokens.map((v) => v / 1000),
           borderColor: '#22c55e',
           backgroundColor: '#22c55e',
           borderWidth: 2,
@@ -117,7 +88,7 @@ export function HourlyTokenChart({ data, loading, isDark }: HourlyTokenChartProp
         {
           type: 'line' as const,
           label: t('monitor.hourly_token.output'),
-          data: hourlyData.outputTokens,
+          data: hourlyData.output_tokens.map((v) => v / 1000),
           borderColor: '#f97316',
           backgroundColor: '#f97316',
           borderWidth: 2,
@@ -130,7 +101,7 @@ export function HourlyTokenChart({ data, loading, isDark }: HourlyTokenChartProp
         {
           type: 'bar' as const,
           label: t('monitor.hourly_token.total'),
-          data: hourlyData.totalTokens,
+          data: hourlyData.total_tokens.map((v) => v / 1000),
           backgroundColor: 'rgba(59, 130, 246, 0.6)',
           borderColor: 'rgba(59, 130, 246, 0.6)',
           borderWidth: 1,

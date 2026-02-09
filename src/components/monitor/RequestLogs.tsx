@@ -17,11 +17,10 @@ import {
   formatCompactTokenNumber,
   type DateRange,
 } from '@/utils/monitor';
-import type { UsageData } from '@/pages/MonitorPage';
 import styles from '@/pages/MonitorPage.module.scss';
 
 interface RequestLogsProps {
-  data: UsageData | null;
+  refreshKey: number;
   loading: boolean;
   providerMap: Record<string, string>;
   providerTypeMap: Record<string, string>;
@@ -51,7 +50,7 @@ interface LogEntry {
 const ROW_HEIGHT = 40;
 
 export function RequestLogs({
-  data,
+  refreshKey,
   loading,
   providerMap,
   providerTypeMap,
@@ -195,11 +194,11 @@ export function RequestLogs({
       setLogEntries(items);
       setTotal(response.total || 0);
       setTotalPages(response.total_pages || 0);
-      setFilterOptions({
-        apis: response.filters?.apis || [],
-        models: response.filters?.models || [],
-        sources: response.filters?.sources || [],
-      });
+      setFilterOptions((prev) => ({
+        apis: filterApi ? prev.apis : (response.filters?.apis || []),
+        models: filterModel ? prev.models : (response.filters?.models || []),
+        sources: filterSource ? prev.sources : (response.filters?.sources || []),
+      }));
 
       const safePage = response.page || page;
       if (safePage !== page) {
@@ -263,7 +262,7 @@ export function RequestLogs({
 
   useEffect(() => {
     fetchLogData();
-  }, [fetchLogData, data]);
+  }, [fetchLogData, refreshKey]);
 
   const providerTypes = useMemo(() => {
     const typeSet = new Set<string>();

@@ -12,11 +12,10 @@ import {
   buildMonitorTimeRangeParams,
   type DateRange,
 } from '@/utils/monitor';
-import type { UsageData } from '@/pages/MonitorPage';
 import styles from '@/pages/MonitorPage.module.scss';
 
 interface ChannelStatsProps {
-  data: UsageData | null;
+  refreshKey: number;
   loading: boolean;
   providerMap: Record<string, string>;
   providerModels: Record<string, Set<string>>;
@@ -50,7 +49,7 @@ interface ChannelFilterOption {
   label: string;
 }
 
-export function ChannelStats({ data, loading, providerMap, providerModels }: ChannelStatsProps) {
+export function ChannelStats({ refreshKey, loading, providerMap, providerModels }: ChannelStatsProps) {
   const { t } = useTranslation();
   const [expandedChannel, setExpandedChannel] = useState<string | null>(null);
   const [filterChannel, setFilterChannel] = useState('');
@@ -163,7 +162,7 @@ export function ChannelStats({ data, loading, providerMap, providerModels }: Cha
 
   useEffect(() => {
     loadChannelStats();
-  }, [loadChannelStats, data]);
+  }, [loadChannelStats, refreshKey]);
 
   const filteredStats = useMemo(() => {
     return channelStats.filter((stat) => {

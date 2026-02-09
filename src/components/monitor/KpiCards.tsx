@@ -1,12 +1,14 @@
-import { useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { UsageData } from '@/pages/MonitorPage';
+import type { TimeRange } from '@/pages/MonitorPage';
+import { monitorApi, type MonitorKpiData } from '@/services/api/monitor';
+import { buildMonitorTimeRangeParams } from '@/utils/monitor';
 import styles from '@/pages/MonitorPage.module.scss';
 
 interface KpiCardsProps {
-  data: UsageData | null;
-  loading: boolean;
-  timeRange: number;
+  timeRange: TimeRange;
+  apiFilter: string;
+  isDark?: boolean;
 }
 
 // 格式化数字
@@ -23,98 +25,57 @@ function formatNumber(num: number): string {
   return num.toLocaleString();
 }
 
-export function KpiCards({ data, loading, timeRange }: KpiCardsProps) {
+export function KpiCards({ timeRange, apiFilter }: KpiCardsProps) {
   const { t } = useTranslation();
+  const [loading, setLoading] = useState(true);
+  const [kpiData, setKpiData] = useState<MonitorKpiData | null>(null);
 
-  // 计算统计数据
-  const stats = useMemo(() => {
-    if (!data?.apis) {
-      return {
-        totalRequests: 0,
-        successRequests: 0,
-        failedRequests: 0,
-        successRate: 0,
-        totalTokens: 0,
-        inputTokens: 0,
-        outputTokens: 0,
-        reasoningTokens: 0,
-        cachedTokens: 0,
-        avgTpm: 0,
-        avgRpm: 0,
-        avgRpd: 0,
-      };
-    }
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
 
-    let totalRequests = 0;
-    let successRequests = 0;
-    let failedRequests = 0;
-    let totalTokens = 0;
-    let inputTokens = 0;
-    let outputTokens = 0;
-    let reasoningTokens = 0;
-    let cachedTokens = 0;
+    const params = {
+      ...buildMonitorTimeRangeParams(timeRange),
+      ...(apiFilter ? { api_filter: apiFilter } : {}),
+    };
 
-    // 收集所有时间戳用于计算 TPM/RPM
-    const timestamps: number[] = [];
-
-    Object.values(data.apis).forEach((apiData) => {
-      Object.values(apiData.models).forEach((modelData) => {
-        modelData.details.forEach((detail) => {
-          totalRequests++;
-          if (detail.failed) {
-            failedRequests++;
-          } else {
-            successRequests++;
-          }
-
-          totalTokens += detail.tokens.total_tokens || 0;
-          inputTokens += detail.tokens.input_tokens || 0;
-          outputTokens += detail.tokens.output_tokens || 0;
-          reasoningTokens += detail.tokens.reasoning_tokens || 0;
-          cachedTokens += detail.tokens.cached_tokens || 0;
-
-          timestamps.push(new Date(detail.timestamp).getTime());
-        });
-      });
+    monitorApi.getKpi(params).then((data) => {
+      if (!cancelled) {
+        setKpiData(data);
+        setLoading(false);
+      }
+    }).catch((err) => {
+      console.error('KPI data load failed:', err);
+      if (!cancelled) {
+        setKpiData(null);
+        setLoading(false);
+      }
     });
 
-    const successRate = totalRequests > 0 ? (successRequests / totalRequests) * 100 : 0;
+    return () => { cancelled = true; };
+  }, [timeRange, apiFilter]);
 
-    // 计算 TPM 和 RPM（基于实际时间跨度）
-    let avgTpm = 0;
-    let avgRpm = 0;
-    let avgRpd = 0;
+  const timeRangeLabel = (() => {
+    if (timeRange === 'yesterday') return t('monitor.yesterday');
+    if (timeRange === 'dayBeforeYesterday') return t('monitor.day_before_yesterday');
+    if (timeRange === 1) return t('monitor.today');
+    return t('monitor.last_n_days', { n: timeRange });
+  })();
 
-    if (timestamps.length > 0) {
-      const minTime = Math.min(...timestamps);
-      const maxTime = Math.max(...timestamps);
-      const timeSpanMinutes = Math.max((maxTime - minTime) / (1000 * 60), 1);
-      const timeSpanDays = Math.max(timeSpanMinutes / (60 * 24), 1);
-
-      avgTpm = Math.round(totalTokens / timeSpanMinutes);
-      avgRpm = Math.round(totalRequests / timeSpanMinutes * 10) / 10;
-      avgRpd = Math.round(totalRequests / timeSpanDays);
-    }
-
-    return {
-      totalRequests,
-      successRequests,
-      failedRequests,
-      successRate,
-      totalTokens,
-      inputTokens,
-      outputTokens,
-      reasoningTokens,
-      cachedTokens,
-      avgTpm,
-      avgRpm,
-      avgRpd,
-    };
-  }, [data]);
-
-  const timeRangeLabel = timeRange === 1
-    ? t('monitor.today')
-    : t('monitor.last_n_days', { n: timeRange });
+  const stats = kpiData ?? {
+    total_requests: 0,
+    success_requests: 0,
+    failed_requests: 0,
+    success_rate: 0,
+    total_tokens: 0,
+    input_tokens: 0,
+    output_tokens: 0,
+    reasoning_tokens: 0,
+    cached_tokens: 0,
+    avg_tpm: 0,
+    avg_rpm: 0,
+    avg_rpd: 0,
+  };
 
   return (
     <div className={styles.kpiGrid}>
@@ -125,17 +86,17 @@ export function KpiCards({ data, loading, timeRange }: KpiCardsProps) {
           <span className={styles.kpiTag}>{timeRangeLabel}</span>
         </div>
         <div className={styles.kpiValue}>
-          {loading ? '--' : formatNumber(stats.totalRequests)}
+          {loading ? '--' : formatNumber(stats.total_requests)}
         </div>
         <div className={styles.kpiMeta}>
           <span className={styles.kpiSuccess}>
-            {t('monitor.kpi.success')}: {loading ? '--' : stats.successRequests.toLocaleString()}
+            {t('monitor.kpi.success')}: {loading ? '--' : stats.success_requests.toLocaleString()}
           </span>
           <span className={styles.kpiFailure}>
-            {t('monitor.kpi.failed')}: {loading ? '--' : stats.failedRequests.toLocaleString()}
+            {t('monitor.kpi.failed')}: {loading ? '--' : stats.failed_requests.toLocaleString()}
           </span>
           <span>
-            {t('monitor.kpi.rate')}: {loading ? '--' : stats.successRate.toFixed(1)}%
+            {t('monitor.kpi.rate')}: {loading ? '--' : stats.success_rate.toFixed(1)}%
           </span>
         </div>
       </div>
@@ -147,11 +108,11 @@ export function KpiCards({ data, loading, timeRange }: KpiCardsProps) {
           <span className={styles.kpiTag}>{timeRangeLabel}</span>
         </div>
         <div className={styles.kpiValue}>
-          {loading ? '--' : formatNumber(stats.totalTokens)}
+          {loading ? '--' : formatNumber(stats.total_tokens)}
         </div>
         <div className={styles.kpiMeta}>
-          <span>{t('monitor.kpi.input')}: {loading ? '--' : formatNumber(stats.inputTokens)}</span>
-          <span>{t('monitor.kpi.output')}: {loading ? '--' : formatNumber(stats.outputTokens)}</span>
+          <span>{t('monitor.kpi.input')}: {loading ? '--' : formatNumber(stats.input_tokens)}</span>
+          <span>{t('monitor.kpi.output')}: {loading ? '--' : formatNumber(stats.output_tokens)}</span>
         </div>
       </div>
 
@@ -162,7 +123,7 @@ export function KpiCards({ data, loading, timeRange }: KpiCardsProps) {
           <span className={styles.kpiTag}>{timeRangeLabel}</span>
         </div>
         <div className={styles.kpiValue}>
-          {loading ? '--' : formatNumber(stats.avgTpm)}
+          {loading ? '--' : formatNumber(stats.avg_tpm)}
         </div>
         <div className={styles.kpiMeta}>
           <span>{t('monitor.kpi.tokens_per_minute')}</span>
@@ -176,7 +137,7 @@ export function KpiCards({ data, loading, timeRange }: KpiCardsProps) {
           <span className={styles.kpiTag}>{timeRangeLabel}</span>
         </div>
         <div className={styles.kpiValue}>
-          {loading ? '--' : stats.avgRpm.toFixed(1)}
+          {loading ? '--' : stats.avg_rpm.toFixed(1)}
         </div>
         <div className={styles.kpiMeta}>
           <span>{t('monitor.kpi.requests_per_minute')}</span>
@@ -190,7 +151,7 @@ export function KpiCards({ data, loading, timeRange }: KpiCardsProps) {
           <span className={styles.kpiTag}>{timeRangeLabel}</span>
         </div>
         <div className={styles.kpiValue}>
-          {loading ? '--' : formatNumber(stats.avgRpd)}
+          {loading ? '--' : formatNumber(stats.avg_rpd)}
         </div>
         <div className={styles.kpiMeta}>
           <span>{t('monitor.kpi.requests_per_day')}</span>

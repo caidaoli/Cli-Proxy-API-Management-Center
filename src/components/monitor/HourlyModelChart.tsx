@@ -1,12 +1,14 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Chart } from 'react-chartjs-2';
-import type { UsageData } from '@/pages/MonitorPage';
+import type { TimeRange } from '@/pages/MonitorPage';
+import { monitorApi, type MonitorHourlyModelsData } from '@/services/api/monitor';
+import { buildMonitorTimeRangeParams } from '@/utils/monitor';
 import styles from '@/pages/MonitorPage.module.scss';
 
 interface HourlyModelChartProps {
-  data: UsageData | null;
-  loading: boolean;
+  timeRange: TimeRange;
+  apiFilter: string;
   isDark: boolean;
 }
 
@@ -22,100 +24,45 @@ const COLORS = [
 
 type HourRange = 6 | 12 | 24;
 
-export function HourlyModelChart({ data, loading, isDark }: HourlyModelChartProps) {
+const EMPTY_DATA: MonitorHourlyModelsData = {
+  hours: [],
+  models: [],
+  model_data: {},
+  success_rates: [],
+};
+
+export function HourlyModelChart({ timeRange, apiFilter, isDark }: HourlyModelChartProps) {
   const { t } = useTranslation();
   const [hourRange, setHourRange] = useState<HourRange>(12);
+  const [loading, setLoading] = useState(true);
+  const [hourlyData, setHourlyData] = useState<MonitorHourlyModelsData>(EMPTY_DATA);
 
-  // 按小时聚合数据
-  const hourlyData = useMemo(() => {
-    if (!data?.apis) return { hours: [], models: [], modelData: {} as Record<string, number[]>, successRates: [] };
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
 
-    const now = new Date();
-    let cutoffTime: Date;
-    let hoursCount: number;
+    const params = {
+      hours: hourRange,
+      limit: 6,
+      ...buildMonitorTimeRangeParams(timeRange),
+      ...(apiFilter ? { api_filter: apiFilter } : {}),
+    };
 
-    cutoffTime = new Date(now.getTime() - hourRange * 60 * 60 * 1000);
-    cutoffTime.setMinutes(0, 0, 0);
-    hoursCount = hourRange + 1;
-
-    // 生成所有小时的时间点
-    const allHours: string[] = [];
-    for (let i = 0; i < hoursCount; i++) {
-      const hourTime = new Date(cutoffTime.getTime() + i * 60 * 60 * 1000);
-      const hourKey = hourTime.toISOString().slice(0, 13); // YYYY-MM-DDTHH
-      allHours.push(hourKey);
-    }
-
-    // 收集每小时每个模型的请求数
-    const hourlyStats: Record<string, Record<string, { success: number; failed: number }>> = {};
-    const modelSet = new Set<string>();
-
-    // 初始化所有小时
-    allHours.forEach((hour) => {
-      hourlyStats[hour] = {};
+    monitorApi.getHourlyModels(params).then((data) => {
+      if (!cancelled) {
+        setHourlyData(data);
+        setLoading(false);
+      }
+    }).catch((err) => {
+      console.error('Hourly models load failed:', err);
+      if (!cancelled) {
+        setHourlyData(EMPTY_DATA);
+        setLoading(false);
+      }
     });
 
-    Object.values(data.apis).forEach((apiData) => {
-      Object.entries(apiData.models).forEach(([modelName, modelData]) => {
-        modelSet.add(modelName);
-        modelData.details.forEach((detail) => {
-          const timestamp = new Date(detail.timestamp);
-          if (timestamp < cutoffTime) return;
-
-          const hourKey = timestamp.toISOString().slice(0, 13); // YYYY-MM-DDTHH
-          if (!hourlyStats[hourKey]) {
-            hourlyStats[hourKey] = {};
-          }
-          if (!hourlyStats[hourKey][modelName]) {
-            hourlyStats[hourKey][modelName] = { success: 0, failed: 0 };
-          }
-          if (detail.failed) {
-            hourlyStats[hourKey][modelName].failed++;
-          } else {
-            hourlyStats[hourKey][modelName].success++;
-          }
-        });
-      });
-    });
-
-    // 获取排序后的小时列表
-    const hours = allHours.sort();
-
-    // 计算每个模型的总请求数，取 Top 6
-    const modelTotals: Record<string, number> = {};
-    hours.forEach((hour) => {
-      Object.entries(hourlyStats[hour]).forEach(([model, stats]) => {
-        modelTotals[model] = (modelTotals[model] || 0) + stats.success + stats.failed;
-      });
-    });
-
-    const topModels = Object.entries(modelTotals)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 6)
-      .map(([name]) => name);
-
-    // 构建每个模型的数据数组
-    const modelData: Record<string, number[]> = {};
-    topModels.forEach((model) => {
-      modelData[model] = hours.map((hour) => {
-        const stats = hourlyStats[hour][model];
-        return stats ? stats.success + stats.failed : 0;
-      });
-    });
-
-    // 计算每小时的成功率
-    const successRates = hours.map((hour) => {
-      let totalSuccess = 0;
-      let totalRequests = 0;
-      Object.values(hourlyStats[hour]).forEach((stats) => {
-        totalSuccess += stats.success;
-        totalRequests += stats.success + stats.failed;
-      });
-      return totalRequests > 0 ? (totalSuccess / totalRequests) * 100 : 0;
-    });
-
-    return { hours, models: topModels, modelData, successRates };
-  }, [data, hourRange]);
+    return () => { cancelled = true; };
+  }, [timeRange, apiFilter, hourRange]);
 
   // 获取时间范围标签
   const hourRangeLabel = useMemo(() => {
@@ -127,7 +74,7 @@ export function HourlyModelChart({ data, loading, isDark }: HourlyModelChartProp
   // 图表数据
   const chartData = useMemo(() => {
     const labels = hourlyData.hours.map((hour) => {
-      const date = new Date(hour + ':00:00Z'); // 添加 Z 表示 UTC 时间，确保正确转换为本地时间显示
+      const date = new Date(hour + ':00:00Z');
       return `${date.getHours()}:00`;
     });
 
@@ -135,7 +82,7 @@ export function HourlyModelChart({ data, loading, isDark }: HourlyModelChartProp
     const datasets: any[] = [{
       type: 'line' as const,
       label: t('monitor.hourly.success_rate'),
-      data: hourlyData.successRates,
+      data: hourlyData.success_rates,
       borderColor: '#4ef0c3',
       backgroundColor: '#4ef0c3',
       borderWidth: 2.5,
@@ -152,7 +99,7 @@ export function HourlyModelChart({ data, loading, isDark }: HourlyModelChartProp
       datasets.push({
         type: 'bar' as const,
         label: model,
-        data: hourlyData.modelData[model],
+        data: hourlyData.model_data[model] || [],
         backgroundColor: COLORS[index % COLORS.length],
         borderColor: COLORS[index % COLORS.length],
         borderWidth: 1,

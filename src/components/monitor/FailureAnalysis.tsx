@@ -12,11 +12,10 @@ import {
   buildMonitorTimeRangeParams,
   type DateRange,
 } from '@/utils/monitor';
-import type { UsageData } from '@/pages/MonitorPage';
 import styles from '@/pages/MonitorPage.module.scss';
 
 interface FailureAnalysisProps {
-  data: UsageData | null;
+  refreshKey: number;
   loading: boolean;
   providerMap: Record<string, string>;
   providerModels: Record<string, Set<string>>;
@@ -46,7 +45,7 @@ interface ChannelFilterOption {
   label: string;
 }
 
-export function FailureAnalysis({ data, loading, providerMap, providerModels }: FailureAnalysisProps) {
+export function FailureAnalysis({ refreshKey, loading, providerMap, providerModels }: FailureAnalysisProps) {
   const { t } = useTranslation();
   const [expandedChannel, setExpandedChannel] = useState<string | null>(null);
   const [filterChannel, setFilterChannel] = useState('');
@@ -150,7 +149,7 @@ export function FailureAnalysis({ data, loading, providerMap, providerModels }: 
 
   useEffect(() => {
     loadFailureAnalysis();
-  }, [loadFailureAnalysis, data]);
+  }, [loadFailureAnalysis, refreshKey]);
 
   const filteredStats = useMemo(() => {
     return failureStats.filter((stat) => {

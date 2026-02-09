@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Chart as ChartJS,
@@ -19,7 +19,7 @@ import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useHeaderRefresh } from '@/hooks/useHeaderRefresh';
 import { useThemeStore } from '@/stores';
-import { usageApi, providersApi, authFilesApi } from '@/services/api';
+import { providersApi, authFilesApi } from '@/services/api';
 import { KpiCards } from '@/components/monitor/KpiCards';
 import { ModelDistributionChart } from '@/components/monitor/ModelDistributionChart';
 import { DailyTrendChart } from '@/components/monitor/DailyTrendChart';
@@ -47,29 +47,7 @@ ChartJS.register(
 );
 
 // 时间范围选项
-type TimeRange = 'yesterday' | 'dayBeforeYesterday' | 1 | 7 | 14 | 30;
-
-export interface UsageDetail {
-  timestamp: string;
-  failed: boolean;
-  source: string;
-  auth_index: string;
-  tokens: {
-    input_tokens: number;
-    output_tokens: number;
-    reasoning_tokens: number;
-    cached_tokens: number;
-    total_tokens: number;
-  };
-}
-
-export interface UsageData {
-  apis: Record<string, {
-    models: Record<string, {
-      details: UsageDetail[];
-    }>;
-  }>;
-}
+export type TimeRange = 'yesterday' | 'dayBeforeYesterday' | 1 | 7 | 14 | 30;
 
 export function MonitorPage() {
   const { t } = useTranslation();
@@ -79,9 +57,9 @@ export function MonitorPage() {
   // 状态
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [usageData, setUsageData] = useState<UsageData | null>(null);
   const [timeRange, setTimeRange] = useState<TimeRange>(7);
   const [apiFilter, setApiFilter] = useState('');
+  const [refreshKey, setRefreshKey] = useState(0);
   const [providerMap, setProviderMap] = useState<Record<string, string>>({});
   const [providerModels, setProviderModels] = useState<Record<string, Set<string>>>({});
   const [providerTypeMap, setProviderTypeMap] = useState<Record<string, string>>({});
@@ -227,14 +205,8 @@ export function MonitorPage() {
     setLoading(true);
     setError(null);
     try {
-      // 并行加载使用数据和渠道映射
-      const [response] = await Promise.all([
-        usageApi.getUsage(),
-        loadProviderMap()
-      ]);
-      // API 返回的数据可能在 response.usage 或直接在 response 中
-      const data = response?.usage ?? response;
-      setUsageData(data as UsageData);
+      await loadProviderMap();
+      setRefreshKey((k) => k + 1);
     } catch (err) {
       const message = err instanceof Error ? err.message : t('common.unknown_error');
       console.error('Monitor: Error loading data:', err);
@@ -252,101 +224,19 @@ export function MonitorPage() {
   // 响应头部刷新
   useHeaderRefresh(loadData);
 
-  // 根据时间范围过滤数据
-  const filteredData = useMemo(() => {
-    if (!usageData?.apis) {
-      return null;
-    }
-
-    const now = new Date();
-    let startTime: Date;
-    let endTime: Date | null = null;
-
-    if (timeRange === 'yesterday') {
-      // 昨天: 昨天 00:00 到 昨天 23:59:59
-      startTime = new Date(now);
-      startTime.setDate(startTime.getDate() - 1);
-      startTime.setHours(0, 0, 0, 0);
-      endTime = new Date(startTime);
-      endTime.setHours(23, 59, 59, 999);
-    } else if (timeRange === 'dayBeforeYesterday') {
-      // 前天: 前天 00:00 到 前天 23:59:59
-      startTime = new Date(now);
-      startTime.setDate(startTime.getDate() - 2);
-      startTime.setHours(0, 0, 0, 0);
-      endTime = new Date(startTime);
-      endTime.setHours(23, 59, 59, 999);
-    } else {
-      // timeRange=1 表示"今天"，应该从今天 00:00 开始
-      // timeRange=7 表示"最近7天"，应该从 6 天前的 00:00 开始（包含今天共7天）
-      const daysBack = timeRange - 1;
-      startTime = new Date(now.getTime() - daysBack * 24 * 60 * 60 * 1000);
-      startTime.setHours(0, 0, 0, 0);
-    }
-
-    const filtered: UsageData = { apis: {} };
-
-    Object.entries(usageData.apis).forEach(([apiKey, apiData]) => {
-      // 如果有 API 过滤器，检查是否匹配
-      if (apiFilter && !apiKey.toLowerCase().includes(apiFilter.toLowerCase())) {
-        return;
-      }
-
-      // 检查 apiData 是否有 models 属性
-      if (!apiData?.models) {
-        return;
-      }
-
-      const filteredModels: Record<string, { details: UsageDetail[] }> = {};
-
-      Object.entries(apiData.models).forEach(([modelName, modelData]) => {
-        // 检查 modelData 是否有 details 属性
-        if (!modelData?.details || !Array.isArray(modelData.details)) {
-          return;
-        }
-
-        const filteredDetails = modelData.details.filter((detail) => {
-          const timestamp = new Date(detail.timestamp);
-          if (endTime) {
-            return timestamp >= startTime && timestamp <= endTime;
-          }
-          return timestamp >= startTime;
-        });
-
-        if (filteredDetails.length > 0) {
-          filteredModels[modelName] = { details: filteredDetails };
-        }
-      });
-
-      if (Object.keys(filteredModels).length > 0) {
-        filtered.apis[apiKey] = { models: filteredModels };
-      }
-    });
-
-    return filtered;
-  }, [usageData, timeRange, apiFilter]);
-
   // 处理时间范围变化
   const handleTimeRangeChange = (range: TimeRange) => {
     setTimeRange(range);
   };
 
-  // 将 TimeRange 转换为数字（用于子组件显示）
-  const getNumericTimeRange = (range: TimeRange): number => {
-    if (range === 'yesterday' || range === 'dayBeforeYesterday') {
-      return 1;
-    }
-    return range;
-  };
-
   // 处理 API 过滤应用（触发数据刷新）
   const handleApiFilterApply = () => {
-    loadData();
+    setRefreshKey((k) => k + 1);
   };
 
   return (
     <div className={styles.container}>
-      {loading && !usageData && (
+      {loading && refreshKey === 0 && (
         <div className={styles.loadingOverlay} aria-busy="true">
           <div className={styles.loadingOverlayContent}>
             <LoadingSpinner size={28} className={styles.loadingOverlaySpinner} />
@@ -417,27 +307,27 @@ export function MonitorPage() {
       </div>
 
       {/* KPI 卡片 */}
-      <KpiCards data={filteredData} loading={loading} timeRange={getNumericTimeRange(timeRange)} />
+      <KpiCards timeRange={timeRange} apiFilter={apiFilter} />
 
       {/* 图表区域 */}
       <div className={styles.chartsGrid}>
-        <ModelDistributionChart data={filteredData} loading={loading} isDark={isDark} timeRange={getNumericTimeRange(timeRange)} />
-        <DailyTrendChart data={filteredData} loading={loading} isDark={isDark} timeRange={getNumericTimeRange(timeRange)} />
+        <ModelDistributionChart timeRange={timeRange} apiFilter={apiFilter} isDark={isDark} />
+        <DailyTrendChart timeRange={timeRange} apiFilter={apiFilter} isDark={isDark} />
       </div>
 
       {/* 小时级图表 */}
-      <HourlyModelChart data={filteredData} loading={loading} isDark={isDark} />
-      <HourlyTokenChart data={filteredData} loading={loading} isDark={isDark} />
+      <HourlyModelChart timeRange={timeRange} apiFilter={apiFilter} isDark={isDark} />
+      <HourlyTokenChart timeRange={timeRange} apiFilter={apiFilter} isDark={isDark} />
 
       {/* 统计表格 */}
       <div className={styles.statsGrid}>
-        <ChannelStats data={usageData} loading={loading} providerMap={providerMap} providerModels={providerModels} />
-        <FailureAnalysis data={usageData} loading={loading} providerMap={providerMap} providerModels={providerModels} />
+        <ChannelStats refreshKey={refreshKey} loading={loading} providerMap={providerMap} providerModels={providerModels} />
+        <FailureAnalysis refreshKey={refreshKey} loading={loading} providerMap={providerMap} providerModels={providerModels} />
       </div>
 
       {/* 请求日志 */}
       <RequestLogs
-        data={filteredData}
+        refreshKey={refreshKey}
         loading={loading}
         providerMap={providerMap}
         providerTypeMap={providerTypeMap}

@@ -10,6 +10,7 @@ export interface MonitorTimeRangeQuery {
   time_range?: string;
   start_time?: string;
   end_time?: string;
+  api_filter?: string;
 }
 
 export interface MonitorFilterOptions {
@@ -128,6 +129,54 @@ export interface MonitorFailureAnalysisResponse {
   };
 }
 
+export interface MonitorKpiData {
+  total_requests: number;
+  success_requests: number;
+  failed_requests: number;
+  success_rate: number;
+  total_tokens: number;
+  input_tokens: number;
+  output_tokens: number;
+  reasoning_tokens: number;
+  cached_tokens: number;
+  avg_tpm: number;
+  avg_rpm: number;
+  avg_rpd: number;
+}
+
+export interface MonitorModelDistributionItem {
+  model: string;
+  requests: number;
+  tokens: number;
+}
+
+export interface MonitorDailyTrendItem {
+  date: string;
+  requests: number;
+  success_requests: number;
+  failed_requests: number;
+  input_tokens: number;
+  output_tokens: number;
+  reasoning_tokens: number;
+  cached_tokens: number;
+}
+
+export interface MonitorHourlyModelsData {
+  hours: string[];
+  models: string[];
+  model_data: Record<string, number[]>;
+  success_rates: number[];
+}
+
+export interface MonitorHourlyTokensData {
+  hours: string[];
+  total_tokens: number[];
+  input_tokens: number[];
+  output_tokens: number[];
+  reasoning_tokens: number[];
+  cached_tokens: number[];
+}
+
 export const monitorApi = {
   getRequestLogs: (params: MonitorRequestLogsQuery = {}) =>
     apiClient.get<MonitorRequestLogsResponse>('/custom/monitor/request-logs', {
@@ -146,4 +195,19 @@ export const monitorApi = {
       params,
       timeout: MONITOR_TIMEOUT_MS,
     }),
+
+  getKpi: (params: MonitorTimeRangeQuery = {}) =>
+    apiClient.get<MonitorKpiData>('/custom/monitor/kpi', { params, timeout: MONITOR_TIMEOUT_MS }),
+
+  getModelDistribution: (params: MonitorTimeRangeQuery & { sort?: 'requests' | 'tokens'; limit?: number } = {}) =>
+    apiClient.get<{ items: MonitorModelDistributionItem[] }>('/custom/monitor/model-distribution', { params, timeout: MONITOR_TIMEOUT_MS }),
+
+  getDailyTrend: (params: MonitorTimeRangeQuery = {}) =>
+    apiClient.get<{ items: MonitorDailyTrendItem[] }>('/custom/monitor/daily-trend', { params, timeout: MONITOR_TIMEOUT_MS }),
+
+  getHourlyModels: (params: MonitorTimeRangeQuery & { hours?: number; limit?: number } = {}) =>
+    apiClient.get<MonitorHourlyModelsData>('/custom/monitor/hourly-models', { params, timeout: MONITOR_TIMEOUT_MS }),
+
+  getHourlyTokens: (params: MonitorTimeRangeQuery & { hours?: number } = {}) =>
+    apiClient.get<MonitorHourlyTokensData>('/custom/monitor/hourly-tokens', { params, timeout: MONITOR_TIMEOUT_MS }),
 };

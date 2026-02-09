@@ -2,7 +2,7 @@
  * 监控中心公共工具函数
  */
 
-import type { UsageData } from '@/pages/MonitorPage';
+import type { MonitorTimeRangeQuery } from '@/services/api/monitor';
 
 /**
  * 日期范围接口
@@ -23,7 +23,7 @@ export type MonitorQueryRange = number | 'yesterday' | 'dayBeforeYesterday' | 'c
 export function buildMonitorTimeRangeParams(
   range: MonitorQueryRange,
   customRange?: DateRange
-): Record<string, string> {
+): MonitorTimeRangeQuery {
   if (customRange) {
     return {
       start_time: customRange.start.toISOString(),
@@ -317,74 +317,3 @@ export function createDisableState(
   return { source, model, displayName, step: 1 };
 }
 
-/**
- * 时间范围类型
- */
-export type TimeRangeValue = number | 'yesterday' | 'dayBeforeYesterday' | 'custom';
-
-/**
- * 根据时间范围过滤数据
- * @param data 原始数据
- * @param timeRange 时间范围（天数或 'custom'/'yesterday'/'dayBeforeYesterday'）
- * @param customRange 自定义日期范围
- * @returns 过滤后的数据
- */
-export function filterDataByTimeRange(
-  data: UsageData | null,
-  timeRange: TimeRangeValue,
-  customRange?: DateRange
-): UsageData | null {
-  if (!data?.apis) return null;
-
-  const now = new Date();
-  let cutoffStart: Date;
-  let cutoffEnd: Date = new Date(now.getTime());
-  cutoffEnd.setHours(23, 59, 59, 999);
-
-  if (timeRange === 'custom' && customRange) {
-    cutoffStart = customRange.start;
-    cutoffEnd = customRange.end;
-  } else if ((timeRange === 'yesterday' || timeRange === 'dayBeforeYesterday') && customRange) {
-    cutoffStart = customRange.start;
-    cutoffEnd = customRange.end;
-  } else if (typeof timeRange === 'number') {
-    // timeRange=1 表示"今天"，应该从今天 00:00 开始
-    // timeRange=7 表示"最近7天"，应该从 6 天前的 00:00 开始（包含今天共7天）
-    const daysBack = timeRange - 1;
-    cutoffStart = new Date(now.getTime() - daysBack * 24 * 60 * 60 * 1000);
-    cutoffStart.setHours(0, 0, 0, 0);
-  } else {
-    cutoffStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    cutoffStart.setHours(0, 0, 0, 0);
-  }
-
-  const filtered: UsageData = { apis: {} };
-
-  Object.entries(data.apis).forEach(([apiKey, apiData]) => {
-    if (!apiData?.models) return;
-
-    const filteredModels: Record<
-      string,
-      { details: UsageData['apis'][string]['models'][string]['details'] }
-    > = {};
-
-    Object.entries(apiData.models).forEach(([modelName, modelData]) => {
-      if (!modelData?.details || !Array.isArray(modelData.details)) return;
-
-      const filteredDetails = modelData.details.filter((detail) => {
-        const timestamp = new Date(detail.timestamp);
-        return timestamp >= cutoffStart && timestamp <= cutoffEnd;
-      });
-
-      if (filteredDetails.length > 0) {
-        filteredModels[modelName] = { details: filteredDetails };
-      }
-    });
-
-    if (Object.keys(filteredModels).length > 0) {
-      filtered.apis[apiKey] = { models: filteredModels };
-    }
-  });
-
-  return filtered;
-}
