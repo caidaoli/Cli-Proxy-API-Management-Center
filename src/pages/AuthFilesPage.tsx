@@ -3,6 +3,7 @@ import { Trans, useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { useInterval } from '@/hooks/useInterval';
 import { useHeaderRefresh } from '@/hooks/useHeaderRefresh';
+import { usePageTransitionLayer } from '@/components/common/PageTransitionLayer';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
@@ -17,11 +18,12 @@ import {
   IconChevronUp,
   IconDownload,
   IconInfo,
-  IconRefreshCw,
   IconTrash2,
 } from '@/components/ui/icons';
 import type { TFunction } from 'i18next';
 import { ANTIGRAVITY_CONFIG, CODEX_CONFIG, GEMINI_CLI_CONFIG } from '@/components/quota';
+// Fork 增强: Kiro 配额支持
+import { KIRO_CONFIG } from '@/components/quota';
 import { useAuthStore, useNotificationStore, useQuotaStore, useThemeStore } from '@/stores';
 import { authFilesApi, usageApi } from '@/services/api';
 import { apiClient } from '@/services/api/client';
@@ -48,6 +50,10 @@ const TYPE_COLORS: Record<string, TypeColorSet> = {
   qwen: {
     light: { bg: '#e8f5e9', text: '#2e7d32' },
     dark: { bg: '#1b5e20', text: '#81c784' },
+  },
+  kimi: {
+    light: { bg: '#fff4e5', text: '#ad6800' },
+    dark: { bg: '#7c4a03', text: '#ffd591' },
   },
   gemini: {
     light: { bg: '#e3f2fd', text: '#1565c0' },
@@ -95,9 +101,11 @@ const AUTH_FILES_UI_STATE_KEY = 'authFilesPage.uiState';
 const clampCardPageSize = (value: number) =>
   Math.min(MAX_CARD_PAGE_SIZE, Math.max(MIN_CARD_PAGE_SIZE, Math.round(value)));
 
-type QuotaProviderType = 'antigravity' | 'codex' | 'gemini-cli';
+// Fork 增强: 添加 kiro 到 QuotaProviderType
+type QuotaProviderType = 'antigravity' | 'codex' | 'gemini-cli' | 'kiro';
 
-const QUOTA_PROVIDER_TYPES = new Set<QuotaProviderType>(['antigravity', 'codex', 'gemini-cli']);
+// Fork 增强: 添加 kiro 到 QUOTA_PROVIDER_TYPES
+const QUOTA_PROVIDER_TYPES = new Set<QuotaProviderType>(['antigravity', 'codex', 'gemini-cli', 'kiro']);
 
 const resolveQuotaErrorMessage = (
   t: TFunction,
@@ -163,6 +171,34 @@ const writeAuthFilesUiState = (state: AuthFilesUiState) => {
     window.sessionStorage.setItem(AUTH_FILES_UI_STATE_KEY, JSON.stringify(state));
   } catch {
     // ignore
+  }
+};
+
+const copyToClipboard = async (text: string): Promise<boolean> => {
+  try {
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // fallback below
+  }
+
+  try {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    textarea.style.left = '-9999px';
+    textarea.style.top = '0';
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    const copied = document.execCommand('copy');
+    document.body.removeChild(textarea);
+    return copied;
+  } catch {
+    return false;
   }
 };
 
@@ -245,9 +281,15 @@ export function AuthFilesPage() {
   const antigravityQuota = useQuotaStore((state) => state.antigravityQuota);
   const codexQuota = useQuotaStore((state) => state.codexQuota);
   const geminiCliQuota = useQuotaStore((state) => state.geminiCliQuota);
+  // Fork 增强: Kiro 配额
+  const kiroQuota = useQuotaStore((state) => state.kiroQuota);
   const setAntigravityQuota = useQuotaStore((state) => state.setAntigravityQuota);
   const setCodexQuota = useQuotaStore((state) => state.setCodexQuota);
   const setGeminiCliQuota = useQuotaStore((state) => state.setGeminiCliQuota);
+  // Fork 增强: Kiro 配额
+  const setKiroQuota = useQuotaStore((state) => state.setKiroQuota);
+  const pageTransitionLayer = usePageTransitionLayer();
+  const isCurrentLayer = pageTransitionLayer ? pageTransitionLayer.status === 'current' : true;
   const navigate = useNavigate();
 
   const [files, setFiles] = useState<AuthFileItem[]>([]);
@@ -504,7 +546,7 @@ export function AuthFilesPage() {
     }
   }, []);
 
-  // 加载 OAuth 排除列表
+  // 加载 OAuth 模型禁用
   const loadExcluded = useCallback(async () => {
     try {
       const res = await authFilesApi.getOauthExcludedModels();
@@ -563,14 +605,15 @@ export function AuthFilesPage() {
   useHeaderRefresh(handleHeaderRefresh);
 
   useEffect(() => {
+    if (!isCurrentLayer) return;
     loadFiles();
     loadKeyStats();
     loadExcluded();
     loadModelAlias();
-  }, [loadFiles, loadKeyStats, loadExcluded, loadModelAlias]);
+  }, [isCurrentLayer, loadFiles, loadKeyStats, loadExcluded, loadModelAlias]);
 
   // 定时刷新状态数据（每240秒）
-  useInterval(loadKeyStats, 240_000);
+  useInterval(loadKeyStats, isCurrentLayer ? 240_000 : null);
 
   // 提取所有存在的类型
   const existingTypes = useMemo(() => {
@@ -1009,14 +1052,28 @@ export function AuthFilesPage() {
     }
   };
 
+  const copyTextWithNotification = async (text: string) => {
+    const copied = await copyToClipboard(text);
+    showNotification(
+      copied
+        ? t('notification.link_copied', { defaultValue: 'Copied to clipboard' })
+        : t('notification.copy_failed', { defaultValue: 'Copy failed' }),
+      copied ? 'success' : 'error'
+    );
+  };
+
   // 检查模型是否被 OAuth 排除
   const isModelExcluded = (modelId: string, providerType: string): boolean => {
     const providerKey = normalizeProviderKey(providerType);
     const excludedModels = excluded[providerKey] || excluded[providerType] || [];
     return excludedModels.some((pattern) => {
       if (pattern.includes('*')) {
-        // 支持通配符匹配
-        const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$', 'i');
+        // 支持通配符匹配：先转义正则特殊字符，再将 * 视为通配符
+        const regexSafePattern = pattern
+          .split('*')
+          .map((segment) => segment.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+          .join('.*');
+        const regex = new RegExp(`^${regexSafePattern}$`, 'i');
         return regex.test(modelId);
       }
       return pattern.toLowerCase() === modelId.toLowerCase();
@@ -1465,14 +1522,21 @@ export function AuthFilesPage() {
   const getQuotaConfig = (type: QuotaProviderType) => {
     if (type === 'antigravity') return ANTIGRAVITY_CONFIG;
     if (type === 'codex') return CODEX_CONFIG;
+    // Fork 增强: Kiro 配额
+    if (type === 'kiro') return KIRO_CONFIG;
     return GEMINI_CLI_CONFIG;
   };
 
-  const getQuotaState = (type: QuotaProviderType, fileName: string) => {
-    if (type === 'antigravity') return antigravityQuota[fileName];
-    if (type === 'codex') return codexQuota[fileName];
-    return geminiCliQuota[fileName];
-  };
+  const getQuotaState = useCallback(
+    (type: QuotaProviderType, fileName: string) => {
+      if (type === 'antigravity') return antigravityQuota[fileName];
+      if (type === 'codex') return codexQuota[fileName];
+      // Fork 增强: Kiro 配额
+      if (type === 'kiro') return kiroQuota[fileName];
+      return geminiCliQuota[fileName];
+    },
+    [antigravityQuota, codexQuota, geminiCliQuota, kiroQuota]
+  );
 
   const updateQuotaState = useCallback(
     (
@@ -1487,9 +1551,14 @@ export function AuthFilesPage() {
         setCodexQuota(updater as never);
         return;
       }
+      // Fork 增强: Kiro 配额
+      if (type === 'kiro') {
+        setKiroQuota(updater as never);
+        return;
+      }
       setGeminiCliQuota(updater as never);
     },
-    [setAntigravityQuota, setCodexQuota, setGeminiCliQuota]
+    [setAntigravityQuota, setCodexQuota, setGeminiCliQuota, setKiroQuota]
   );
 
   const refreshQuotaForFile = useCallback(
@@ -1547,6 +1616,7 @@ export function AuthFilesPage() {
       | { status?: string; error?: string; errorStatus?: number }
       | undefined;
     const quotaStatus = quota?.status ?? 'idle';
+    const canRefreshQuota = !disableControls && !item.disabled;
     const quotaErrorMessage = resolveQuotaErrorMessage(
       t,
       quota?.errorStatus,
@@ -1558,7 +1628,14 @@ export function AuthFilesPage() {
         {quotaStatus === 'loading' ? (
           <div className={styles.quotaMessage}>{t(`${config.i18nPrefix}.loading`)}</div>
         ) : quotaStatus === 'idle' ? (
-          <div className={styles.quotaMessage}>{t(`${config.i18nPrefix}.idle`)}</div>
+          <button
+            type="button"
+            className={`${styles.quotaMessage} ${styles.quotaMessageAction}`}
+            onClick={() => void refreshQuotaForFile(item, quotaType)}
+            disabled={!canRefreshQuota}
+          >
+            {t(`${config.i18nPrefix}.idle`)}
+          </button>
         ) : quotaStatus === 'error' ? (
           <div className={styles.quotaError}>
             {t(`${config.i18nPrefix}.load_failed`, {
@@ -1586,8 +1663,6 @@ export function AuthFilesPage() {
       quotaFilterType && resolveQuotaType(item) === quotaFilterType ? quotaFilterType : null;
 
     const showQuotaLayout = Boolean(quotaType) && !isRuntimeOnly;
-    const quotaState = quotaType ? getQuotaState(quotaType, item.name) : undefined;
-    const quotaRefreshing = quotaState?.status === 'loading';
 
     const providerCardClass =
       quotaType === 'antigravity'
@@ -1604,7 +1679,7 @@ export function AuthFilesPage() {
         className={`${styles.fileCard} ${providerCardClass} ${item.disabled ? styles.fileCardDisabled : ''}`}
       >
         <div
-          className={`${styles.fileCardLayout} ${showQuotaLayout ? styles.fileCardLayoutQuota : ''}`}
+          className={styles.fileCardLayout}
         >
           <div className={styles.fileCardMain}>
             <div className={styles.cardHeader}>
@@ -1722,29 +1797,6 @@ export function AuthFilesPage() {
               )}
             </div>
           </div>
-
-          {showQuotaLayout && quotaType && (
-            <div className={styles.fileCardSidebar}>
-              <div className={styles.fileCardSidebarHeader}>
-                <span className={styles.fileCardSidebarTitle}>
-                  {t('auth_files.card_tools_title')}
-                </span>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className={styles.iconButton}
-                  onClick={() => void refreshQuotaForFile(item, quotaType)}
-                  disabled={disableControls || item.disabled}
-                  loading={quotaRefreshing}
-                  title={t('auth_files.quota_refresh_single')}
-                  aria-label={t('auth_files.quota_refresh_single')}
-                >
-                  {!quotaRefreshing && <IconRefreshCw className={styles.actionIcon} size={16} />}
-                </Button>
-              </div>
-              <div className={styles.fileCardSidebarHint}>{t('auth_files.quota_refresh_hint')}</div>
-            </div>
-          )}
         </div>
       </div>
     );
@@ -1886,7 +1938,7 @@ export function AuthFilesPage() {
         )}
       </Card>
 
-      {/* OAuth 排除列表卡片 */}
+      {/* OAuth 模型禁用卡片 */}
       <Card
         title={t('oauth_excluded.title')}
         extra={
@@ -2053,9 +2105,7 @@ export function AuthFilesPage() {
               onClick={() => {
                 if (selectedFile) {
                   const text = JSON.stringify(selectedFile, null, 2);
-                  navigator.clipboard.writeText(text).then(() => {
-                    showNotification(t('notification.link_copied'), 'success');
-                  });
+                  void copyTextWithNotification(text);
                 }
               }}
             >
@@ -2111,16 +2161,12 @@ export function AuthFilesPage() {
                   key={model.id}
                   className={`${styles.modelItem} ${isExcluded ? styles.modelItemExcluded : ''}`}
                   onClick={() => {
-                    navigator.clipboard.writeText(model.id);
-                    showNotification(
-                      t('notification.link_copied', { defaultValue: '已复制到剪贴板' }),
-                      'success'
-                    );
+                    void copyTextWithNotification(model.id);
                   }}
                   title={
                     isExcluded
                       ? t('auth_files.models_excluded_hint', {
-                          defaultValue: '此模型已被 OAuth 排除',
+                          defaultValue: '此 OAuth 模型已被禁用',
                         })
                       : t('common.copy', { defaultValue: '点击复制' })
                   }
@@ -2132,7 +2178,7 @@ export function AuthFilesPage() {
                   {model.type && <span className={styles.modelType}>{model.type}</span>}
                   {isExcluded && (
                     <span className={styles.modelExcludedBadge}>
-                      {t('auth_files.models_excluded_badge', { defaultValue: '已排除' })}
+                      {t('auth_files.models_excluded_badge', { defaultValue: '已禁用' })}
                     </span>
                   )}
                 </div>
