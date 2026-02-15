@@ -625,13 +625,13 @@ export function AuthFilesPage() {
             </span>
             <span>{cleanupTotal > 0 ? `${Math.round((cleanupCurrent / cleanupTotal) * 100)}%` : '0%'}</span>
           </div>
-          <div style={{ width: '100%', height: 6, borderRadius: 3, background: 'var(--color-border, #e5e7eb)', overflow: 'hidden' }}>
+          <div style={{ width: '100%', height: 6, borderRadius: 3, background: 'var(--border-color)', overflow: 'hidden' }}>
             <div
               style={{
                 width: cleanupTotal > 0 ? `${(cleanupCurrent / cleanupTotal) * 100}%` : '0%',
                 height: '100%',
                 borderRadius: 3,
-                background: cleanupDone ? 'var(--color-success, #22c55e)' : 'var(--color-primary, #3b82f6)',
+                background: cleanupDone ? 'var(--success-color)' : 'var(--primary-color)',
                 transition: 'width 0.3s ease',
               }}
             />
@@ -643,7 +643,8 @@ export function AuthFilesPage() {
             overflowY: 'auto',
             fontSize: 12,
             fontFamily: 'monospace',
-            background: 'var(--color-bg-secondary, #f9fafb)',
+            background: 'var(--bg-secondary)',
+            color: 'var(--text-primary)',
             borderRadius: 6,
             padding: '8px 10px',
             lineHeight: 1.7,
