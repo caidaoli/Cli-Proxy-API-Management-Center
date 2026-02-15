@@ -9,6 +9,11 @@ import type { OAuthModelAliasEntry } from '@/types';
 type StatusError = { status?: number };
 type AuthFileStatusResponse = { status: string; disabled: boolean };
 
+export type CodexCleanupEvent =
+  | { type: 'start'; total: number }
+  | { type: 'progress'; index: number; total: number; name: string; auth_index: string; status_code?: number; deleted?: boolean; error?: string }
+  | { type: 'done'; total: number; deleted: number };
+
 const getStatusCode = (err: unknown): number | undefined => {
   if (!err || typeof err !== 'object') return undefined;
   if ('status' in err) return (err as StatusError).status;
@@ -191,5 +196,43 @@ export const authFilesApi = {
     return Array.isArray(models)
       ? (models as { id: string; display_name?: string; type?: string; owned_by?: string }[])
       : [];
-  }
+  },
+
+  // Codex 凭证清理（NDJSON 流式）
+  async codexCleanup(onEvent: (event: CodexCleanupEvent) => void, signal?: AbortSignal): Promise<void> {
+    const { baseUrl, managementKey } = apiClient.getFetchContext();
+    const resp = await fetch(`${baseUrl}/custom/codex-cleanup`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${managementKey}`,
+        'Content-Type': 'application/json',
+      },
+      signal,
+    });
+    if (!resp.ok || !resp.body) {
+      throw new Error(`codex-cleanup failed: ${resp.status}`);
+    }
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        try {
+          onEvent(JSON.parse(trimmed) as CodexCleanupEvent);
+        } catch { /* skip malformed lines */ }
+      }
+    }
+    if (buffer.trim()) {
+      try {
+        onEvent(JSON.parse(buffer.trim()) as CodexCleanupEvent);
+      } catch { /* skip */ }
+    }
+  },
 };

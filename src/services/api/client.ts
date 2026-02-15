@@ -239,6 +239,13 @@ class ApiClient {
   async requestRaw(config: AxiosRequestConfig): Promise<AxiosResponse> {
     return this.instance.request(config);
   }
+
+  /**
+   * 返回当前 API base URL 和认证信息，用于需要原生 fetch 的场景（如流式请求）
+   */
+  getFetchContext(): { baseUrl: string; managementKey: string } {
+    return { baseUrl: this.apiBase, managementKey: this.managementKey };
+  }
 }
 
 // 导出单例

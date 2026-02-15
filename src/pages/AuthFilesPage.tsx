@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { useInterval } from '@/hooks/useInterval';
@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { Modal } from '@/components/ui/Modal';
 import { copyToClipboard } from '@/utils/clipboard';
 import {
   MAX_CARD_PAGE_SIZE,
@@ -34,6 +35,7 @@ import { useAuthFilesStats } from '@/features/authFiles/hooks/useAuthFilesStats'
 import { useAuthFilesStatusBarCache } from '@/features/authFiles/hooks/useAuthFilesStatusBarCache';
 import { readAuthFilesUiState, writeAuthFilesUiState } from '@/features/authFiles/uiState';
 import { useAuthStore, useNotificationStore, useThemeStore } from '@/stores';
+import { authFilesApi, type CodexCleanupEvent } from '@/services/api/authFiles';
 import type { AuthFileItem } from '@/types';
 import styles from './AuthFilesPage.module.scss';
 
@@ -119,6 +121,15 @@ export function AuthFilesPage() {
   });
 
   const disableControls = connectionStatus !== 'connected';
+  const [codexCleaning, setCodexCleaning] = useState(false);
+  const [cleanupModalOpen, setCleanupModalOpen] = useState(false);
+  const [cleanupTotal, setCleanupTotal] = useState(0);
+  const [cleanupCurrent, setCleanupCurrent] = useState(0);
+  const [cleanupDeleted, setCleanupDeleted] = useState(0);
+  const [cleanupLogs, setCleanupLogs] = useState<string[]>([]);
+  const [cleanupDone, setCleanupDone] = useState(false);
+  const cleanupAbortRef = useRef<AbortController | null>(null);
+  const cleanupLogsEndRef = useRef<HTMLDivElement | null>(null);
   const normalizedFilter = normalizeProviderKey(String(filter));
   const quotaFilterType: QuotaProviderType | null = QUOTA_PROVIDER_TYPES.has(
     normalizedFilter as QuotaProviderType
@@ -191,6 +202,64 @@ export function AuthFilesPage() {
   const handleHeaderRefresh = useCallback(async () => {
     await Promise.all([loadFiles(), loadKeyStats(), loadExcluded(), loadModelAlias()]);
   }, [loadFiles, loadKeyStats, loadExcluded, loadModelAlias]);
+
+  const handleCodexCleanup = useCallback(async () => {
+    setCodexCleaning(true);
+    setCleanupModalOpen(true);
+    setCleanupTotal(0);
+    setCleanupCurrent(0);
+    setCleanupDeleted(0);
+    setCleanupLogs([]);
+    setCleanupDone(false);
+
+    const abort = new AbortController();
+    cleanupAbortRef.current = abort;
+
+    try {
+      await authFilesApi.codexCleanup((ev: CodexCleanupEvent) => {
+        if (ev.type === 'start') {
+          setCleanupTotal(ev.total);
+          setCleanupLogs((prev) => [...prev, t('auth_files.codex_cleanup_log_start', { total: ev.total })]);
+        } else if (ev.type === 'progress') {
+          setCleanupCurrent(ev.index);
+          const status = ev.deleted
+            ? `✗ ${t('auth_files.codex_cleanup_log_deleted')}`
+            : ev.error
+              ? `⚠ ${ev.error}`
+              : `✓ ${t('auth_files.codex_cleanup_log_valid')}`;
+          setCleanupLogs((prev) => [...prev, `[${ev.index}/${ev.total}] ${ev.name} — ${status}`]);
+          if (ev.deleted) {
+            setCleanupDeleted((prev) => prev + 1);
+          }
+        } else if (ev.type === 'done') {
+          setCleanupDone(true);
+          setCleanupLogs((prev) => [
+            ...prev,
+            t('auth_files.codex_cleanup_log_done', { total: ev.total, deleted: ev.deleted }),
+          ]);
+        }
+      }, abort.signal);
+      await loadFiles();
+    } catch {
+      if (!abort.signal.aborted) {
+        showNotification(t('auth_files.codex_cleanup_failed'), 'error');
+      }
+    } finally {
+      setCodexCleaning(false);
+      cleanupAbortRef.current = null;
+    }
+  }, [loadFiles, showNotification, t]);
+
+  const handleCleanupModalClose = useCallback(() => {
+    if (codexCleaning && cleanupAbortRef.current) {
+      cleanupAbortRef.current.abort();
+    }
+    setCleanupModalOpen(false);
+  }, [codexCleaning]);
+
+  useEffect(() => {
+    cleanupLogsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [cleanupLogs]);
 
   useHeaderRefresh(handleHeaderRefresh);
 
@@ -338,6 +407,17 @@ export function AuthFilesPage() {
         title={titleNode}
         extra={
           <div className={styles.headerActions}>
+            {files.some((f) => f.type === 'codex' && !f.disabled) && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleCodexCleanup}
+                disabled={disableControls || codexCleaning}
+                loading={codexCleaning}
+              >
+                {t('auth_files.codex_cleanup_button')}
+              </Button>
+            )}
             <Button variant="secondary" size="sm" onClick={handleHeaderRefresh} disabled={loading}>
               {t('common.refresh')}
             </Button>
@@ -520,6 +600,61 @@ export function AuthFilesPage() {
         onSave={handlePrefixProxySave}
         onChange={handlePrefixProxyChange}
       />
+
+      <Modal
+        open={cleanupModalOpen}
+        title={t('auth_files.codex_cleanup_button')}
+        onClose={handleCleanupModalClose}
+        width={560}
+        footer={
+          <Button
+            variant={cleanupDone ? 'primary' : 'danger'}
+            size="sm"
+            onClick={handleCleanupModalClose}
+          >
+            {cleanupDone ? t('common.close') : t('common.cancel')}
+          </Button>
+        }
+      >
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 13 }}>
+            <span>
+              {cleanupDone
+                ? t('auth_files.codex_cleanup_log_done', { total: cleanupTotal, deleted: cleanupDeleted })
+                : t('auth_files.codex_cleanup_progress', { current: cleanupCurrent, total: cleanupTotal })}
+            </span>
+            <span>{cleanupTotal > 0 ? `${Math.round((cleanupCurrent / cleanupTotal) * 100)}%` : '0%'}</span>
+          </div>
+          <div style={{ width: '100%', height: 6, borderRadius: 3, background: 'var(--color-border, #e5e7eb)', overflow: 'hidden' }}>
+            <div
+              style={{
+                width: cleanupTotal > 0 ? `${(cleanupCurrent / cleanupTotal) * 100}%` : '0%',
+                height: '100%',
+                borderRadius: 3,
+                background: cleanupDone ? 'var(--color-success, #22c55e)' : 'var(--color-primary, #3b82f6)',
+                transition: 'width 0.3s ease',
+              }}
+            />
+          </div>
+        </div>
+        <div
+          style={{
+            maxHeight: 260,
+            overflowY: 'auto',
+            fontSize: 12,
+            fontFamily: 'monospace',
+            background: 'var(--color-bg-secondary, #f9fafb)',
+            borderRadius: 6,
+            padding: '8px 10px',
+            lineHeight: 1.7,
+          }}
+        >
+          {cleanupLogs.map((line, i) => (
+            <div key={i}>{line}</div>
+          ))}
+          <div ref={cleanupLogsEndRef} />
+        </div>
+      </Modal>
     </div>
   );
 }
