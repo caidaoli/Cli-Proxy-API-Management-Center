@@ -24,7 +24,6 @@
       inset: 0;
       overflow: hidden;
       pointer-events: none;
-      will-change: transform, opacity;
     }
 
     &--stacked {
@@ -39,7 +38,6 @@
         overflow: hidden;
         pointer-events: none;
         opacity: 0;
-        will-change: transform, opacity;
       }
     }
   }
