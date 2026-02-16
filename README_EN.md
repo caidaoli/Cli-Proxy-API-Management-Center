@@ -30,7 +30,7 @@ Modify following configuration in your `config.yaml`:
 
 ```yaml
 remote-management:
-  panel-github-repository: "https://github.com/kongkongyo/CLIProxyAPI-Web-Dashboard"
+  panel-github-repository: "https://github.com/caidaoli/Cli-Proxy-API-Management-Center"
 ```
 
 After configuration, restart the CLI Proxy API service and visit `http://<host>:<api_port>/management.html` to view the management interface
@@ -173,6 +173,7 @@ The following features are consistent with the official version, providing a bet
 - Supports multiple providers (Qwen, Gemini, Claude, etc.)
 - Search, filter, paginated browsing
 - View models supported by each credential
+- **Codex Credential Cleanup**: One-click detection and cleanup of invalid Codex credentials with streaming progress display
 
 ### OAuth Login
 - One-click start OAuth authorization flow
@@ -261,7 +262,7 @@ When accessing from a non-local browser, you need to enable remote management on
 A: Add the following configuration to your CLI Proxy API configuration file
 ```yaml
 remote-management:
-  panel-github-repository: "https://github.com/kongkongyo/CLIProxyAPI-Web-Dashboard"
+  panel-github-repository: "https://github.com/caidaoli/Cli-Proxy-API-Management-Center"
 ```
 
 **Q: Cannot connect to the server?**
@@ -286,9 +287,9 @@ A: Tests are executed in the browser and may be subject to CORS restrictions. Fa
 
 **Q: What is the difference between this version and the official version?**
 
-A: There are two main differences:
-1. **Interface Style**: Completely new visual design with more refined UI details
-2. **Monitoring Center**: This is the only newly added feature module, providing powerful data visualization and monitoring capabilities, including KPI dashboard, model usage distribution, trend analysis, hourly charts, channel statistics, failure analysis, and advanced request logs
+A: The main differences are:
+1. **Monitoring Center**: A newly added feature module providing powerful data visualization and monitoring capabilities, including KPI dashboard, model usage distribution, trend analysis, hourly charts, channel statistics, failure analysis, and advanced request logs
+2. **Codex Credential Cleanup**: One-click detection and cleanup of invalid Codex credentials with streaming progress display
 
 All other features remain consistent with the official version
 
@@ -298,7 +299,8 @@ All other features remain consistent with the official version
 
 - **Official Main Program**: https://github.com/router-for-me/CLIProxyAPI
 - **Official WebUI**: https://github.com/router-for-me/Cli-Proxy-API-Management-Center
-- **This Repository**: https://github.com/kongkongyo/CLIProxyAPI-Web-Dashboard
+- **Upstream Repository (kongkongyo)**: https://github.com/kongkongyo/Cli-Proxy-API-Management-Center
+- **This Repository**: https://github.com/caidaoli/Cli-Proxy-API-Management-Center
 
 ## License
 

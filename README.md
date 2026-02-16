@@ -30,7 +30,7 @@
 
 ```yaml
 remote-management:
-  panel-github-repository: "https://github.com/kongkongyo/Cli-Proxy-API-Management-Center"
+  panel-github-repository: "https://github.com/caidaoli/Cli-Proxy-API-Management-Center"
 ```
 
 配置完成后，重启 CLI Proxy API 服务，访问 `http://<host>:<api_port>/management.html` 即可查看管理界面
@@ -173,6 +173,7 @@ remote-management:
 - 支持多种提供商（Qwen、Gemini、Claude 等）
 - 搜索、筛选、分页浏览
 - 查看每个凭证支持的模型
+- **Codex 凭证清理**：一键检测并清理失效的 Codex 凭证，支持流式进度展示
 
 ### OAuth 登录
 - 一键启动 OAuth 授权流程
@@ -261,7 +262,7 @@ https://example.com:8317
 A: 在 CLI Proxy API 的配置文件中添加以下配置即可
 ```yaml
 remote-management:
-  panel-github-repository: "https://github.com/kongkongyo/CLIProxyAPI-Web-Dashboard"
+  panel-github-repository: "https://github.com/caidaoli/Cli-Proxy-API-Management-Center"
 ```
 
 **Q: 无法连接到服务器？**
@@ -286,9 +287,9 @@ A: 测试是在浏览器端执行的，可能会受到 CORS 限制，失败不�
 
 **Q: 这个版本和官方版本有什么区别？**
 
-A: 主要区别有两个：
-1. **界面风格**：全新的视觉设计，UI 细节更精致
-2. **监控中心**：这是唯一新增的功能模块，提供了强大的数据可视化和监控能力，包括 KPI 仪表盘、模型用量分布、趋势分析、小时级图表、渠道统计、失败分析和高级请求日志等功能
+A: 主要区别有：
+1. **监控中心**：新增的功能模块，提供了强大的数据可视化和监控能力，包括 KPI 仪表盘、模型用量分布、趋势分析、小时级图表、渠道统计、失败分析和高级请求日志等功能
+2. **Codex 凭证清理**：一键检测并清理失效的 Codex 凭证，支持流式进度展示
 
 其他所有功能与官方版本保持一致
 
@@ -298,7 +299,8 @@ A: 主要区别有两个：
 
 - **官方主程序**: https://github.com/router-for-me/CLIProxyAPI
 - **官方 WebUI**: https://github.com/router-for-me/Cli-Proxy-API-Management-Center
-- **本仓库**: https://github.com/kongkongyo/CLIProxyAPI-Web-Dashboard
+- **上游仓库（kongkongyo）**: https://github.com/kongkongyo/Cli-Proxy-API-Management-Center
+- **本仓库**: https://github.com/caidaoli/Cli-Proxy-API-Management-Center
 
 ## 许可证
 
