@@ -28,6 +28,7 @@ import { HourlyTokenChart } from '@/components/monitor/HourlyTokenChart';
 import { ChannelStats } from '@/components/monitor/ChannelStats';
 import { FailureAnalysis } from '@/components/monitor/FailureAnalysis';
 import { RequestLogs } from '@/components/monitor/RequestLogs';
+import { ServiceHealthCard } from '@/components/monitor/ServiceHealthCard';
 import styles from './MonitorPage.module.scss';
 
 // 注册 Chart.js 组件
@@ -318,6 +319,9 @@ export function MonitorPage() {
       {/* 小时级图表 */}
       <HourlyModelChart timeRange={timeRange} apiFilter={apiFilter} isDark={isDark} />
       <HourlyTokenChart timeRange={timeRange} apiFilter={apiFilter} isDark={isDark} />
+
+      {/* 服务健康热力图 */}
+      <ServiceHealthCard />
 
       {/* 统计表格 */}
       <div className={styles.statsGrid}>

@@ -177,6 +177,21 @@ export interface MonitorHourlyTokensData {
   cached_tokens: number[];
 }
 
+export interface MonitorServiceHealthBlock {
+  success: number;
+  failure: number;
+}
+
+export interface MonitorServiceHealthData {
+  rows: number;
+  cols: number;
+  block_duration_ms: number;
+  blocks: MonitorServiceHealthBlock[];
+  total_success: number;
+  total_failure: number;
+  success_rate: number;
+}
+
 export const monitorApi = {
   getRequestLogs: (params: MonitorRequestLogsQuery = {}) =>
     apiClient.get<MonitorRequestLogsResponse>('/custom/monitor/request-logs', {
@@ -210,4 +225,9 @@ export const monitorApi = {
 
   getHourlyTokens: (params: MonitorTimeRangeQuery & { hours?: number } = {}) =>
     apiClient.get<MonitorHourlyTokensData>('/custom/monitor/hourly-tokens', { params, timeout: MONITOR_TIMEOUT_MS }),
+
+  getServiceHealth: () =>
+    apiClient.get<MonitorServiceHealthData>('/custom/monitor/service-health', {
+      timeout: MONITOR_TIMEOUT_MS,
+    }),
 };
