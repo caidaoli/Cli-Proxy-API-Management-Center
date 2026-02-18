@@ -911,6 +911,7 @@ export function VisualConfigEditor({ values, disabled = false, onChange }: Visua
                 options={[
                   { value: 'round-robin', label: t('config_management.visual.sections.network.strategy_round_robin') },
                   { value: 'fill-first', label: t('config_management.visual.sections.network.strategy_fill_first') },
+                  { value: 'sf', label: t('config_management.visual.sections.network.strategy_sf') },
                 ]}
                 disabled={disabled}
                 ariaLabel={t('config_management.visual.sections.network.routing_strategy')}

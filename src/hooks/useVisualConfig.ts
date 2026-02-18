@@ -328,7 +328,11 @@ export function useVisualConfig() {
         ),
 
         routingStrategy:
-          routing?.strategy === 'fill-first' ? 'fill-first' : 'round-robin',
+          routing?.strategy === 'fill-first'
+            ? 'fill-first'
+            : routing?.strategy === 'sf' || routing?.strategy === 'sequential-fill'
+              ? 'sf'
+              : 'round-robin',
 
         payloadDefaultRules: parsePayloadRules(payload?.default),
         payloadOverrideRules: parsePayloadRules(payload?.override),
