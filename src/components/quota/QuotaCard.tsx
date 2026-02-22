@@ -61,6 +61,7 @@ interface QuotaCardProps<TState extends QuotaStatusState> {
   quota?: TState;
   resolvedTheme: ResolvedTheme;
   i18nPrefix: string;
+  cardIdleMessageKey?: string;
   cardClassName: string;
   defaultType: string;
   renderQuotaItems: (quota: TState, t: TFunction, helpers: QuotaRenderHelpers) => ReactNode;
@@ -72,6 +73,7 @@ export function QuotaCard<TState extends QuotaStatusState>({
   quota,
   resolvedTheme,
   i18nPrefix,
+  cardIdleMessageKey,
   cardClassName,
   defaultType,
   renderQuotaItems,
@@ -90,6 +92,7 @@ export function QuotaCard<TState extends QuotaStatusState>({
     quota?.errorStatus,
     quota?.error || t('common.unknown_error')
   );
+  const idleMessageKey = cardIdleMessageKey ?? `${i18nPrefix}.idle`;
 
   const getTypeLabel = (type: string): string => {
     const key = `auth_files.filter_${type}`;
@@ -124,7 +127,7 @@ export function QuotaCard<TState extends QuotaStatusState>({
             onClick={onRefresh}
             role={onRefresh ? 'button' : undefined}
           >
-            {t(`${i18nPrefix}.idle`)}
+            {t(idleMessageKey)}
           </div>
         ) : quotaStatus === 'error' ? (
           <div className={styles.quotaError}>
@@ -135,7 +138,7 @@ export function QuotaCard<TState extends QuotaStatusState>({
         ) : quota ? (
           renderQuotaItems(quota, t, { styles, QuotaProgressBar })
         ) : (
-          <div className={styles.quotaMessage}>{t(`${i18nPrefix}.idle`)}</div>
+          <div className={styles.quotaMessage}>{t(idleMessageKey)}</div>
         )}
       </div>
     </div>
