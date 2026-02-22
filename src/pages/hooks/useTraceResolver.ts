@@ -19,7 +19,7 @@ export type TraceCandidate = {
   timeDeltaMs: number | null;
 };
 
-const TRACE_USAGE_CACHE_MS = 60 * 1000;
+const TRACE_CACHE_MS = 60 * 1000;
 const TRACE_MATCH_STRONG_WINDOW_MS = 3 * 1000;
 const TRACE_MATCH_WINDOW_MS = 10 * 1000;
 const TRACE_MATCH_MAX_WINDOW_MS = 30 * 1000;
@@ -136,6 +136,7 @@ interface UseTraceResolverReturn {
   traceCandidates: TraceCandidate[];
   resolveTraceSourceInfo: (sourceRaw: string, authIndex: unknown) => SourceInfo;
   loadTraceUsageDetails: () => Promise<void>;
+  refreshTraceUsageDetails: () => Promise<void>;
   openTraceModal: (line: ParsedLogLine) => void;
   closeTraceModal: () => void;
 }
@@ -156,7 +157,7 @@ export function useTraceResolver(options: UseTraceResolverOptions): UseTraceReso
 
   const traceSourceInfoMap = useMemo(() => buildSourceInfoMap(config ?? {}), [config]);
 
-  const loadTraceUsageDetails = useCallback(async () => {
+  const loadTraceUsageDetailsInternal = useCallback(async (force: boolean) => {
     if (traceScopeKeyRef.current !== traceScopeKey) {
       traceScopeKeyRef.current = traceScopeKey;
       traceUsageLoadedAtRef.current = 0;
@@ -169,10 +170,10 @@ export function useTraceResolver(options: UseTraceResolverOptions): UseTraceReso
     if (traceLoading) return;
 
     const now = Date.now();
-    const usageFresh =
-      traceUsageLoadedAtRef.current > 0 && now - traceUsageLoadedAtRef.current < TRACE_USAGE_CACHE_MS;
+    const usageFresh = !force &&
+      traceUsageLoadedAtRef.current > 0 && now - traceUsageLoadedAtRef.current < TRACE_CACHE_MS;
     const authFresh =
-      traceAuthLoadedAtRef.current > 0 && now - traceAuthLoadedAtRef.current < TRACE_USAGE_CACHE_MS;
+      traceAuthLoadedAtRef.current > 0 && now - traceAuthLoadedAtRef.current < TRACE_CACHE_MS;
     if (usageFresh && authFresh) return;
 
     setTraceLoading(true);
@@ -190,7 +191,7 @@ export function useTraceResolver(options: UseTraceResolverOptions): UseTraceReso
           return { ...item, __timestampMs: Number.isNaN(ts) ? 0 : ts };
         });
         setTraceUsageDetails(details);
-        traceUsageLoadedAtRef.current = now;
+        traceUsageLoadedAtRef.current = Date.now();
       }
 
       if (authFilesResponse !== null) {
@@ -208,7 +209,7 @@ export function useTraceResolver(options: UseTraceResolverOptions): UseTraceReso
             });
           });
           setTraceAuthFileMap(map);
-          traceAuthLoadedAtRef.current = now;
+          traceAuthLoadedAtRef.current = Date.now();
         }
       }
     } catch (err: unknown) {
@@ -218,12 +219,18 @@ export function useTraceResolver(options: UseTraceResolverOptions): UseTraceReso
     }
   }, [t, traceLoading, traceScopeKey]);
 
+  const loadTraceUsageDetails = useCallback(async () => {
+    await loadTraceUsageDetailsInternal(false);
+  }, [loadTraceUsageDetailsInternal]);
+
+  const refreshTraceUsageDetails = useCallback(async () => {
+    await loadTraceUsageDetailsInternal(true);
+  }, [loadTraceUsageDetailsInternal]);
+
   useEffect(() => {
     if (connectionStatus === 'connected') {
       traceScopeKeyRef.current = traceScopeKey;
-      traceUsageLoadedAtRef.current = 0;
       traceAuthLoadedAtRef.current = 0;
-      setTraceUsageDetails([]);
       setTraceAuthFileMap(new Map());
       setTraceLoading(false);
       setTraceError('');
@@ -272,6 +279,7 @@ export function useTraceResolver(options: UseTraceResolverOptions): UseTraceReso
     traceCandidates,
     resolveTraceSourceInfo,
     loadTraceUsageDetails,
+    refreshTraceUsageDetails,
     openTraceModal,
     closeTraceModal
   };
