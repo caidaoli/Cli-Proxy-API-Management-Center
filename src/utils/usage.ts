@@ -1,6 +1,5 @@
 /**
  * 使用统计相关工具
- * 迁移自基线 modules/usage.js 的纯逻辑部分
  */
 
 import { maskApiKey } from './format';
@@ -14,42 +13,6 @@ export interface KeyStats {
   bySource: Record<string, KeyStatBucket>;
   byAuthIndex: Record<string, KeyStatBucket>;
 }
-
-export interface UsageDetail {
-  timestamp: string;
-  source: string;
-  auth_index: number;
-  tokens: {
-    input_tokens: number;
-    output_tokens: number;
-    reasoning_tokens: number;
-    cached_tokens: number;
-    cache_tokens?: number;
-    total_tokens: number;
-  };
-  failed: boolean;
-  __modelName?: string;
-}
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  value !== null && typeof value === 'object' && !Array.isArray(value);
-
-const getApisRecord = (usageData: unknown): Record<string, unknown> | null => {
-  const usageRecord = isRecord(usageData) ? usageData : null;
-  const apisRaw = usageRecord ? usageRecord.apis : null;
-  return isRecord(apisRaw) ? apisRaw : null;
-};
-
-const normalizeAuthIndex = (value: unknown) => {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value.toString();
-  }
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    return trimmed ? trimmed : null;
-  }
-  return null;
-};
 
 const USAGE_SOURCE_PREFIX_KEY = 'k:';
 const USAGE_SOURCE_PREFIX_MASKED = 'm:';
@@ -170,59 +133,6 @@ export function buildCandidateUsageSourceIds(input: { apiKey?: string; prefix?: 
 }
 
 /**
- * 从使用数据中收集所有请求明细
- */
-export function collectUsageDetails(usageData: unknown): UsageDetail[] {
-  const apis = getApisRecord(usageData);
-  if (!apis) return [];
-  const details: UsageDetail[] = [];
-  Object.values(apis).forEach((apiEntry) => {
-    if (!isRecord(apiEntry)) return;
-    const modelsRaw = apiEntry.models;
-    const models = isRecord(modelsRaw) ? modelsRaw : null;
-    if (!models) return;
-
-    Object.entries(models).forEach(([modelName, modelEntry]) => {
-      if (!isRecord(modelEntry)) return;
-      const modelDetailsRaw = modelEntry.details;
-      const modelDetails = Array.isArray(modelDetailsRaw) ? modelDetailsRaw : [];
-
-      modelDetails.forEach((detailRaw) => {
-        if (!isRecord(detailRaw) || typeof detailRaw.timestamp !== 'string') return;
-        const detail = detailRaw as unknown as UsageDetail;
-        details.push({
-          ...detail,
-          source: normalizeUsageSourceId(detail.source),
-          __modelName: modelName,
-        });
-      });
-    });
-  });
-  return details;
-}
-
-/**
- * 从单条明细提取总 tokens
- */
-export function extractTotalTokens(detail: unknown): number {
-  const record = isRecord(detail) ? detail : null;
-  const tokensRaw = record?.tokens;
-  const tokens = isRecord(tokensRaw) ? tokensRaw : {};
-  if (typeof tokens.total_tokens === 'number') {
-    return tokens.total_tokens;
-  }
-  const inputTokens = typeof tokens.input_tokens === 'number' ? tokens.input_tokens : 0;
-  const outputTokens = typeof tokens.output_tokens === 'number' ? tokens.output_tokens : 0;
-  const reasoningTokens = typeof tokens.reasoning_tokens === 'number' ? tokens.reasoning_tokens : 0;
-  const cachedTokens = Math.max(
-    typeof tokens.cached_tokens === 'number' ? Math.max(tokens.cached_tokens, 0) : 0,
-    typeof tokens.cache_tokens === 'number' ? Math.max(tokens.cache_tokens, 0) : 0
-  );
-
-  return inputTokens + outputTokens + reasoningTokens + cachedTokens;
-}
-
-/**
  * 状态栏单个格子的状态
  */
 export type StatusBlockState = 'success' | 'failure' | 'mixed' | 'idle';
@@ -252,155 +162,59 @@ export interface StatusBarData {
   totalFailure: number;
 }
 
+const DEFAULT_BLOCK_COUNT = 20;
+
 /**
- * 计算状态栏数据（最近200分钟，分为20个10分钟的时间块）
- * 每个时间块代表窗口内的一个等长区间，用于展示成功/失败趋势
+ * 空状态栏（无数据时的默认值）
  */
-export function calculateStatusBarData(
-  usageDetails: UsageDetail[],
-  sourceFilter?: string,
-  authIndexFilter?: number
+export const EMPTY_STATUS_BAR: StatusBarData = {
+  blocks: Array.from<StatusBlockState>({ length: DEFAULT_BLOCK_COUNT }).fill('idle'),
+  blockDetails: Array.from({ length: DEFAULT_BLOCK_COUNT }, () => ({
+    success: 0,
+    failure: 0,
+    rate: -1,
+    startTime: 0,
+    endTime: 0,
+  })),
+  successRate: 100,
+  totalSuccess: 0,
+  totalFailure: 0,
+};
+
+/**
+ * 将后端返回的分桶数据转换为前端 StatusBarData
+ */
+export function blocksToStatusBarData(
+  blocks: Array<{ success: number; failure: number }>,
+  windowStartMs: number,
+  blockDurationMs: number
 ): StatusBarData {
-  const BLOCK_COUNT = 20;
-  const BLOCK_DURATION_MS = 10 * 60 * 1000; // 10 minutes
-  const WINDOW_MS = BLOCK_COUNT * BLOCK_DURATION_MS; // 200 minutes
-
-  const now = Date.now();
-  const windowStart = now - WINDOW_MS;
-
-  // Initialize blocks
-  const blockStats: Array<{ success: number; failure: number }> = Array.from(
-    { length: BLOCK_COUNT },
-    () => ({ success: 0, failure: 0 })
-  );
+  if (!blocks.length) return EMPTY_STATUS_BAR;
 
   let totalSuccess = 0;
   let totalFailure = 0;
-
-  // Filter and bucket the usage details
-  usageDetails.forEach((detail) => {
-    const timestamp = Date.parse(detail.timestamp);
-    if (Number.isNaN(timestamp) || timestamp < windowStart || timestamp > now) {
-      return;
-    }
-
-    // Apply filters if provided
-    if (sourceFilter !== undefined && detail.source !== sourceFilter) {
-      return;
-    }
-    if (authIndexFilter !== undefined && detail.auth_index !== authIndexFilter) {
-      return;
-    }
-
-    // Calculate which block this falls into (0 = oldest, 19 = newest)
-    const ageMs = now - timestamp;
-    const blockIndex = BLOCK_COUNT - 1 - Math.floor(ageMs / BLOCK_DURATION_MS);
-
-    if (blockIndex >= 0 && blockIndex < BLOCK_COUNT) {
-      if (detail.failed) {
-        blockStats[blockIndex].failure += 1;
-        totalFailure += 1;
-      } else {
-        blockStats[blockIndex].success += 1;
-        totalSuccess += 1;
-      }
-    }
-  });
-
-  // Convert stats to block states and build details
-  const blocks: StatusBlockState[] = [];
+  const blockStates: StatusBlockState[] = [];
   const blockDetails: StatusBlockDetail[] = [];
 
-  blockStats.forEach((stat, idx) => {
-    const total = stat.success + stat.failure;
-    if (total === 0) {
-      blocks.push('idle');
-    } else if (stat.failure === 0) {
-      blocks.push('success');
-    } else if (stat.success === 0) {
-      blocks.push('failure');
-    } else {
-      blocks.push('mixed');
-    }
+  blocks.forEach((block, idx) => {
+    totalSuccess += block.success;
+    totalFailure += block.failure;
 
-    const blockStartTime = windowStart + idx * BLOCK_DURATION_MS;
-    blockDetails.push({
-      success: stat.success,
-      failure: stat.failure,
-      rate: total > 0 ? stat.success / total : -1,
-      startTime: blockStartTime,
-      endTime: blockStartTime + BLOCK_DURATION_MS,
-    });
+    const total = block.success + block.failure;
+    const startTime = windowStartMs + idx * blockDurationMs;
+    const endTime = startTime + blockDurationMs;
+    const rate = total > 0 ? block.success / total : -1;
+
+    if (total === 0) blockStates.push('idle');
+    else if (block.failure === 0) blockStates.push('success');
+    else if (block.success === 0) blockStates.push('failure');
+    else blockStates.push('mixed');
+
+    blockDetails.push({ success: block.success, failure: block.failure, rate, startTime, endTime });
   });
 
-  // Calculate success rate
   const total = totalSuccess + totalFailure;
   const successRate = total > 0 ? (totalSuccess / total) * 100 : 100;
 
-  return {
-    blocks,
-    blockDetails,
-    successRate,
-    totalSuccess,
-    totalFailure
-  };
-}
-
-export function computeKeyStats(usageData: unknown, masker: (val: string) => string = maskApiKey): KeyStats {
-  const apis = getApisRecord(usageData);
-  if (!apis) {
-    return { bySource: {}, byAuthIndex: {} };
-  }
-
-  const sourceStats: Record<string, KeyStatBucket> = {};
-  const authIndexStats: Record<string, KeyStatBucket> = {};
-
-  const ensureBucket = (bucket: Record<string, KeyStatBucket>, key: string) => {
-    if (!bucket[key]) {
-      bucket[key] = { success: 0, failure: 0 };
-    }
-    return bucket[key];
-  };
-
-  Object.values(apis).forEach((apiEntry) => {
-    if (!isRecord(apiEntry)) return;
-    const modelsRaw = apiEntry.models;
-    const models = isRecord(modelsRaw) ? modelsRaw : null;
-    if (!models) return;
-
-    Object.values(models).forEach((modelEntry) => {
-      if (!isRecord(modelEntry)) return;
-      const details = Array.isArray(modelEntry.details) ? modelEntry.details : [];
-
-      details.forEach((detail) => {
-        const detailRecord = isRecord(detail) ? detail : null;
-        const source = normalizeUsageSourceId(detailRecord?.source, masker);
-        const authIndexKey = normalizeAuthIndex(detailRecord?.auth_index);
-        const isFailed = detailRecord?.failed === true;
-
-        if (source) {
-          const bucket = ensureBucket(sourceStats, source);
-          if (isFailed) {
-            bucket.failure += 1;
-          } else {
-            bucket.success += 1;
-          }
-        }
-
-        if (authIndexKey) {
-          const bucket = ensureBucket(authIndexStats, authIndexKey);
-          if (isFailed) {
-            bucket.failure += 1;
-          } else {
-            bucket.success += 1;
-          }
-        }
-      });
-    });
-  });
-
-  return {
-    bySource: sourceStats,
-    byAuthIndex: authIndexStats
-  };
+  return { blocks: blockStates, blockDetails, successRate, totalSuccess, totalFailure };
 }

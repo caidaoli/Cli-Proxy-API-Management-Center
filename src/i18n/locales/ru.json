@@ -1170,7 +1170,8 @@
     "claude_api_key": "API-ключ Claude",
     "commercial_mode_restart_required": "Режим коммерческого использования изменён. Перезапустите сервис, чтобы применить изменения",
     "copy_failed": "Не удалось скопировать",
-    "link_copied": "Ссылка скопирована в буфер обмена"
+    "link_copied": "Ссылка скопирована в буфер обмена",
+    "key_stats_unavailable": "Бэкенд не поддерживает /custom/monitor/key-stats. Статистика провайдеров и файлов авторизации будет недоступна. Используйте ghcr.io/caidaoli/cliproxyapi:6.57 или новее."
   },
   "language": {
     "switch": "Язык",

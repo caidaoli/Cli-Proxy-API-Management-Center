@@ -31,7 +31,7 @@ import {
   useNotificationStore,
   useThemeStore,
 } from '@/stores';
-import { versionApi } from '@/services/api';
+import { monitorApi, versionApi } from '@/services/api';
 import { triggerHeaderRefresh } from '@/hooks/useHeaderRefresh';
 import { LANGUAGE_LABEL_KEYS, LANGUAGE_ORDER } from '@/utils/constants';
 import { isSupportedLanguage } from '@/utils/language';
@@ -337,6 +337,17 @@ export function MainLayout() {
       // ignore initial failure; login flow会提示
     });
   }, [fetchConfig]);
+
+  // 启动时探测 /custom/monitor/key-stats 接口是否可用
+  useEffect(() => {
+    monitorApi.getKeyStats().catch((err: unknown) => {
+      const status = (err as { status?: number }).status;
+      if (status === 404) {
+        showNotification(t('notification.key_stats_unavailable'), 'warning');
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
 
   const statusClass =

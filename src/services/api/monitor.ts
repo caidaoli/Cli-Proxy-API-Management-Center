@@ -192,6 +192,22 @@ export interface MonitorServiceHealthData {
   success_rate: number;
 }
 
+export interface MonitorKeyStatsEntry {
+  success: number;
+  failure: number;
+  blocks: Array<{ success: number; failure: number }>;
+}
+
+export interface MonitorKeyStatsResponse {
+  by_source: Record<string, MonitorKeyStatsEntry>;
+  by_auth_index: Record<string, MonitorKeyStatsEntry>;
+  block_config: {
+    count: number;
+    duration_ms: number;
+    window_start_ms: number;
+  };
+}
+
 export const monitorApi = {
   getRequestLogs: (params: MonitorRequestLogsQuery = {}) =>
     apiClient.get<MonitorRequestLogsResponse>('/custom/monitor/request-logs', {
@@ -228,6 +244,11 @@ export const monitorApi = {
 
   getServiceHealth: () =>
     apiClient.get<MonitorServiceHealthData>('/custom/monitor/service-health', {
+      timeout: MONITOR_TIMEOUT_MS,
+    }),
+
+  getKeyStats: () =>
+    apiClient.get<MonitorKeyStatsResponse>('/custom/monitor/key-stats', {
       timeout: MONITOR_TIMEOUT_MS,
     }),
 };

@@ -58,7 +58,7 @@ export function AiProvidersPage() {
   const disableControls = connectionStatus !== 'connected';
   const isSwitching = Boolean(configSwitchingKey);
 
-  const { keyStats, usageDetails, loadKeyStats } = useProviderStats();
+  const { keyStats, statusBarBySource, loadKeyStats } = useProviderStats();
 
   const getErrorMessage = (err: unknown) => {
     if (err instanceof Error) return err.message;
@@ -344,7 +344,7 @@ export function AiProvidersPage() {
           <GeminiSection
             configs={geminiKeys}
             keyStats={keyStats}
-            usageDetails={usageDetails}
+            statusBarBySource={statusBarBySource}
             loading={loading}
             disableControls={disableControls}
             isSwitching={isSwitching}
@@ -359,7 +359,7 @@ export function AiProvidersPage() {
           <CodexSection
             configs={codexConfigs}
             keyStats={keyStats}
-            usageDetails={usageDetails}
+            statusBarBySource={statusBarBySource}
             loading={loading}
             disableControls={disableControls}
             isSwitching={isSwitching}
@@ -375,7 +375,7 @@ export function AiProvidersPage() {
           <ClaudeSection
             configs={claudeConfigs}
             keyStats={keyStats}
-            usageDetails={usageDetails}
+            statusBarBySource={statusBarBySource}
             loading={loading}
             disableControls={disableControls}
             isSwitching={isSwitching}
@@ -390,7 +390,7 @@ export function AiProvidersPage() {
           <VertexSection
             configs={vertexConfigs}
             keyStats={keyStats}
-            usageDetails={usageDetails}
+            statusBarBySource={statusBarBySource}
             loading={loading}
             disableControls={disableControls}
             isSwitching={isSwitching}
@@ -414,7 +414,7 @@ export function AiProvidersPage() {
           <OpenAISection
             configs={openaiProviders}
             keyStats={keyStats}
-            usageDetails={usageDetails}
+            statusBarBySource={statusBarBySource}
             loading={loading}
             disableControls={disableControls}
             isSwitching={isSwitching}

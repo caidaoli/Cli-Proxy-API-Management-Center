@@ -1190,7 +1190,8 @@
     "claude_api_key": "Claude API key",
     "commercial_mode_restart_required": "Commercial mode setting changed. Please restart the service for it to take effect",
     "copy_failed": "Copy failed",
-    "link_copied": "Link copied to clipboard"
+    "link_copied": "Link copied to clipboard",
+    "key_stats_unavailable": "Backend does not support /custom/monitor/key-stats endpoint. Provider and auth file status stats will be unavailable. Please use ghcr.io/caidaoli/cliproxyapi:6.57 or later."
   },
   "language": {
     "switch": "Language",

@@ -1190,7 +1190,8 @@
     "claude_api_key": "Claude API密钥",
     "commercial_mode_restart_required": "商业模式开关已变更，请重启服务后生效",
     "copy_failed": "复制失败",
-    "link_copied": "已复制"
+    "link_copied": "已复制",
+    "key_stats_unavailable": "后端不支持 /custom/monitor/key-stats 接口，提供商页和认证文件页的状态统计将不可用。请使用 ghcr.io/caidaoli/cliproxyapi:6.57 及以上版本。"
   },
   "language": {
     "switch": "语言",
