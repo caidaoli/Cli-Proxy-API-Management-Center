@@ -1,5 +1,5 @@
 import type { AmpcodeConfig, AmpcodeModelMapping, ApiKeyEntry } from '@/types';
-import { buildCandidateUsageSourceIds, EMPTY_STATUS_BAR, type KeyStatBucket, type KeyStats, type StatusBarData } from '@/utils/usage';
+import { buildCandidateUsageSourceIds, type KeyStatBucket, type KeyStats } from '@/utils/usage';
 import type { AmpcodeFormState, ModelEntry } from './types';
 
 export const DISABLE_ALL_MODELS_RULE = '*';
@@ -172,29 +172,3 @@ export const buildAmpcodeFormState = (ampcode?: AmpcodeConfig | null): AmpcodeFo
   forceModelMappings: ampcode?.forceModelMappings ?? false,
   mappingEntries: ampcodeMappingsToEntries(ampcode?.modelMappings),
 });
-
-// 根据 API key + prefix 查找预计算的状态栏数据
-export const getStatusBarForKey = (
-  apiKey: string,
-  statusBarMap: Map<string, StatusBarData>,
-  prefix?: string
-): StatusBarData => {
-  const candidates = buildCandidateUsageSourceIds({ apiKey, prefix });
-  for (const id of candidates) {
-    const bar = statusBarMap.get(id);
-    if (bar) return bar;
-  }
-  return EMPTY_STATUS_BAR;
-};
-
-// 根据多个候选 source ID 查找预计算的状态栏数据
-export const lookupStatusBar = (
-  candidateIds: string[],
-  statusBarMap: Map<string, StatusBarData>
-): StatusBarData => {
-  for (const id of candidateIds) {
-    const bar = statusBarMap.get(id);
-    if (bar) return bar;
-  }
-  return EMPTY_STATUS_BAR;
-};

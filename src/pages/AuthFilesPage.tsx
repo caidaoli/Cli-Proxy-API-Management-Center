@@ -60,11 +60,12 @@ export function AuthFilesPage() {
   const [selectedFile, setSelectedFile] = useState<AuthFileItem | null>(null);
   const [viewMode, setViewMode] = useState<'diagram' | 'list'>('list');
   const [batchActionBarVisible, setBatchActionBarVisible] = useState(false);
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const floatingBatchActionsRef = useRef<HTMLDivElement>(null);
   const previousSelectionCountRef = useRef(0);
   const selectionCountRef = useRef(0);
 
-  const { keyStats, statusBarByAuthIndex, loadKeyStats } = useAuthFilesStats();
+  const { keyStats, usageDetails, loadKeyStats, refreshKeyStats } = useAuthFilesStats();
   const {
     files,
     selectedFiles,
@@ -88,9 +89,9 @@ export function AuthFilesPage() {
     deselectAll,
     batchSetStatus,
     batchDelete
-  } = useAuthFilesData({ refreshKeyStats: loadKeyStats });
+  } = useAuthFilesData({ refreshKeyStats });
 
-  const statusBarCache = useAuthFilesStatusBarCache(files, statusBarByAuthIndex);
+  const statusBarCache = useAuthFilesStatusBarCache(files, usageDetails);
 
   const {
     excluded,
@@ -131,7 +132,7 @@ export function AuthFilesPage() {
   } = useAuthFilesPrefixProxyEditor({
     disableControls: connectionStatus !== 'connected',
     loadFiles,
-    loadKeyStats
+    loadKeyStats: refreshKeyStats
   });
 
   const disableControls = connectionStatus !== 'connected';
@@ -214,8 +215,8 @@ export function AuthFilesPage() {
   };
 
   const handleHeaderRefresh = useCallback(async () => {
-    await Promise.all([loadFiles(), loadKeyStats(), loadExcluded(), loadModelAlias()]);
-  }, [loadFiles, loadKeyStats, loadExcluded, loadModelAlias]);
+    await Promise.all([loadFiles(), refreshKeyStats(), loadExcluded(), loadModelAlias()]);
+  }, [loadFiles, refreshKeyStats, loadExcluded, loadModelAlias]);
 
   const handleCodexCleanup = useCallback(async () => {
     setCodexCleaning(true);
@@ -237,11 +238,11 @@ export function AuthFilesPage() {
         } else if (ev.type === 'progress') {
           setCleanupCurrent(ev.index);
           const status = ev.deleted
-            ? `✗ ${t('auth_files.codex_cleanup_log_deleted')}`
+            ? `\u2717 ${t('auth_files.codex_cleanup_log_deleted')}`
             : ev.error
-              ? `⚠ ${ev.error}`
-              : `✓ ${t('auth_files.codex_cleanup_log_valid')}`;
-          setCleanupLogs((prev) => [...prev, `[${ev.index}/${ev.total}] ${ev.name} — ${status}`]);
+              ? `\u26A0 ${ev.error}`
+              : `\u2713 ${t('auth_files.codex_cleanup_log_valid')}`;
+          setCleanupLogs((prev) => [...prev, `[${ev.index}/${ev.total}] ${ev.name} \u2014 ${status}`]);
           if (ev.deleted) {
             setCleanupDeleted((prev) => prev + 1);
           }
@@ -285,7 +286,13 @@ export function AuthFilesPage() {
     loadModelAlias();
   }, [isCurrentLayer, loadFiles, loadKeyStats, loadExcluded, loadModelAlias]);
 
-  useInterval(loadKeyStats, isCurrentLayer ? 240_000 : null);
+  useInterval(
+    () => {
+      void refreshKeyStats();
+    },
+    isCurrentLayer ? 240_000 : null
+  );
+  useInterval(() => setNowMs(Date.now()), isCurrentLayer ? 60_000 : null);
 
   const existingTypes = useMemo(() => {
     const types = new Set<string>(['all']);
@@ -592,6 +599,7 @@ export function AuthFilesPage() {
                 quotaFilterType={quotaFilterType}
                 keyStats={keyStats}
                 statusBarCache={statusBarCache}
+                nowMs={nowMs}
                 onShowModels={showModels}
                 onShowDetails={showDetails}
                 onDownload={handleDownload}

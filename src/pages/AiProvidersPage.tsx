@@ -15,6 +15,7 @@ import {
   withDisableAllModelsRule,
   withoutDisableAllModelsRule,
 } from '@/components/providers/utils';
+import { useHeaderRefresh } from '@/hooks/useHeaderRefresh';
 import { ampcodeApi, providersApi } from '@/services/api';
 import { useAuthStore, useConfigStore, useNotificationStore, useThemeStore } from '@/stores';
 import type { GeminiKeyConfig, OpenAIProviderConfig, ProviderKeyConfig } from '@/types';
@@ -58,7 +59,7 @@ export function AiProvidersPage() {
   const disableControls = connectionStatus !== 'connected';
   const isSwitching = Boolean(configSwitchingKey);
 
-  const { keyStats, statusBarBySource, loadKeyStats } = useProviderStats();
+  const { keyStats, usageDetails, loadKeyStats, refreshKeyStats } = useProviderStats();
 
   const getErrorMessage = (err: unknown) => {
     if (err instanceof Error) return err.message;
@@ -128,6 +129,8 @@ export function AiProvidersPage() {
     config?.vertexApiKeys,
     config?.openaiCompatibility,
   ]);
+
+  useHeaderRefresh(refreshKeyStats);
 
   const openEditor = useCallback(
     (path: string) => {
@@ -344,7 +347,7 @@ export function AiProvidersPage() {
           <GeminiSection
             configs={geminiKeys}
             keyStats={keyStats}
-            statusBarBySource={statusBarBySource}
+            usageDetails={usageDetails}
             loading={loading}
             disableControls={disableControls}
             isSwitching={isSwitching}
@@ -359,7 +362,7 @@ export function AiProvidersPage() {
           <CodexSection
             configs={codexConfigs}
             keyStats={keyStats}
-            statusBarBySource={statusBarBySource}
+            usageDetails={usageDetails}
             loading={loading}
             disableControls={disableControls}
             isSwitching={isSwitching}
@@ -375,7 +378,7 @@ export function AiProvidersPage() {
           <ClaudeSection
             configs={claudeConfigs}
             keyStats={keyStats}
-            statusBarBySource={statusBarBySource}
+            usageDetails={usageDetails}
             loading={loading}
             disableControls={disableControls}
             isSwitching={isSwitching}
@@ -390,7 +393,7 @@ export function AiProvidersPage() {
           <VertexSection
             configs={vertexConfigs}
             keyStats={keyStats}
-            statusBarBySource={statusBarBySource}
+            usageDetails={usageDetails}
             loading={loading}
             disableControls={disableControls}
             isSwitching={isSwitching}
@@ -414,7 +417,7 @@ export function AiProvidersPage() {
           <OpenAISection
             configs={openaiProviders}
             keyStats={keyStats}
-            statusBarBySource={statusBarBySource}
+            usageDetails={usageDetails}
             loading={loading}
             disableControls={disableControls}
             isSwitching={isSwitching}

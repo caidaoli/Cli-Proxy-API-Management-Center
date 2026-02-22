@@ -1,20 +1,25 @@
-import { Fragment } from 'react';
+import { Fragment, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import iconVertex from '@/assets/icons/vertex.svg';
 import type { ProviderKeyConfig } from '@/types';
 import { maskApiKey } from '@/utils/format';
-import type { KeyStats, StatusBarData } from '@/utils/usage';
+import {
+  buildCandidateUsageSourceIds,
+  calculateStatusBarData,
+  type KeyStats,
+  type UsageDetail,
+} from '@/utils/usage';
 import styles from '@/pages/AiProvidersPage.module.scss';
 import { ProviderList } from '../ProviderList';
 import { ProviderStatusBar } from '../ProviderStatusBar';
-import { getStatsBySource, getStatusBarForKey } from '../utils';
+import { getStatsBySource } from '../utils';
 
 interface VertexSectionProps {
   configs: ProviderKeyConfig[];
   keyStats: KeyStats;
-  statusBarBySource: Map<string, StatusBarData>;
+  usageDetails: UsageDetail[];
   loading: boolean;
   disableControls: boolean;
   isSwitching: boolean;
@@ -26,7 +31,7 @@ interface VertexSectionProps {
 export function VertexSection({
   configs,
   keyStats,
-  statusBarBySource,
+  usageDetails,
   loading,
   disableControls,
   isSwitching,
@@ -36,6 +41,24 @@ export function VertexSection({
 }: VertexSectionProps) {
   const { t } = useTranslation();
   const actionsDisabled = disableControls || loading || isSwitching;
+
+  const statusBarCache = useMemo(() => {
+    const cache = new Map<string, ReturnType<typeof calculateStatusBarData>>();
+
+    configs.forEach((config) => {
+      if (!config.apiKey) return;
+      const candidates = buildCandidateUsageSourceIds({
+        apiKey: config.apiKey,
+        prefix: config.prefix,
+      });
+      if (!candidates.length) return;
+      const candidateSet = new Set(candidates);
+      const filteredDetails = usageDetails.filter((detail) => candidateSet.has(detail.source));
+      cache.set(config.apiKey, calculateStatusBarData(filteredDetails));
+    });
+
+    return cache;
+  }, [configs, usageDetails]);
 
   return (
     <>
@@ -64,7 +87,7 @@ export function VertexSection({
           renderContent={(item, index) => {
             const stats = getStatsBySource(item.apiKey, keyStats, item.prefix);
             const headerEntries = Object.entries(item.headers || {});
-            const statusData = getStatusBarForKey(item.apiKey, statusBarBySource, item.prefix);
+            const statusData = statusBarCache.get(item.apiKey) || calculateStatusBarData([]);
 
             return (
               <Fragment>

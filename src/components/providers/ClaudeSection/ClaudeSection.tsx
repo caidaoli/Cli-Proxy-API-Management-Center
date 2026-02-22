@@ -1,4 +1,4 @@
-import { Fragment } from 'react';
+import { Fragment, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -6,16 +6,21 @@ import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
 import iconClaude from '@/assets/icons/claude.svg';
 import type { ProviderKeyConfig } from '@/types';
 import { maskApiKey } from '@/utils/format';
-import type { KeyStats, StatusBarData } from '@/utils/usage';
+import {
+  buildCandidateUsageSourceIds,
+  calculateStatusBarData,
+  type KeyStats,
+  type UsageDetail,
+} from '@/utils/usage';
 import styles from '@/pages/AiProvidersPage.module.scss';
 import { ProviderList } from '../ProviderList';
 import { ProviderStatusBar } from '../ProviderStatusBar';
-import { getStatsBySource, getStatusBarForKey, hasDisableAllModelsRule } from '../utils';
+import { getStatsBySource, hasDisableAllModelsRule } from '../utils';
 
 interface ClaudeSectionProps {
   configs: ProviderKeyConfig[];
   keyStats: KeyStats;
-  statusBarBySource: Map<string, StatusBarData>;
+  usageDetails: UsageDetail[];
   loading: boolean;
   disableControls: boolean;
   isSwitching: boolean;
@@ -28,7 +33,7 @@ interface ClaudeSectionProps {
 export function ClaudeSection({
   configs,
   keyStats,
-  statusBarBySource,
+  usageDetails,
   loading,
   disableControls,
   isSwitching,
@@ -40,6 +45,24 @@ export function ClaudeSection({
   const { t } = useTranslation();
   const actionsDisabled = disableControls || loading || isSwitching;
   const toggleDisabled = disableControls || loading || isSwitching;
+
+  const statusBarCache = useMemo(() => {
+    const cache = new Map<string, ReturnType<typeof calculateStatusBarData>>();
+
+    configs.forEach((config) => {
+      if (!config.apiKey) return;
+      const candidates = buildCandidateUsageSourceIds({
+        apiKey: config.apiKey,
+        prefix: config.prefix,
+      });
+      if (!candidates.length) return;
+      const candidateSet = new Set(candidates);
+      const filteredDetails = usageDetails.filter((detail) => candidateSet.has(detail.source));
+      cache.set(config.apiKey, calculateStatusBarData(filteredDetails));
+    });
+
+    return cache;
+  }, [configs, usageDetails]);
 
   return (
     <>
@@ -79,7 +102,7 @@ export function ClaudeSection({
             const headerEntries = Object.entries(item.headers || {});
             const configDisabled = hasDisableAllModelsRule(item.excludedModels);
             const excludedModels = item.excludedModels ?? [];
-            const statusData = getStatusBarForKey(item.apiKey, statusBarBySource, item.prefix);
+            const statusData = statusBarCache.get(item.apiKey) || calculateStatusBarData([]);
 
             return (
               <Fragment>
@@ -88,6 +111,12 @@ export function ClaudeSection({
                   <span className={styles.fieldLabel}>{t('common.api_key')}:</span>
                   <span className={styles.fieldValue}>{maskApiKey(item.apiKey)}</span>
                 </div>
+                {item.priority !== undefined && (
+                  <div className={styles.fieldRow}>
+                    <span className={styles.fieldLabel}>{t('common.priority')}:</span>
+                    <span className={styles.fieldValue}>{item.priority}</span>
+                  </div>
+                )}
                 {item.prefix && (
                   <div className={styles.fieldRow}>
                     <span className={styles.fieldLabel}>{t('common.prefix')}:</span>
@@ -106,6 +135,32 @@ export function ClaudeSection({
                     <span className={styles.fieldValue}>{item.proxyUrl}</span>
                   </div>
                 )}
+                {item.cloak && (
+                  <div className={styles.fieldRow}>
+                    <span className={styles.fieldLabel}>{t('ai_providers.claude_cloak_mode_label')}:</span>
+                    <span className={styles.fieldValue}>
+                      {(() => {
+                        const raw = (item.cloak?.mode ?? '').trim().toLowerCase();
+                        const key = raw === 'always' || raw === 'never' ? raw : 'auto';
+                        return t(`ai_providers.claude_cloak_mode_${key}`);
+                      })()}
+                    </span>
+                  </div>
+                )}
+                {item.cloak?.strictMode ? (
+                  <div className={styles.fieldRow}>
+                    <span className={styles.fieldLabel}>{t('ai_providers.claude_cloak_strict_label')}:</span>
+                    <span className={styles.fieldValue}>{t('common.yes')}</span>
+                  </div>
+                ) : null}
+                {item.cloak?.sensitiveWords?.length ? (
+                  <div className={styles.fieldRow}>
+                    <span className={styles.fieldLabel}>
+                      {t('ai_providers.claude_cloak_sensitive_words_count')}:
+                    </span>
+                    <span className={styles.fieldValue}>{item.cloak.sensitiveWords.length}</span>
+                  </div>
+                ) : null}
                 {headerEntries.length > 0 && (
                   <div className={styles.headerBadgeList}>
                     {headerEntries.map(([key, value]) => (

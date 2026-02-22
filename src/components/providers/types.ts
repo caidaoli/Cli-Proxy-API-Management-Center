@@ -1,6 +1,6 @@
 import type { ApiKeyEntry, GeminiKeyConfig, ProviderKeyConfig } from '@/types';
 import type { HeaderEntry } from '@/utils/headers';
-import type { KeyStats, StatusBarData } from '@/utils/usage';
+import type { KeyStats, UsageDetail } from '@/utils/usage';
 
 export interface ModelEntry {
   name: string;
@@ -9,6 +9,7 @@ export interface ModelEntry {
 
 export interface OpenAIFormState {
   name: string;
+  priority?: number;
   prefix: string;
   baseUrl: string;
   headers: HeaderEntry[];
@@ -24,8 +25,9 @@ export interface AmpcodeFormState {
   mappingEntries: ModelEntry[];
 }
 
-export type GeminiFormState = Omit<GeminiKeyConfig, 'headers'> & {
+export type GeminiFormState = Omit<GeminiKeyConfig, 'headers' | 'models'> & {
   headers: HeaderEntry[];
+  modelEntries: ModelEntry[];
   excludedText: string;
 };
 
@@ -43,7 +45,7 @@ export type VertexFormState = Omit<ProviderKeyConfig, 'headers' | 'excludedModel
 export interface ProviderSectionProps<TConfig> {
   configs: TConfig[];
   keyStats: KeyStats;
-  statusBarBySource: Map<string, StatusBarData>;
+  usageDetails: UsageDetail[];
   disabled: boolean;
   onEdit: (index: number) => void;
   onAdd: () => void;

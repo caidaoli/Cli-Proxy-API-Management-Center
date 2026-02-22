@@ -1,4 +1,4 @@
-import { Fragment } from 'react';
+import { Fragment, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -7,16 +7,21 @@ import iconOpenaiLight from '@/assets/icons/openai-light.svg';
 import iconOpenaiDark from '@/assets/icons/openai-dark.svg';
 import type { OpenAIProviderConfig } from '@/types';
 import { maskApiKey } from '@/utils/format';
-import { buildCandidateUsageSourceIds, type KeyStats, type StatusBarData } from '@/utils/usage';
+import {
+  buildCandidateUsageSourceIds,
+  calculateStatusBarData,
+  type KeyStats,
+  type UsageDetail,
+} from '@/utils/usage';
 import styles from '@/pages/AiProvidersPage.module.scss';
 import { ProviderList } from '../ProviderList';
 import { ProviderStatusBar } from '../ProviderStatusBar';
-import { getOpenAIProviderStats, getStatsBySource, lookupStatusBar } from '../utils';
+import { getOpenAIProviderStats, getStatsBySource } from '../utils';
 
 interface OpenAISectionProps {
   configs: OpenAIProviderConfig[];
   keyStats: KeyStats;
-  statusBarBySource: Map<string, StatusBarData>;
+  usageDetails: UsageDetail[];
   loading: boolean;
   disableControls: boolean;
   isSwitching: boolean;
@@ -29,7 +34,7 @@ interface OpenAISectionProps {
 export function OpenAISection({
   configs,
   keyStats,
-  statusBarBySource,
+  usageDetails,
   loading,
   disableControls,
   isSwitching,
@@ -40,6 +45,25 @@ export function OpenAISection({
 }: OpenAISectionProps) {
   const { t } = useTranslation();
   const actionsDisabled = disableControls || loading || isSwitching;
+
+  const statusBarCache = useMemo(() => {
+    const cache = new Map<string, ReturnType<typeof calculateStatusBarData>>();
+
+    configs.forEach((provider) => {
+      const sourceIds = new Set<string>();
+      buildCandidateUsageSourceIds({ prefix: provider.prefix }).forEach((id) => sourceIds.add(id));
+      (provider.apiKeyEntries || []).forEach((entry) => {
+        buildCandidateUsageSourceIds({ apiKey: entry.apiKey }).forEach((id) => sourceIds.add(id));
+      });
+
+      const filteredDetails = sourceIds.size
+        ? usageDetails.filter((detail) => sourceIds.has(detail.source))
+        : [];
+      cache.set(provider.name, calculateStatusBarData(filteredDetails));
+    });
+
+    return cache;
+  }, [configs, usageDetails]);
 
   return (
     <>
@@ -73,18 +97,17 @@ export function OpenAISection({
             const stats = getOpenAIProviderStats(item.apiKeyEntries, keyStats, item.prefix);
             const headerEntries = Object.entries(item.headers || {});
             const apiKeyEntries = item.apiKeyEntries || [];
-
-            // 聚合该 provider 下所有 source ID 以查找状态栏
-            const allSourceIds: string[] = [];
-            buildCandidateUsageSourceIds({ prefix: item.prefix }).forEach((id) => allSourceIds.push(id));
-            apiKeyEntries.forEach((entry) => {
-              buildCandidateUsageSourceIds({ apiKey: entry.apiKey }).forEach((id) => allSourceIds.push(id));
-            });
-            const statusData = lookupStatusBar(allSourceIds, statusBarBySource);
+            const statusData = statusBarCache.get(item.name) || calculateStatusBarData([]);
 
             return (
               <Fragment>
                 <div className="item-title">{item.name}</div>
+                {item.priority !== undefined && (
+                  <div className={styles.fieldRow}>
+                    <span className={styles.fieldLabel}>{t('common.priority')}:</span>
+                    <span className={styles.fieldValue}>{item.priority}</span>
+                  </div>
+                )}
                 {item.prefix && (
                   <div className={styles.fieldRow}>
                     <span className={styles.fieldLabel}>{t('common.prefix')}:</span>
