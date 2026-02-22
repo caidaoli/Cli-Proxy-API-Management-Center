@@ -15,6 +15,17 @@ export interface KeyStats {
   byAuthIndex: Record<string, KeyStatBucket>;
 }
 
+export const normalizeAuthIndex = (value: unknown) => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value.toString();
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed ? trimmed : null;
+  }
+  return null;
+};
+
 // ── Source ID 规范化 ──
 
 const USAGE_SOURCE_PREFIX_KEY = 'k:';

@@ -27,7 +27,7 @@ import { copyToClipboard } from '@/utils/clipboard';
 import { downloadBlob } from '@/utils/download';
 import { MANAGEMENT_API_PREFIX } from '@/utils/constants';
 import { formatUnixTimestamp } from '@/utils/format';
-import { buildCandidateUsageSourceIds } from '@/utils/usage';
+import { buildCandidateUsageSourceIds, normalizeAuthIndex } from '@/utils/usage';
 import {
   HTTP_METHODS,
   STATUS_GROUPS,
@@ -144,17 +144,6 @@ const TRACE_MATCH_WINDOW_MS = 10 * 1000;
 const TRACE_MATCH_MAX_WINDOW_MS = 30 * 1000;
 
 type TraceDetail = MonitorRequestDetailItem & { __timestampMs: number };
-
-const normalizeTraceAuthIndex = (value: unknown): string | null => {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value.toString();
-  }
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    return trimmed || null;
-  }
-  return null;
-};
 
 const normalizeTracePath = (value?: string) =>
   String(value ?? '')
@@ -775,7 +764,7 @@ export function LogsPage() {
         if (Array.isArray(files)) {
           const map = new Map<string, TraceCredentialInfo>();
           files.forEach((file) => {
-            const key = normalizeTraceAuthIndex(file['auth_index'] ?? file.authIndex);
+            const key = normalizeAuthIndex(file['auth_index'] ?? file.authIndex);
             if (!key) return;
             map.set(key, {
               name: file.name || key,
@@ -925,7 +914,7 @@ export function LogsPage() {
         return matchedSource;
       }
 
-      const authIndexKey = normalizeTraceAuthIndex(authIndex);
+      const authIndexKey = normalizeAuthIndex(authIndex);
       if (authIndexKey) {
         const authInfo = traceAuthFileMap.get(authIndexKey);
         if (authInfo) {
