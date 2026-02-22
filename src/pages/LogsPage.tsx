@@ -23,6 +23,7 @@ import { authFilesApi } from '@/services/api/authFiles';
 import { logsApi } from '@/services/api/logs';
 import { monitorApi, type MonitorRequestDetailItem } from '@/services/api/monitor';
 import type { AuthFileItem } from '@/types';
+import type { CredentialInfo, SourceInfo } from '@/types/sourceInfo';
 import { copyToClipboard } from '@/utils/clipboard';
 import { downloadBlob } from '@/utils/download';
 import { MANAGEMENT_API_PREFIX } from '@/utils/constants';
@@ -126,16 +127,6 @@ type TraceCandidate = {
   score: number;
   confidence: TraceConfidence;
   timeDeltaMs: number | null;
-};
-
-type TraceCredentialInfo = {
-  name: string;
-  type: string;
-};
-
-type TraceSourceInfo = {
-  displayName: string;
-  type: string;
 };
 
 const TRACE_USAGE_CACHE_MS = 60 * 1000;
@@ -499,7 +490,7 @@ export function LogsPage() {
 
   const disableControls = connectionStatus !== 'connected';
   const traceSourceInfoMap = useMemo(() => {
-    const map = new Map<string, TraceSourceInfo>();
+    const map = new Map<string, SourceInfo>();
 
     const registerSource = (sourceId: string, displayName: string, type: string) => {
       if (!sourceId || !displayName || map.has(sourceId)) return;
@@ -762,7 +753,7 @@ export function LogsPage() {
           ? authFilesResponse
           : (authFilesResponse as { files?: AuthFileItem[] })?.files;
         if (Array.isArray(files)) {
-          const map = new Map<string, TraceCredentialInfo>();
+          const map = new Map<string, CredentialInfo>();
           files.forEach((file) => {
             const key = normalizeAuthIndex(file['auth_index'] ?? file.authIndex);
             if (!key) return;
@@ -907,7 +898,7 @@ export function LogsPage() {
     return scored.slice(0, 8);
   }, [traceLogLine, traceUsageDetails]);
   const resolveTraceSourceInfo = useCallback(
-    (sourceRaw: string, authIndex: unknown): TraceSourceInfo => {
+    (sourceRaw: string, authIndex: unknown): SourceInfo => {
       const source = sourceRaw.trim();
       const matchedSource = traceSourceInfoMap.get(source);
       if (matchedSource) {
