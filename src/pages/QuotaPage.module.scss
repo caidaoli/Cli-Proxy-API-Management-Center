@@ -282,6 +282,15 @@
   padding: $spacing-sm 0;
 }
 
+.quotaMessageClickable {
+  cursor: pointer;
+  color: var(--primary-color);
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
 .quotaError {
   font-size: 12px;
   color: var(--danger-color);

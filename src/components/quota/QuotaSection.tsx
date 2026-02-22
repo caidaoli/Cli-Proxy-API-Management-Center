@@ -161,6 +161,13 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
 
   const { quota, loadQuota } = useQuotaLoader(config);
 
+  const handleRefreshItem = useCallback(
+    (item: AuthFileItem) => {
+      loadQuota([item], 'page', setLoading);
+    },
+    [loadQuota, setLoading]
+  );
+
   const pendingQuotaRefreshRef = useRef(false);
   const prevFilesLoadingRef = useRef(loading);
 
@@ -274,6 +281,7 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
                 cardClassName={config.cardClassName}
                 defaultType={config.type}
                 renderQuotaItems={config.renderQuotaItems}
+                onRefresh={() => handleRefreshItem(item)}
               />
             ))}
           </div>

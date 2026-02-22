@@ -64,6 +64,7 @@ interface QuotaCardProps<TState extends QuotaStatusState> {
   cardClassName: string;
   defaultType: string;
   renderQuotaItems: (quota: TState, t: TFunction, helpers: QuotaRenderHelpers) => ReactNode;
+  onRefresh?: () => void;
 }
 
 export function QuotaCard<TState extends QuotaStatusState>({
@@ -73,7 +74,8 @@ export function QuotaCard<TState extends QuotaStatusState>({
   i18nPrefix,
   cardClassName,
   defaultType,
-  renderQuotaItems
+  renderQuotaItems,
+  onRefresh
 }: QuotaCardProps<TState>) {
   const { t } = useTranslation();
 
@@ -117,7 +119,13 @@ export function QuotaCard<TState extends QuotaStatusState>({
         {quotaStatus === 'loading' ? (
           <div className={styles.quotaMessage}>{t(`${i18nPrefix}.loading`)}</div>
         ) : quotaStatus === 'idle' ? (
-          <div className={styles.quotaMessage}>{t(`${i18nPrefix}.idle`)}</div>
+          <div
+            className={`${styles.quotaMessage} ${onRefresh ? styles.quotaMessageClickable : ''}`}
+            onClick={onRefresh}
+            role={onRefresh ? 'button' : undefined}
+          >
+            {t(`${i18nPrefix}.idle`)}
+          </div>
         ) : quotaStatus === 'error' ? (
           <div className={styles.quotaError}>
             {t(`${i18nPrefix}.load_failed`, {
