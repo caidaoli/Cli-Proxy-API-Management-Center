@@ -488,6 +488,9 @@ export function LogsPage() {
   const { t } = useTranslation();
   const { showNotification, showConfirmation } = useNotificationStore();
   const connectionStatus = useAuthStore((state) => state.connectionStatus);
+  const apiBase = useAuthStore((state) => state.apiBase);
+  const managementKey = useAuthStore((state) => state.managementKey);
+  const traceScopeKey = `${apiBase}::${managementKey}`;
   const config = useConfigStore((state) => state.config);
   const requestLogEnabled = config?.requestLog ?? false;
 
@@ -527,6 +530,7 @@ export function LogsPage() {
   const pendingFullReloadRef = useRef(false);
   const traceUsageLoadedAtRef = useRef(0);
   const traceAuthLoadedAtRef = useRef(0);
+  const traceScopeKeyRef = useRef('');
 
   // 保存最新时间戳用于增量获取
   const latestTimestampRef = useRef<number>(0);
@@ -752,6 +756,15 @@ export function LogsPage() {
   };
 
   const loadTraceUsageDetails = useCallback(async () => {
+    if (traceScopeKeyRef.current !== traceScopeKey) {
+      traceScopeKeyRef.current = traceScopeKey;
+      traceUsageLoadedAtRef.current = 0;
+      traceAuthLoadedAtRef.current = 0;
+      setTraceUsageDetails([]);
+      setTraceAuthFileMap(new Map());
+      setTraceError('');
+    }
+
     if (traceLoading) return;
 
     const now = Date.now();
@@ -805,11 +818,18 @@ export function LogsPage() {
     } finally {
       setTraceLoading(false);
     }
-  }, [t, traceLoading]);
+  }, [t, traceLoading, traceScopeKey]);
 
   useEffect(() => {
     if (connectionStatus === 'connected') {
       latestTimestampRef.current = 0;
+      traceScopeKeyRef.current = traceScopeKey;
+      traceUsageLoadedAtRef.current = 0;
+      traceAuthLoadedAtRef.current = 0;
+      setTraceUsageDetails([]);
+      setTraceAuthFileMap(new Map());
+      setTraceLoading(false);
+      setTraceError('');
       loadLogs(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1162,6 +1182,7 @@ export function LogsPage() {
   const openTraceModal = (line: ParsedLogLine) => {
     if (!isTraceableRequestPath(line.path)) return;
     cancelLongPress();
+    setTraceError('');
     setTraceLogLine(line);
     void loadTraceUsageDetails();
   };
