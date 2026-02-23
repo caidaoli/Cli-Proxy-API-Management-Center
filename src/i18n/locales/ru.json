@@ -1071,6 +1071,7 @@
           "routing_strategy_hint": "Выберите стратегию подбора учётных данных",
           "strategy_round_robin": "По кругу",
           "strategy_fill_first": "Сначала заполнить",
+          "strategy_sf": "Последовательное заполнение",
           "force_model_prefix": "Принудительный префикс модели",
           "force_model_prefix_desc": "Запросы к моделям без префикса используют только учётные данные без префикса",
           "ws_auth": "Аутентификация WebSocket",

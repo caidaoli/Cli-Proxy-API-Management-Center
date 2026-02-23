@@ -45,8 +45,9 @@ export function DailyTrendChart({ timeRange, apiFilter, isDark }: DailyTrendChar
   // 图表数据
   const chartData = useMemo(() => {
     const labels = dailyItems.map((item) => {
-      const date = new Date(item.date);
-      return `${date.getMonth() + 1}/${date.getDate()}`;
+      // item.date format: "2026-02-23" — parse directly to avoid timezone shift
+      const [, m, d] = item.date.split('-');
+      return `${parseInt(m, 10)}/${parseInt(d, 10)}`;
     });
 
     return {
