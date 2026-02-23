@@ -21,16 +21,12 @@ import { useHeaderRefresh } from '@/hooks/useHeaderRefresh';
 import { useAuthStore, useConfigStore, useNotificationStore } from '@/stores';
 import { authFilesApi } from '@/services/api/authFiles';
 import { logsApi } from '@/services/api/logs';
-import { usageApi } from '@/services/api/usage';
+import { monitorApi, type MonitorRequestDetailItem } from '@/services/api/monitor';
 import type { AuthFileItem } from '@/types';
 import { copyToClipboard } from '@/utils/clipboard';
 import { MANAGEMENT_API_PREFIX } from '@/utils/constants';
 import { formatUnixTimestamp } from '@/utils/format';
-import {
-  buildCandidateUsageSourceIds,
-  collectUsageDetailsWithEndpoint,
-  type UsageDetailWithEndpoint
-} from '@/utils/usage';
+import { buildCandidateUsageSourceIds } from '@/utils/usage';
 import styles from './LogsPage.module.scss';
 
 interface ErrorLogItem {
@@ -149,7 +145,7 @@ type ParsedLogLine = {
 type TraceConfidence = 'high' | 'medium' | 'low';
 
 type TraceCandidate = {
-  detail: UsageDetailWithEndpoint;
+  detail: MonitorRequestDetailItem & { __timestampMs: number };
   score: number;
   confidence: TraceConfidence;
   timeDeltaMs: number | null;
@@ -169,6 +165,8 @@ const TRACE_USAGE_CACHE_MS = 60 * 1000;
 const TRACE_MATCH_STRONG_WINDOW_MS = 3 * 1000;
 const TRACE_MATCH_WINDOW_MS = 10 * 1000;
 const TRACE_MATCH_MAX_WINDOW_MS = 30 * 1000;
+
+type TraceDetail = MonitorRequestDetailItem & { __timestampMs: number };
 
 const normalizeTraceAuthIndex = (value: unknown): string | null => {
   if (typeof value === 'number' && Number.isFinite(value)) {
@@ -205,7 +203,7 @@ const isTraceableRequestPath = (value?: string): boolean => {
 
 const scoreTraceCandidate = (
   line: ParsedLogLine,
-  detail: UsageDetailWithEndpoint
+  detail: TraceDetail
 ): TraceCandidate | null => {
   let score = 0;
   let timeDeltaMs: number | null = null;
@@ -226,8 +224,8 @@ const scoreTraceCandidate = (
   }
 
   let methodMatched = false;
-  if (line.method && detail.__endpointMethod) {
-    if (line.method.toUpperCase() === detail.__endpointMethod.toUpperCase()) {
+  if (line.method && detail.method) {
+    if (line.method.toUpperCase() === detail.method.toUpperCase()) {
       score += 18;
       methodMatched = true;
     } else {
@@ -236,7 +234,7 @@ const scoreTraceCandidate = (
   }
 
   const logPath = normalizeTracePath(line.path);
-  const detailPath = normalizeTracePath(detail.__endpointPath);
+  const detailPath = normalizeTracePath(detail.path);
   let pathMatched = false;
   if (logPath && detailPath) {
     if (logPath === detailPath) {
@@ -510,7 +508,7 @@ export function LogsPage() {
   const [requestLogId, setRequestLogId] = useState<string | null>(null);
   const [requestLogDownloading, setRequestLogDownloading] = useState(false);
   const [traceLogLine, setTraceLogLine] = useState<ParsedLogLine | null>(null);
-  const [traceUsageDetails, setTraceUsageDetails] = useState<UsageDetailWithEndpoint[]>([]);
+  const [traceUsageDetails, setTraceUsageDetails] = useState<TraceDetail[]>([]);
   const [traceAuthFileMap, setTraceAuthFileMap] = useState<Map<string, TraceCredentialInfo>>(new Map());
   const [traceLoading, setTraceLoading] = useState(false);
   const [traceError, setTraceError] = useState('');
@@ -777,14 +775,20 @@ export function LogsPage() {
     setTraceLoading(true);
     setTraceError('');
     try {
-      const [usageResponse, authFilesResponse] = await Promise.all([
-        usageFresh ? Promise.resolve(null) : usageApi.getUsage(),
+      const [detailsResponse, authFilesResponse] = await Promise.all([
+        usageFresh ? Promise.resolve(null) : monitorApi.getRequestDetails({ limit: 500 }),
         authFresh ? Promise.resolve(null) : authFilesApi.list().catch(() => null)
       ]);
 
-      if (usageResponse !== null) {
-        const usageData = usageResponse?.usage ?? usageResponse;
-        const details = collectUsageDetailsWithEndpoint(usageData);
+      if (detailsResponse !== null) {
+        const items = detailsResponse.items || [];
+        const details: TraceDetail[] = items.map((item) => {
+          const timestampMs = Date.parse(item.timestamp);
+          return {
+            ...item,
+            __timestampMs: Number.isNaN(timestampMs) ? 0 : timestampMs,
+          };
+        });
         setTraceUsageDetails(details);
         traceUsageLoadedAtRef.current = now;
       }
@@ -1727,7 +1731,7 @@ export function LogsPage() {
                   );
                   return (
                     <div
-                      key={`${candidate.detail.__endpoint}-${candidate.detail.__modelName}-${candidate.detail.timestamp}-${candidate.detail.source}`}
+                      key={`${candidate.detail.method}-${candidate.detail.path}-${candidate.detail.model}-${candidate.detail.timestamp}-${candidate.detail.source}`}
                       className={styles.traceCandidate}
                     >
                       <div className={styles.traceCandidateHeader}>
@@ -1748,11 +1752,11 @@ export function LogsPage() {
                       <div className={styles.traceCandidateGrid}>
                         <div className={styles.traceInfoItem}>
                           <span className={styles.traceInfoLabel}>{t('logs.trace_endpoint')}</span>
-                          <span className={styles.traceInfoValue}>{candidate.detail.__endpoint}</span>
+                          <span className={styles.traceInfoValue}>{`${candidate.detail.method} ${candidate.detail.path}`}</span>
                         </div>
                         <div className={styles.traceInfoItem}>
                           <span className={styles.traceInfoLabel}>{t('logs.trace_model')}</span>
-                          <span className={styles.traceInfoValue}>{candidate.detail.__modelName || '-'}</span>
+                          <span className={styles.traceInfoValue}>{candidate.detail.model || '-'}</span>
                         </div>
                         <div className={styles.traceInfoItem}>
                           <span className={styles.traceInfoLabel}>{t('logs.trace_source')}</span>

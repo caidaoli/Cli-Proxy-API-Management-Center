@@ -8,7 +8,6 @@ src/services/api/monitor.ts merge=ours
 src/utils/monitor.ts merge=ours
 src/hooks/useDisableModel.ts merge=ours
 src/stores/useDisabledModelsStore.ts merge=ours
-src/stores/useUsageStatsStore.ts merge=ours
 
 # 隔离后的本地集成文件
 src/router/localRoutes.tsx merge=ours

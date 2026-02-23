@@ -1,4 +1,4 @@
-import { Fragment, useMemo } from 'react';
+import { Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -7,9 +7,9 @@ import type { ProviderKeyConfig } from '@/types';
 import { maskApiKey } from '@/utils/format';
 import {
   buildCandidateUsageSourceIds,
-  calculateStatusBarData,
+  lookupStatusBar,
   type KeyStats,
-  type UsageDetail,
+  type StatusBarData,
 } from '@/utils/usage';
 import styles from '@/pages/AiProvidersPage.module.scss';
 import { ProviderList } from '../ProviderList';
@@ -19,7 +19,7 @@ import { getStatsBySource } from '../utils';
 interface VertexSectionProps {
   configs: ProviderKeyConfig[];
   keyStats: KeyStats;
-  usageDetails: UsageDetail[];
+  statusBarBySource: Map<string, StatusBarData>;
   loading: boolean;
   disableControls: boolean;
   isSwitching: boolean;
@@ -31,7 +31,7 @@ interface VertexSectionProps {
 export function VertexSection({
   configs,
   keyStats,
-  usageDetails,
+  statusBarBySource,
   loading,
   disableControls,
   isSwitching,
@@ -41,24 +41,6 @@ export function VertexSection({
 }: VertexSectionProps) {
   const { t } = useTranslation();
   const actionsDisabled = disableControls || loading || isSwitching;
-
-  const statusBarCache = useMemo(() => {
-    const cache = new Map<string, ReturnType<typeof calculateStatusBarData>>();
-
-    configs.forEach((config) => {
-      if (!config.apiKey) return;
-      const candidates = buildCandidateUsageSourceIds({
-        apiKey: config.apiKey,
-        prefix: config.prefix,
-      });
-      if (!candidates.length) return;
-      const candidateSet = new Set(candidates);
-      const filteredDetails = usageDetails.filter((detail) => candidateSet.has(detail.source));
-      cache.set(config.apiKey, calculateStatusBarData(filteredDetails));
-    });
-
-    return cache;
-  }, [configs, usageDetails]);
 
   return (
     <>
@@ -87,7 +69,10 @@ export function VertexSection({
           renderContent={(item, index) => {
             const stats = getStatsBySource(item.apiKey, keyStats, item.prefix);
             const headerEntries = Object.entries(item.headers || {});
-            const statusData = statusBarCache.get(item.apiKey) || calculateStatusBarData([]);
+            const statusData = lookupStatusBar(
+              statusBarBySource,
+              buildCandidateUsageSourceIds({ apiKey: item.apiKey, prefix: item.prefix })
+            );
 
             return (
               <Fragment>

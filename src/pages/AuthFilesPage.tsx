@@ -65,7 +65,7 @@ export function AuthFilesPage() {
   const previousSelectionCountRef = useRef(0);
   const selectionCountRef = useRef(0);
 
-  const { keyStats, usageDetails, loadKeyStats, refreshKeyStats } = useAuthFilesStats();
+  const { keyStats, statusBarByAuthIndex, loadKeyStats, refreshKeyStats } = useAuthFilesStats();
   const {
     files,
     selectedFiles,
@@ -91,7 +91,7 @@ export function AuthFilesPage() {
     batchDelete
   } = useAuthFilesData({ refreshKeyStats });
 
-  const statusBarCache = useAuthFilesStatusBarCache(files, usageDetails);
+  const statusBarCache = useAuthFilesStatusBarCache(files, statusBarByAuthIndex);
 
   const {
     excluded,

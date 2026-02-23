@@ -208,6 +208,28 @@ export interface MonitorKeyStatsResponse {
   };
 }
 
+export interface MonitorRequestDetailItem {
+  timestamp: string;
+  method: string;
+  path: string;
+  model: string;
+  source: string;
+  auth_index: string;
+  failed: boolean;
+}
+
+export interface MonitorRequestDetailsResponse {
+  items: MonitorRequestDetailItem[];
+}
+
+export interface MonitorRequestDetailsQuery {
+  timestamp?: string;
+  window_seconds?: number;
+  method?: string;
+  path?: string;
+  limit?: number;
+}
+
 export const monitorApi = {
   getRequestLogs: (params: MonitorRequestLogsQuery = {}) =>
     apiClient.get<MonitorRequestLogsResponse>('/custom/monitor/request-logs', {
@@ -249,6 +271,12 @@ export const monitorApi = {
 
   getKeyStats: () =>
     apiClient.get<MonitorKeyStatsResponse>('/custom/monitor/key-stats', {
+      timeout: MONITOR_TIMEOUT_MS,
+    }),
+
+  getRequestDetails: (params: MonitorRequestDetailsQuery = {}) =>
+    apiClient.get<MonitorRequestDetailsResponse>('/custom/monitor/request-details', {
+      params,
       timeout: MONITOR_TIMEOUT_MS,
     }),
 };
