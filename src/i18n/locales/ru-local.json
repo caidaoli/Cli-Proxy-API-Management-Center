@@ -1,0 +1,10 @@
+{
+  "monitor": {
+    "yesterday": "Вчера",
+    "day_before_yesterday": "Позавчера",
+    "time": {
+      "yesterday": "Вчера",
+      "dayBeforeYesterday": "Позавчера"
+    }
+  }
+}

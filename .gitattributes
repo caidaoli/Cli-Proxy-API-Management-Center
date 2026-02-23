@@ -1,0 +1,17 @@
+# 本地独有文件 — 合并时始终保留本地版本
+src/components/monitor/** merge=ours
+src/pages/MonitorPage.tsx merge=ours
+src/pages/MonitorPage.module.scss merge=ours
+src/pages/OAuthPage.tsx merge=ours
+src/pages/OAuthPage.module.scss merge=ours
+src/services/api/monitor.ts merge=ours
+src/utils/monitor.ts merge=ours
+src/hooks/useDisableModel.ts merge=ours
+src/stores/useDisabledModelsStore.ts merge=ours
+src/stores/useUsageStatsStore.ts merge=ours
+
+# 隔离后的本地集成文件
+src/router/localRoutes.tsx merge=ours
+src/services/api/local.ts merge=ours
+src/stores/local.ts merge=ours
+src/i18n/locales/*-local.json merge=ours

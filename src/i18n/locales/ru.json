@@ -1296,14 +1296,6 @@
     "toggle_expand": "Развернуть боковую панель",
     "toggle_collapse": "Свернуть боковую панель"
   },
-  "monitor": {
-    "yesterday": "Вчера",
-    "day_before_yesterday": "Позавчера",
-    "time": {
-      "yesterday": "Вчера",
-      "dayBeforeYesterday": "Позавчера"
-    }
-  },
   "footer": {
     "api_version": "Версия CLI Proxy API",
     "build_date": "Время сборки",
