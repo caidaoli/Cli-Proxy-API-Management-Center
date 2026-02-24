@@ -628,7 +628,7 @@
     "fetch_all": "Получить все",
     "remaining_amount": "Осталось {{count}}"
   },
-  "kiro_quota": {
+"kiro_quota": {
     "title": "Квота Kiro",
     "empty_title": "Файлы авторизации Kiro отсутствуют",
     "empty_desc": "Загрузите учётные данные Kiro, чтобы увидеть оставшуюся квоту.",
@@ -645,6 +645,18 @@
     "free_trial": "Пробный период",
     "trial_active": "Активен",
     "trial_expired": "Истёк"
+  },
+  "kimi_quota": {
+    "title": "Квота Kimi",
+    "empty_title": "Файлы авторизации Kimi отсутствуют",
+    "empty_desc": "Загрузите учётные данные Kimi, чтобы увидеть оставшуюся квоту.",
+    "idle": "Не загружено. Нажмите \"Обновить квоту\".",
+    "loading": "Загрузка квоты...",
+    "load_failed": "Не удалось загрузить квоту: {{message}}",
+    "missing_auth_index": "В файле авторизации отсутствует auth_index",
+    "empty_data": "Данные по квоте отсутствуют",
+    "refresh_button": "Обновить квоту",
+    "fetch_all": "Получить все"
   },
   "vertex_import": {
     "title": "Вход с Vertex JSON",

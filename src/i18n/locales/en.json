@@ -631,7 +631,7 @@
     "fetch_all": "Fetch All",
     "remaining_amount": "Remaining {{count}}"
   },
-  "kiro_quota": {
+"kiro_quota": {
     "title": "Kiro Quota",
     "empty_title": "No Kiro Auth Files",
     "empty_desc": "Upload a Kiro credential to view remaining quota.",
@@ -648,6 +648,18 @@
     "free_trial": "Free Trial",
     "trial_active": "Active",
     "trial_expired": "Expired"
+  },
+  "kimi_quota": {
+    "title": "Kimi Quota",
+    "empty_title": "No Kimi Auth Files",
+    "empty_desc": "Upload a Kimi credential to view remaining quota.",
+    "idle": "Click here to refresh quota",
+    "loading": "Loading quota...",
+    "load_failed": "Failed to load quota: {{message}}",
+    "missing_auth_index": "Auth file missing auth_index",
+    "empty_data": "No quota data available",
+    "refresh_button": "Refresh Quota",
+    "fetch_all": "Fetch All"
   },
   "vertex_import": {
     "title": "Vertex JSON Login",

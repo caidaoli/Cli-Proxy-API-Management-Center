@@ -34,6 +34,10 @@ export const TYPE_COLORS: Record<string, TypeColorSet> = {
     light: { bg: '#fff3e0', text: '#ef6c00' },
     dark: { bg: '#e65100', text: '#ffb74d' },
   },
+  kimi: {
+    light: { bg: '#fff4e5', text: '#ad6800' },
+    dark: { bg: '#7c4a03', text: '#ffd591' },
+  },
   antigravity: {
     light: { bg: '#e0f7fa', text: '#006064' },
     dark: { bg: '#004d40', text: '#80deea' },
@@ -196,3 +200,10 @@ export const KIRO_REQUEST_BODY = JSON.stringify({
   origin: 'AI_EDITOR',
   resourceType: 'AGENTIC_REQUEST',
 });
+
+// Kimi API configuration
+export const KIMI_USAGE_URL = 'https://api.kimi.com/coding/v1/usages';
+
+export const KIMI_REQUEST_HEADERS = {
+  Authorization: 'Bearer $TOKEN$',
+};
