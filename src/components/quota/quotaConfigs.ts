@@ -25,6 +25,8 @@ import type {
   KiroQuotaState,
   KiroBaseQuota,
   KiroFreeTrialQuota,
+  KimiQuotaRow,
+  KimiQuotaState,
 } from '@/types';
 import { apiCallApi, authFilesApi, getApiCallErrorMessage } from '@/services/api';
 import {
@@ -40,6 +42,8 @@ import {
   KIRO_QUOTA_URL,
   KIRO_REQUEST_HEADERS,
   KIRO_REQUEST_BODY,
+  KIMI_USAGE_URL,
+  KIMI_REQUEST_HEADERS,
   normalizeGeminiCliModelId,
   normalizeNumberValue,
   normalizePlanType,
@@ -51,13 +55,16 @@ import {
   parseGeminiCliQuotaPayload,
   parseKiroQuotaPayload,
   parseKiroErrorPayload,
+  parseKimiUsagePayload,
   resolveCodexChatgptAccountId,
   resolveCodexPlanType,
   resolveGeminiCliProjectId,
   formatCodexResetLabel,
   formatQuotaResetTime,
+  formatKimiResetHint,
   buildAntigravityQuotaGroups,
   buildGeminiCliQuotaBuckets,
+  buildKimiQuotaRows,
   createStatusError,
   getStatusFromError,
   isAntigravityFile,
@@ -66,6 +73,7 @@ import {
   isDisabledAuthFile,
   isGeminiCliFile,
   isKiroFile,
+  isKimiFile,
   isRuntimeOnlyAuthFile,
 } from '@/utils/quota';
 import { normalizeAuthIndex } from '@/utils/usage';
@@ -74,7 +82,7 @@ import styles from '@/pages/QuotaPage.module.scss';
 
 type QuotaUpdater<T> = T | ((prev: T) => T);
 
-type QuotaType = 'antigravity' | 'claude' | 'codex' | 'gemini-cli' | 'kiro';
+type QuotaType = 'antigravity' | 'claude' | 'codex' | 'gemini-cli' | 'kiro' | 'kimi';
 
 const DEFAULT_ANTIGRAVITY_PROJECT_ID = 'bamboo-precept-lgxtn';
 
@@ -84,11 +92,13 @@ export interface QuotaStore {
   codexQuota: Record<string, CodexQuotaState>;
   geminiCliQuota: Record<string, GeminiCliQuotaState>;
   kiroQuota: Record<string, KiroQuotaState>;
+  kimiQuota: Record<string, KimiQuotaState>;
   setAntigravityQuota: (updater: QuotaUpdater<Record<string, AntigravityQuotaState>>) => void;
   setClaudeQuota: (updater: QuotaUpdater<Record<string, ClaudeQuotaState>>) => void;
   setCodexQuota: (updater: QuotaUpdater<Record<string, CodexQuotaState>>) => void;
   setGeminiCliQuota: (updater: QuotaUpdater<Record<string, GeminiCliQuotaState>>) => void;
   setKiroQuota: (updater: QuotaUpdater<Record<string, KiroQuotaState>>) => void;
+  setKimiQuota: (updater: QuotaUpdater<Record<string, KimiQuotaState>>) => void;
   clearQuotaCache: () => void;
 }
 
@@ -1081,4 +1091,108 @@ export const KIRO_CONFIG: QuotaConfig<KiroQuotaState, KiroQuotaData> = {
   controlClassName: styles.kiroControl,
   gridClassName: styles.kiroGrid,
   renderQuotaItems: renderKiroItems,
+};
+
+const fetchKimiQuota = async (
+  file: AuthFileItem,
+  t: TFunction
+): Promise<KimiQuotaRow[]> => {
+  const rawAuthIndex = file['auth_index'] ?? file.authIndex;
+  const authIndex = normalizeAuthIndex(rawAuthIndex);
+  if (!authIndex) {
+    throw new Error(t('kimi_quota.missing_auth_index'));
+  }
+
+  const result = await apiCallApi.request({
+    authIndex,
+    method: 'GET',
+    url: KIMI_USAGE_URL,
+    header: { ...KIMI_REQUEST_HEADERS },
+  });
+
+  if (result.statusCode < 200 || result.statusCode >= 300) {
+    throw createStatusError(getApiCallErrorMessage(result), result.statusCode);
+  }
+
+  const payload = parseKimiUsagePayload(result.body ?? result.bodyText);
+  if (!payload) {
+    throw new Error(t('kimi_quota.empty_data'));
+  }
+
+  return buildKimiQuotaRows(payload);
+};
+
+const renderKimiItems = (
+  quota: KimiQuotaState,
+  t: TFunction,
+  helpers: QuotaRenderHelpers
+): ReactNode => {
+  const { styles: styleMap, QuotaProgressBar } = helpers;
+  const { createElement: h } = React;
+  const rows = quota.rows ?? [];
+
+  if (rows.length === 0) {
+    return h('div', { className: styleMap.quotaMessage }, t('kimi_quota.empty_data'));
+  }
+
+  return rows.map((row) => {
+    const limit = row.limit;
+    const used = row.used;
+    const remaining =
+      limit > 0
+        ? Math.max(0, Math.min(100, Math.round(((limit - used) / limit) * 100)))
+        : used > 0
+          ? 0
+          : null;
+    const percentLabel = remaining === null ? '--' : `${remaining}%`;
+    const rowLabel = row.labelKey
+      ? t(row.labelKey, (row.labelParams ?? {}) as Record<string, string | number>)
+      : row.label ?? '';
+    const resetLabel = formatKimiResetHint(t, row.resetHint);
+
+    return h(
+      'div',
+      { key: row.id, className: styleMap.quotaRow },
+      h(
+        'div',
+        { className: styleMap.quotaRowHeader },
+        h('span', { className: styleMap.quotaModel }, rowLabel),
+        h(
+          'div',
+          { className: styleMap.quotaMeta },
+          h('span', { className: styleMap.quotaPercent }, percentLabel),
+          limit > 0
+            ? h('span', { className: styleMap.quotaAmount }, `${used} / ${limit}`)
+            : null,
+          resetLabel
+            ? h('span', { className: styleMap.quotaReset }, resetLabel)
+            : null
+        )
+      ),
+      h(QuotaProgressBar, { percent: remaining, highThreshold: 60, mediumThreshold: 20 })
+    );
+  });
+};
+
+export const KIMI_CONFIG: QuotaConfig<KimiQuotaState, KimiQuotaRow[]> = {
+  type: 'kimi',
+  i18nPrefix: 'kimi_quota',
+  cardIdleMessageKey: 'quota_management.card_idle_hint',
+  filterFn: (file) => isKimiFile(file) && !isDisabledAuthFile(file),
+  fetchQuota: fetchKimiQuota,
+  storeSelector: (state) => state.kimiQuota,
+  storeSetter: 'setKimiQuota',
+  buildLoadingState: () => ({ status: 'loading', rows: [] }),
+  buildSuccessState: (rows) => ({ status: 'success', rows }),
+  buildErrorState: (message, status) => ({
+    status: 'error',
+    rows: [],
+    error: message,
+    errorStatus: status,
+  }),
+  cardClassName: styles.kimiCard,
+  controlsClassName: styles.kimiControls,
+  controlClassName: styles.kimiControl,
+  gridClassName: styles.kimiGrid,
+  renderQuotaItems: renderKimiItems,
 };
