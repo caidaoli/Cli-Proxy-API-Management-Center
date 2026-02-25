@@ -1,21 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { authFilesApi } from '@/services/api/authFiles';
-import { usageApi } from '@/services/api/usage';
+import { monitorApi, type MonitorRequestDetailItem } from '@/services/api/monitor';
 import type { AuthFileItem, Config } from '@/types';
 import type { CredentialInfo, SourceInfo } from '@/types/sourceInfo';
 import { buildSourceInfoMap, resolveSourceDisplay } from '@/utils/sourceResolver';
-import {
-  collectUsageDetailsWithEndpoint,
-  normalizeAuthIndex,
-  type UsageDetailWithEndpoint
-} from '@/utils/usage';
+import { normalizeAuthIndex } from '@/utils/usage';
 import type { ParsedLogLine } from './logTypes';
 
 type TraceConfidence = 'high' | 'medium' | 'low';
 
+type TraceDetail = MonitorRequestDetailItem & { __timestampMs: number };
+
 export type TraceCandidate = {
-  detail: UsageDetailWithEndpoint;
+  detail: TraceDetail;
   score: number;
   confidence: TraceConfidence;
   timeDeltaMs: number | null;
@@ -50,7 +48,7 @@ export const isTraceableRequestPath = (value?: string): boolean => {
 
 const scoreTraceCandidate = (
   line: ParsedLogLine,
-  detail: UsageDetailWithEndpoint
+  detail: TraceDetail
 ): TraceCandidate | null => {
   let score = 0;
   let timeDeltaMs: number | null = null;
@@ -71,8 +69,8 @@ const scoreTraceCandidate = (
   }
 
   let methodMatched = false;
-  if (line.method && detail.__endpointMethod) {
-    if (line.method.toUpperCase() === detail.__endpointMethod.toUpperCase()) {
+  if (line.method && detail.method) {
+    if (line.method.toUpperCase() === detail.method.toUpperCase()) {
       score += 18;
       methodMatched = true;
     } else {
@@ -81,7 +79,7 @@ const scoreTraceCandidate = (
   }
 
   const logPath = normalizeTracePath(line.path);
-  const detailPath = normalizeTracePath(detail.__endpointPath);
+  const detailPath = normalizeTracePath(detail.path);
   let pathMatched = false;
   if (logPath && detailPath) {
     if (logPath === detailPath) {
@@ -147,7 +145,7 @@ export function useTraceResolver(options: UseTraceResolverOptions): UseTraceReso
   const { t } = useTranslation();
 
   const [traceLogLine, setTraceLogLine] = useState<ParsedLogLine | null>(null);
-  const [traceUsageDetails, setTraceUsageDetails] = useState<UsageDetailWithEndpoint[]>([]);
+  const [traceUsageDetails, setTraceUsageDetails] = useState<TraceDetail[]>([]);
   const [traceAuthFileMap, setTraceAuthFileMap] = useState<Map<string, CredentialInfo>>(new Map());
   const [traceLoading, setTraceLoading] = useState(false);
   const [traceError, setTraceError] = useState('');
@@ -180,14 +178,17 @@ export function useTraceResolver(options: UseTraceResolverOptions): UseTraceReso
     setTraceLoading(true);
     setTraceError('');
     try {
-      const [usageResponse, authFilesResponse] = await Promise.all([
-        usageFresh ? Promise.resolve(null) : usageApi.getUsage(),
+      const [detailsResponse, authFilesResponse] = await Promise.all([
+        usageFresh ? Promise.resolve(null) : monitorApi.getRequestDetails(),
         authFresh ? Promise.resolve(null) : authFilesApi.list().catch(() => null)
       ]);
 
-      if (usageResponse !== null) {
-        const usageData = usageResponse?.usage ?? usageResponse;
-        const details = collectUsageDetailsWithEndpoint(usageData);
+      if (detailsResponse !== null) {
+        const items = detailsResponse?.items ?? [];
+        const details: TraceDetail[] = items.map((item) => {
+          const ts = item.timestamp ? Date.parse(item.timestamp) : 0;
+          return { ...item, __timestampMs: Number.isNaN(ts) ? 0 : ts };
+        });
         setTraceUsageDetails(details);
         traceUsageLoadedAtRef.current = now;
       }
