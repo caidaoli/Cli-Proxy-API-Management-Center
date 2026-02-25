@@ -1203,7 +1203,7 @@
     "description": "集中查看 OAuth 额度与剩余情况",
     "refresh_files": "刷新认证文件",
     "refresh_files_and_quota": "刷新认证文件&额度",
-    “card_idle_hint”: “点击此处刷新额度”
+    "card_idle_hint": "点击此处刷新额度"
   },
   "system_info": {
     "title": "管理中心信息",
