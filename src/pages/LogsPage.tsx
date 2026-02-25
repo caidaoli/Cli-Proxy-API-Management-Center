@@ -29,7 +29,7 @@ import { downloadBlob } from '@/utils/download';
 import { MANAGEMENT_API_PREFIX } from '@/utils/constants';
 import { formatUnixTimestamp } from '@/utils/format';
 import { buildSourceInfoMap, resolveSourceDisplay } from '@/utils/sourceResolver';
-import { buildCandidateUsageSourceIds, normalizeAuthIndex } from '@/utils/usage';
+import { normalizeAuthIndex } from '@/utils/usage';
 import {
   HTTP_METHODS,
   STATUS_GROUPS,
@@ -467,7 +467,7 @@ export function LogsPage() {
   const [requestLogDownloading, setRequestLogDownloading] = useState(false);
   const [traceLogLine, setTraceLogLine] = useState<ParsedLogLine | null>(null);
   const [traceUsageDetails, setTraceUsageDetails] = useState<TraceDetail[]>([]);
-  const [traceAuthFileMap, setTraceAuthFileMap] = useState<Map<string, TraceCredentialInfo>>(new Map());
+  const [traceAuthFileMap, setTraceAuthFileMap] = useState<Map<string, CredentialInfo>>(new Map());
   const [traceLoading, setTraceLoading] = useState(false);
   const [traceError, setTraceError] = useState('');
 
