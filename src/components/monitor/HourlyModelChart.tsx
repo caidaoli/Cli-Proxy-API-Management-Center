@@ -74,10 +74,9 @@ export function HourlyModelChart({ timeRange, apiFilter, isDark }: HourlyModelCh
   // 图表数据
   const chartData = useMemo(() => {
     const labels = hourlyData.hours.map((hour) => {
-      // hour format: "2026-02-23T05" — extract hour part directly
-      // API returns local time, not UTC, so no timezone conversion needed
-      const h = hour.split('T')[1];
-      return `${parseInt(h, 10)}:00`;
+      // hour format: "2026-02-23T05" — API returns UTC, convert to local time
+      const date = new Date(`${hour}:00:00Z`);
+      return `${date.getHours()}:00`;
     });
 
     // 成功率折线放在最前面

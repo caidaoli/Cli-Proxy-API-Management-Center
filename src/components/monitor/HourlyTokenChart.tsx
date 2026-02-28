@@ -65,10 +65,9 @@ export function HourlyTokenChart({ timeRange, apiFilter, isDark }: HourlyTokenCh
   // 图表数据 - 服务端返回原始 token 数，前端 /1000 转为 K
   const chartData = useMemo(() => {
     const labels = hourlyData.hours.map((hour) => {
-      // hour format: "2026-02-23T05" — extract hour part directly
-      // API returns local time, not UTC, so no timezone conversion needed
-      const h = hour.split('T')[1];
-      return `${parseInt(h, 10)}:00`;
+      // hour format: "2026-02-23T05" — API returns UTC, convert to local time
+      const date = new Date(`${hour}:00:00Z`);
+      return `${date.getHours()}:00`;
     });
 
     return {
