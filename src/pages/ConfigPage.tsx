@@ -204,7 +204,7 @@ export function ConfigPage() {
         return;
       }
 
-      setServerYaml(latestServerYaml);
+      setServerYaml(diffOriginal);
       setMergedYaml(nextMergedYaml);
       setDiffModalOpen(true);
     } catch (err: unknown) {
