@@ -252,7 +252,7 @@ const fnv1a64Hex = (value: string): string => {
   return hex;
 };
 
-const looksLikeRawSecret = (text: string): boolean => {
+export const looksLikeRawSecret = (text: string): boolean => {
   if (!text || /\s/.test(text)) return false;
 
   const lower = text.toLowerCase();
@@ -337,6 +337,12 @@ export function buildCandidateUsageSourceIds(input: { apiKey?: string; prefix?: 
   if (apiKey) {
     result.push(`${USAGE_SOURCE_PREFIX_KEY}${fnv1a64Hex(apiKey)}`);
     result.push(`${USAGE_SOURCE_PREFIX_MASKED}${maskApiKey(apiKey)}`);
+    // 补充：apiKey 经 normalizeUsageSourceId 处理后可能产生不同格式（如 t:xxx），
+    // 确保与后端 collectUsageDetails 中 detail.source 的 normalize 结果一致
+    const normalized = normalizeUsageSourceId(apiKey);
+    if (normalized) {
+      result.push(normalized);
+    }
   }
 
   return Array.from(new Set(result));

@@ -36,6 +36,7 @@ import { versionApi } from '@/services/api';
 import { triggerHeaderRefresh } from '@/hooks/useHeaderRefresh';
 import { LANGUAGE_LABEL_KEYS, LANGUAGE_ORDER } from '@/utils/constants';
 import { isSupportedLanguage } from '@/utils/language';
+import { useAutoBackup } from '@/features/webdavBackup/hooks/useAutoBackup';
 
 const sidebarIcons: Record<string, ReactNode> = {
   dashboard: <IconLayoutDashboard size={18} />,
@@ -48,6 +49,15 @@ const sidebarIcons: Record<string, ReactNode> = {
   logs: <IconScrollText size={18} />,
   system: <IconInfo size={18} />,
   monitor: <IconActivity size={18} />,
+  backup: (
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+         fill="none" stroke="currentColor" strokeWidth="2"
+         strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 2v8"/><path d="m16 6-4 4-4-4"/>
+      <rect width="20" height="8" x="2" y="14" rx="2"/>
+      <path d="M6 18h.01"/><path d="M10 18h.01"/>
+    </svg>
+  ),
 };
 
 // Header action icons - smaller size for header buttons
@@ -177,6 +187,9 @@ export function MainLayout() {
   const { t } = useTranslation();
   const { showNotification } = useNotificationStore();
   const location = useLocation();
+
+  // 全局自动备份：只要管理中心打开即生效，无需停留在备份页面
+  useAutoBackup();
 
   const apiBase = useAuthStore((state) => state.apiBase);
   const serverVersion = useAuthStore((state) => state.serverVersion);
@@ -363,6 +376,7 @@ export function MainLayout() {
       : []),
     { path: '/system', label: t('nav.system_info'), icon: sidebarIcons.system },
     { path: '/monitor', label: t('nav.monitor'), icon: sidebarIcons.monitor },
+    { path: '/backup', label: t('nav.backup'), icon: sidebarIcons.backup },
   ];
   const navOrder = navItems.map((item) => item.path);
   const getRouteOrder = (pathname: string) => {

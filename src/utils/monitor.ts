@@ -191,7 +191,7 @@ export function isModelDisabled(
 export function createDisableState(
   source: string,
   model: string,
-  providerMap: Record<string, string>
+  providerMap: Record<string, string>,
 ): DisableState {
   const providerName = resolveProvider(source, providerMap);
   const displayName = providerName

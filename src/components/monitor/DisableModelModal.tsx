@@ -1,6 +1,6 @@
 /**
  * 禁用模型确认弹窗组件
- * 封装三次确认的 UI 逻辑
+ * 封装三次确认的 UI 逻辑，按策略区分警告文本
  */
 
 import { useTranslation } from 'react-i18next';
@@ -9,13 +9,9 @@ import { Button } from '@/components/ui/Button';
 import type { DisableState } from '@/utils/monitor';
 
 interface DisableModelModalProps {
-  /** 禁用状态 */
   disableState: DisableState | null;
-  /** 是否正在禁用中 */
   disabling: boolean;
-  /** 确认回调 */
   onConfirm: () => void;
-  /** 取消回调 */
   onCancel: () => void;
 }
 
@@ -28,7 +24,6 @@ export function DisableModelModal({
   const { t, i18n } = useTranslation();
   const isZh = i18n.language === 'zh-CN' || i18n.language === 'zh';
 
-  // 获取警告内容
   const getWarningContent = () => {
     if (!disableState) return null;
 
@@ -61,7 +56,6 @@ export function DisableModelModal({
     );
   };
 
-  // 获取确认按钮文本
   const getConfirmButtonText = () => {
     if (!disableState) return '';
     const btnTexts = isZh

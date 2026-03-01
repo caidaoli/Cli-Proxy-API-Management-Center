@@ -2,6 +2,9 @@ import { useMemo, useState, useCallback, Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/Card';
 import { useDisableModel } from '@/hooks';
+import { normalizeUsageSourceId } from '@/utils/usage';
+import { resolveSourceDisplay } from '@/utils/sourceResolver';
+import type { SourceInfo, CredentialInfo } from '@/types/sourceInfo';
 import { TimeRangeSelector, formatTimeRangeCaption, type TimeRange } from './TimeRangeSelector';
 import { DisableModelModal } from './DisableModelModal';
 import {
@@ -19,6 +22,8 @@ interface FailureAnalysisProps {
   loading: boolean;
   providerMap: Record<string, string>;
   providerModels: Record<string, Set<string>>;
+  sourceInfoMap: Map<string, SourceInfo>;
+  authFileMap?: Map<string, CredentialInfo>;
 }
 
 interface ModelFailureStat {
@@ -34,13 +39,14 @@ interface FailureStat {
   source: string;
   displayName: string;
   providerName: string | null;
+  providerType: string;
   maskedKey: string;
   failedCount: number;
   lastFailTime: number;
   models: Record<string, ModelFailureStat>;
 }
 
-export function FailureAnalysis({ data, loading, providerMap, providerModels }: FailureAnalysisProps) {
+export function FailureAnalysis({ data, loading, providerMap, providerModels, sourceInfoMap, authFileMap }: FailureAnalysisProps) {
   const { t } = useTranslation();
   const [expandedChannel, setExpandedChannel] = useState<string | null>(null);
   const [filterChannel, setFilterChannel] = useState('');
@@ -58,7 +64,7 @@ export function FailureAnalysis({ data, loading, providerMap, providerModels }: 
     handleDisableClick: onDisableClick,
     handleConfirmDisable,
     handleCancelDisable,
-  } = useDisableModel({ providerMap, providerModels });
+  } = useDisableModel({ providerMap, providerModels, sourceInfoMap });
 
   // 处理时间范围变化
   const handleTimeRangeChange = useCallback((range: TimeRange, custom?: DateRange) => {
@@ -77,6 +83,17 @@ export function FailureAnalysis({ data, loading, providerMap, providerModels }: 
   const failureStats = useMemo(() => {
     if (!timeFilteredData?.apis) return [];
 
+    const normalizeCache = new Map<string, string>();
+    const credMap = authFileMap || new Map<string, CredentialInfo>();
+    const getNormalized = (source: string) => {
+      let result = normalizeCache.get(source);
+      if (result === undefined) {
+        result = normalizeUsageSourceId(source);
+        normalizeCache.set(source, result);
+      }
+      return result;
+    };
+
     // 首先收集有失败记录的渠道
     const failedSources = new Set<string>();
     Object.values(timeFilteredData.apis).forEach((apiData) => {
@@ -84,8 +101,10 @@ export function FailureAnalysis({ data, loading, providerMap, providerModels }: 
         modelData.details.forEach((detail) => {
           if (detail.failed) {
             const source = detail.source || 'unknown';
+            const normalizedSource = getNormalized(source);
+            const sourceInfo = resolveSourceDisplay(normalizedSource, detail.auth_index, sourceInfoMap, credMap);
             const { provider } = getProviderDisplayParts(source, providerMap);
-            if (provider) {
+            if (provider || (sourceInfo.displayName && sourceInfo.displayName !== normalizedSource)) {
               failedSources.add(source);
             }
           }
@@ -103,15 +122,25 @@ export function FailureAnalysis({ data, loading, providerMap, providerModels }: 
           // 只统计有失败记录的渠道
           if (!failedSources.has(source)) return;
 
+          const normalizedSource = getNormalized(source);
+          const sourceInfo = resolveSourceDisplay(normalizedSource, detail.auth_index, sourceInfoMap, credMap);
           const { provider, masked } = getProviderDisplayParts(source, providerMap);
-          const displayName = provider ? `${provider} (${masked})` : masked;
+          const resolvedName = sourceInfo.displayName && sourceInfo.displayName !== normalizedSource
+            ? sourceInfo.displayName
+            : provider;
+          const displayName = provider
+            ? `${provider} (${masked})`
+            : resolvedName
+              ? `${resolvedName} (${masked})`
+              : masked;
           const timestamp = detail.timestamp ? new Date(detail.timestamp).getTime() : 0;
 
           if (!stats[displayName]) {
             stats[displayName] = {
               source,
               displayName,
-              providerName: provider,
+              providerName: provider || resolvedName,
+              providerType: sourceInfo.type || '',
               maskedKey: masked,
               failedCount: 0,
               lastFailTime: 0,
@@ -166,7 +195,7 @@ export function FailureAnalysis({ data, loading, providerMap, providerModels }: 
       .filter((stat) => stat.failedCount > 0)
       .sort((a, b) => b.failedCount - a.failedCount)
       .slice(0, 10);
-  }, [timeFilteredData, providerMap]);
+  }, [timeFilteredData, providerMap, sourceInfoMap, authFileMap]);
 
   // 获取所有渠道和模型列表
   const { channels, models } = useMemo(() => {
@@ -379,15 +408,17 @@ export function FailureAnalysis({ data, loading, providerMap, providerModels }: 
                                         </td>
                                         <td>{formatTimestamp(modelStat.lastTimestamp)}</td>
                                         <td>
-                                          {disabled ? (
-                                            <span className={styles.disabledLabel}>{t('monitor.logs.removed')}</span>
-                                          ) : stat.source && stat.source !== '-' && stat.source !== 'unknown' ? (
-                                            <button
-                                              className={styles.disableBtn}
-                                              onClick={(e) => handleDisableClick(stat.source, modelName, e)}
-                                            >
-                                              {t('monitor.logs.disable')}
-                                            </button>
+                                          {stat.providerType.toLowerCase() === 'openai' ? (
+                                            disabled ? (
+                                              <span className={styles.disabledLabel}>{t('monitor.logs.removed')}</span>
+                                            ) : stat.source && stat.source !== '-' && stat.source !== 'unknown' ? (
+                                              <button
+                                                className={styles.disableBtn}
+                                                onClick={(e) => handleDisableClick(stat.source, modelName, e)}
+                                              >
+                                                {t('monitor.logs.disable')}
+                                              </button>
+                                            ) : '-'
                                           ) : '-'}
                                         </td>
                                       </tr>

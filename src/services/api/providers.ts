@@ -227,5 +227,5 @@ export const providersApi = {
       payload.models = serializeModelAliases(value.models);
     }
     return apiClient.patch('/openai-compatibility', { name, value: payload });
-  }
+  },
 };

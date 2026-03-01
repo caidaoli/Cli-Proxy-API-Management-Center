@@ -595,15 +595,15 @@
   }
 
   // Auth 认证来源
-  th:nth-child(1), td:nth-child(1) { width: 100px; }
+  th:nth-child(1), td:nth-child(1) { width: 80px; }
   // API
-  th:nth-child(2), td:nth-child(2) { width: 110px; }
+  th:nth-child(2), td:nth-child(2) { width: 100px; }
   // 请求类型
   th:nth-child(3), td:nth-child(3) { width: 65px; }
   // 模型
-  th:nth-child(4), td:nth-child(4) { width: 160px; }
+  th:nth-child(4), td:nth-child(4) { width: 150px; }
   // 请求渠道
-  th:nth-child(5), td:nth-child(5) { width: 140px; }
+  th:nth-child(5), td:nth-child(5) { width: 200px; }
   // 状态
   th:nth-child(6), td:nth-child(6) { width: 60px; }
   // 最近请求状态
