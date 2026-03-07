@@ -14,11 +14,38 @@ export type CodexCleanupEvent =
   | { type: 'progress'; index: number; total: number; name: string; auth_index: string; status_code?: number; deleted?: boolean; error?: string }
   | { type: 'done'; total: number; deleted: number };
 
+export const AUTH_FILE_INVALID_JSON_OBJECT_ERROR = 'AUTH_FILE_INVALID_JSON_OBJECT';
+
 const getStatusCode = (err: unknown): number | undefined => {
   if (!err || typeof err !== 'object') return undefined;
   if ('status' in err) return (err as StatusError).status;
   return undefined;
 };
+
+const parseAuthFileJsonObject = (rawText: string): Record<string, unknown> => {
+  const trimmed = rawText.trim();
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(trimmed) as unknown;
+  } catch {
+    throw new Error(AUTH_FILE_INVALID_JSON_OBJECT_ERROR);
+  }
+
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error(AUTH_FILE_INVALID_JSON_OBJECT_ERROR);
+  }
+
+  return { ...(parsed as Record<string, unknown>) };
+};
+
+const saveAuthFileText = async (name: string, text: string) => {
+  const file = new File([text], name, { type: 'application/json' });
+  await authFilesApi.upload(file);
+};
+
+export const isAuthFileInvalidJsonObjectError = (err: unknown): boolean =>
+  err instanceof Error && err.message === AUTH_FILE_INVALID_JSON_OBJECT_ERROR;
 
 const normalizeOauthExcludedModels = (payload: unknown): Record<string, string[]> => {
   if (!payload || typeof payload !== 'object') return {};
@@ -110,8 +137,18 @@ const OAUTH_MODEL_ALIAS_ENDPOINT = '/oauth-model-alias';
 export const authFilesApi = {
   list: () => apiClient.get<AuthFilesResponse>('/auth-files'),
 
-  setStatus: (name: string, disabled: boolean) =>
-    apiClient.patch<AuthFileStatusResponse>('/auth-files/status', { name, disabled }),
+  async setStatus(name: string, disabled: boolean): Promise<AuthFileStatusResponse> {
+    const json = await authFilesApi.downloadJsonObject(name);
+
+    if (disabled) {
+      json.disabled = true;
+    } else {
+      delete json.disabled;
+    }
+
+    await authFilesApi.saveJsonObject(name, json);
+    return { status: disabled ? 'disabled' : 'enabled', disabled };
+  },
 
   upload: (file: File) => {
     const formData = new FormData();
@@ -130,6 +167,16 @@ export const authFilesApi = {
     const blob = response.data as Blob;
     return blob.text();
   },
+
+  async downloadJsonObject(name: string): Promise<Record<string, unknown>> {
+    const rawText = await authFilesApi.downloadText(name);
+    return parseAuthFileJsonObject(rawText);
+  },
+
+  saveText: (name: string, text: string) => saveAuthFileText(name, text),
+
+  saveJsonObject: (name: string, json: Record<string, unknown>) =>
+    saveAuthFileText(name, JSON.stringify(json)),
 
   // OAuth 排除模型
   async getOauthExcludedModels(): Promise<Record<string, string[]>> {
