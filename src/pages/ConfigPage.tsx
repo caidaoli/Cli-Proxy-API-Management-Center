@@ -37,6 +37,7 @@ export function ConfigPage() {
   const {
     visualValues,
     visualDirty,
+    visualParseError,
     loadVisualValuesFromYaml,
     applyVisualChangesToYaml,
     setVisualValues
@@ -68,6 +69,7 @@ export function ConfigPage() {
 
   const disableControls = connectionStatus !== 'connected';
   const isDirty = dirty || visualDirty;
+  const hasVisualModeError = !!visualParseError;
 
   const loadConfig = useCallback(async () => {
     setLoading(true);
@@ -91,6 +93,17 @@ export function ConfigPage() {
   useEffect(() => {
     loadConfig();
   }, [loadConfig]);
+
+  useEffect(() => {
+    if (activeTab !== 'visual' || !visualParseError) return;
+
+    setActiveTab('source');
+    localStorage.setItem('config-management:tab', 'source');
+    showNotification(
+      t('config_management.visual_mode_unavailable_detail', { message: visualParseError }),
+      'error'
+    );
+  }, [activeTab, showNotification, t, visualParseError]);
 
   const handleConfirmSave = async () => {
     setSaving(true);
@@ -120,6 +133,11 @@ export function ConfigPage() {
   };
 
   const handleSave = async () => {
+    if (activeTab === 'visual' && visualParseError) {
+      showNotification(t('config_management.visual_mode_save_blocked'), 'error');
+      return;
+    }
+
     setSaving(true);
     try {
       const nextMergedYaml = buildConfigYamlForSave({
@@ -168,12 +186,19 @@ export function ConfigPage() {
         }
       }
     } else {
-      loadVisualValuesFromYaml(content);
+      const result = loadVisualValuesFromYaml(content);
+      if (!result.ok) {
+        showNotification(
+          t('config_management.visual_mode_unavailable_detail', { message: result.error }),
+          'error'
+        );
+        return;
+      }
     }
 
     setActiveTab(tab);
     localStorage.setItem('config-management:tab', tab);
-  }, [activeTab, applyVisualChangesToYaml, content, loadVisualValuesFromYaml, visualDirty]);
+  }, [activeTab, applyVisualChangesToYaml, content, loadVisualValuesFromYaml, showNotification, t, visualDirty]);
 
   // Search functionality
   const performSearch = useCallback((query: string, direction: 'next' | 'prev' = 'next') => {
@@ -337,15 +362,16 @@ export function ConfigPage() {
     if (disableControls) return t('config_management.status_disconnected');
     if (loading) return t('config_management.status_loading');
     if (error) return t('config_management.status_load_failed');
+    if (hasVisualModeError) return t('config_management.visual_mode_unavailable');
     if (saving) return t('config_management.status_saving');
     if (isDirty) return t('config_management.status_dirty');
     return t('config_management.status_loaded');
   };
 
-  const isLoadedStatus = !disableControls && !loading && !error && !saving && !isDirty;
+  const isLoadedStatus = !disableControls && !loading && !error && !saving && !isDirty && !hasVisualModeError;
 
   const getStatusClass = () => {
-    if (error) return styles.error;
+    if (error || hasVisualModeError) return styles.error;
     if (isDirty) return styles.modified;
     if (!loading && !saving) return styles.saved;
     return '';
@@ -369,7 +395,7 @@ export function ConfigPage() {
           type="button"
           className={styles.floatingActionButton}
           onClick={handleSave}
-          disabled={disableControls || loading || saving || !isDirty || diffModalOpen}
+          disabled={disableControls || loading || saving || !isDirty || diffModalOpen || hasVisualModeError}
           title={t('config_management.save')}
           aria-label={t('config_management.save')}
         >
@@ -407,6 +433,11 @@ export function ConfigPage() {
       <Card className={styles.configCard}>
         <div className={styles.content}>
           {error && <div className="error-box">{error}</div>}
+          {!error && visualParseError && (
+            <div className="error-box">
+              {t('config_management.visual_mode_unavailable_detail', { message: visualParseError })}
+            </div>
+          )}
 
           {activeTab === 'visual' ? (
             <VisualConfigEditor
