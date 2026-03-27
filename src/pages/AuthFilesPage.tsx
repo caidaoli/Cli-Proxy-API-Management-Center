@@ -24,6 +24,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Modal } from '@/components/ui/Modal';
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
 import { copyToClipboard } from '@/utils/clipboard';
+import { isLikelyUnsafeJsRegex } from '@/utils/regexSafety';
 import {
   MAX_CARD_PAGE_SIZE,
   MIN_CARD_PAGE_SIZE,
@@ -95,6 +96,8 @@ const getFilterTagIcon = (type: string, resolvedTheme: ResolvedTheme): string | 
       : iconEntry.light;
 };
 
+const MAX_REGEX_SEARCH_PATTERN_LENGTH = 120;
+
 export function AuthFilesPage() {
   const { t } = useTranslation();
   const showNotification = useNotificationStore((state) => state.showNotification);
@@ -107,6 +110,7 @@ export function AuthFilesPage() {
   const [filter, setFilter] = useState<'all' | string>('all');
   const [problemOnly, setProblemOnly] = useState(false);
   const [search, setSearch] = useState('');
+  const [regexSearchMode, setRegexSearchMode] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(9);
   const [pageSizeInput, setPageSizeInput] = useState('9');
@@ -219,6 +223,9 @@ export function AuthFilesPage() {
     if (typeof persisted.search === 'string') {
       setSearch(persisted.search);
     }
+    if (typeof persisted.regexSearchMode === 'boolean') {
+      setRegexSearchMode(persisted.regexSearchMode);
+    }
     if (typeof persisted.page === 'number' && Number.isFinite(persisted.page)) {
       setPage(Math.max(1, Math.round(persisted.page)));
     }
@@ -231,8 +238,8 @@ export function AuthFilesPage() {
   }, []);
 
   useEffect(() => {
-    writeAuthFilesUiState({ filter, problemOnly, search, page, pageSize, sortMode });
-  }, [filter, problemOnly, search, page, pageSize, sortMode]);
+    writeAuthFilesUiState({ filter, problemOnly, search, regexSearchMode, page, pageSize, sortMode });
+  }, [filter, problemOnly, search, regexSearchMode, page, pageSize, sortMode]);
 
   useEffect(() => {
     setPageSizeInput(String(pageSize));
@@ -396,18 +403,63 @@ export function AuthFilesPage() {
     return counts;
   }, [filesMatchingProblemFilter]);
 
+  const normalizedSearch = search.trim();
+  const { regexSearch, regexSearchErrorKey } = useMemo(() => {
+    if (!regexSearchMode || !normalizedSearch) {
+      return { regexSearch: null as RegExp | null, regexSearchErrorKey: undefined as string | undefined };
+    }
+
+    if (normalizedSearch.length > MAX_REGEX_SEARCH_PATTERN_LENGTH) {
+      return {
+        regexSearch: null,
+        regexSearchErrorKey: 'auth_files.search_regex_invalid',
+      };
+    }
+
+    if (isLikelyUnsafeJsRegex(normalizedSearch)) {
+      return {
+        regexSearch: null,
+        regexSearchErrorKey: 'auth_files.search_regex_unsafe',
+      };
+    }
+
+    try {
+      return { regexSearch: new RegExp(normalizedSearch, 'i'), regexSearchErrorKey: undefined };
+    } catch {
+      return {
+        regexSearch: null,
+        regexSearchErrorKey: 'auth_files.search_regex_invalid',
+      };
+    }
+  }, [normalizedSearch, regexSearchMode]);
+
+  const searchError = regexSearchErrorKey
+    ? t(regexSearchErrorKey, { max: MAX_REGEX_SEARCH_PATTERN_LENGTH })
+    : undefined;
+
   const filtered = useMemo(() => {
     return filesMatchingProblemFilter.filter((item) => {
       const matchType = filter === 'all' || item.type === filter;
-      const term = search.trim().toLowerCase();
-      const matchSearch =
-        !term ||
-        item.name.toLowerCase().includes(term) ||
-        (item.type || '').toString().toLowerCase().includes(term) ||
-        (item.provider || '').toString().toLowerCase().includes(term);
+      const matchSearch = (() => {
+        if (!normalizedSearch) return true;
+        if (!regexSearchMode) {
+          const term = normalizedSearch.toLowerCase();
+          return (
+            item.name.toLowerCase().includes(term) ||
+            (item.type || '').toString().toLowerCase().includes(term) ||
+            (item.provider || '').toString().toLowerCase().includes(term)
+          );
+        }
+
+        if (!regexSearch) return false;
+
+        return [item.name, item.type, item.provider].some((value) =>
+          regexSearch.test((value || '').toString())
+        );
+      })();
       return matchType && matchSearch;
     });
-  }, [filesMatchingProblemFilter, filter, search]);
+  }, [filesMatchingProblemFilter, filter, normalizedSearch, regexSearch, regexSearchMode]);
 
   const sorted = useMemo(() => {
     return sortAuthFilesByMode(filtered, sortMode);
@@ -690,8 +742,13 @@ export function AuthFilesPage() {
                   setSearch(e.target.value);
                   setPage(1);
                 }}
-                placeholder={t('auth_files.search_placeholder')}
+                placeholder={
+                  regexSearchMode
+                    ? t('auth_files.search_regex_placeholder')
+                    : t('auth_files.search_placeholder')
+                }
                 rightElement={<IconSearch className={styles.searchIcon} size={18} />}
+                error={searchError}
               />
             </div>
             <div className={styles.filterItem}>
@@ -736,6 +793,19 @@ export function AuthFilesPage() {
                   label={
                     <span className={styles.filterToggleLabel}>
                       {t('auth_files.problem_filter_only')}
+                    </span>
+                  }
+                />
+                <ToggleSwitch
+                  checked={regexSearchMode}
+                  onChange={(value) => {
+                    setRegexSearchMode(value);
+                    setPage(1);
+                  }}
+                  ariaLabel={t('auth_files.regex_search_mode_label')}
+                  label={
+                    <span className={styles.filterToggleLabel}>
+                      {t('auth_files.regex_search_mode_label')}
                     </span>
                   }
                 />
