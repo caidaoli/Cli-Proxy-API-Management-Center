@@ -359,6 +359,12 @@
   text-overflow: ellipsis;
 }
 
+.floatingStatusCompact {
+  max-width: 112px;
+  padding: 0 8px;
+  font-size: 10px;
+}
+
 .floatingActionButton {
   @include button-reset;
   position: relative;
@@ -411,7 +417,9 @@
   }
 
   .floatingStatus {
-    display: none;
+    max-width: min(180px, 40vw);
+    font-size: 10px;
+    padding: 0 8px;
   }
 
   .floatingActionButton {
@@ -437,5 +445,18 @@
 
   .configCard {
     padding: $spacing-md;
+  }
+}
+
+@media (max-width: 480px) {
+  .floatingStatus {
+    max-width: min(132px, 38vw);
+  }
+}
+
+@media (max-width: 380px) {
+  .pageHeader,
+  .workspaceShell {
+    padding: 14px;
   }
 }
