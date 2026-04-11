@@ -393,6 +393,13 @@ export function VisualConfigEditor({ values, validationErrors, disabled = false,
             disabled={disabled}
             onChange={(quotaSwitchPreviewModel) => onChange({ quotaSwitchPreviewModel })}
           />
+          <ToggleRow
+            title={t('config_management.visual.sections.quota.antigravity_credits')}
+            description={t('config_management.visual.sections.quota.antigravity_credits_desc')}
+            checked={values.quotaAntigravityCredits}
+            disabled={disabled}
+            onChange={(quotaAntigravityCredits) => onChange({ quotaAntigravityCredits })}
+          />
         </div>
       </ConfigSection>
 
