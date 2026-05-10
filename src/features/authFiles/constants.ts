@@ -20,7 +20,7 @@ export const MIN_CARD_PAGE_SIZE = 3;
 export const MAX_CARD_PAGE_SIZE = 30;
 export const AUTH_FILE_REFRESH_WARNING_MS = 24 * 60 * 60 * 1000;
 
-export const INTEGER_STRING_PATTERN = /^[+-]?\d+$/;
+export { INTEGER_STRING_PATTERN, parsePriorityValue } from './priority.ts';
 export const TRUTHY_TEXT_VALUES = new Set(['true', '1', 'yes', 'y', 'on']);
 export const FALSY_TEXT_VALUES = new Set(['false', '0', 'no', 'n', 'off']);
 
@@ -112,18 +112,6 @@ export const getTypeLabel = (t: TFunction, type: string): string => {
 export const getTypeColor = (type: string, resolvedTheme: ResolvedTheme): ThemeColors => {
   const set = TYPE_COLORS[type] || TYPE_COLORS.unknown;
   return resolvedTheme === 'dark' && set.dark ? set.dark : set.light;
-};
-
-export const parsePriorityValue = (value: unknown): number | undefined => {
-  if (typeof value === 'number') {
-    return Number.isInteger(value) ? value : undefined;
-  }
-
-  if (typeof value !== 'string') return undefined;
-  const trimmed = value.trim();
-  if (!trimmed || !INTEGER_STRING_PATTERN.test(trimmed)) return undefined;
-  const parsed = Number.parseInt(trimmed, 10);
-  return Number.isSafeInteger(parsed) ? parsed : undefined;
 };
 
 export const normalizeExcludedModels = (value: unknown): string[] => {

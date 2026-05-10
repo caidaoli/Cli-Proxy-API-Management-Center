@@ -33,10 +33,10 @@ import {
   hasAuthFileStatusMessage,
   isRuntimeOnlyAuthFile,
   normalizeProviderKey,
-  parsePriorityValue,
   type QuotaProviderType,
   type ResolvedTheme,
 } from '@/features/authFiles/constants';
+import { sortAuthFilesByMode } from '@/features/authFiles/sorting';
 import { AuthFileCard } from '@/features/authFiles/components/AuthFileCard';
 import { AuthFileDetailModal } from '@/features/authFiles/components/AuthFileDetailModal';
 import { AuthFileModelsModal } from '@/features/authFiles/components/AuthFileModelsModal';
@@ -412,25 +412,7 @@ export function AuthFilesPage() {
   }, [filesMatchingProblemFilter, filter, search]);
 
   const sorted = useMemo(() => {
-    const copy = [...filtered];
-    if (sortMode === 'default') {
-      copy.sort((a, b) => {
-        const providerA = normalizeProviderKey(String(a.provider ?? a.type ?? 'unknown'));
-        const providerB = normalizeProviderKey(String(b.provider ?? b.type ?? 'unknown'));
-        const providerCompare = providerA.localeCompare(providerB);
-        if (providerCompare !== 0) return providerCompare;
-        return a.name.localeCompare(b.name);
-      });
-    } else if (sortMode === 'az') {
-      copy.sort((a, b) => a.name.localeCompare(b.name));
-    } else if (sortMode === 'priority') {
-      copy.sort((a, b) => {
-        const pa = parsePriorityValue(a.priority ?? a['priority']) ?? 0;
-        const pb = parsePriorityValue(b.priority ?? b['priority']) ?? 0;
-        return pb - pa; // 高优先级排前面
-      });
-    }
-    return copy;
+    return sortAuthFilesByMode(filtered, sortMode);
   }, [filtered, sortMode]);
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));

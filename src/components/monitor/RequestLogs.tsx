@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
+import { Fragment, useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Card } from '@/components/ui/Card';
@@ -8,7 +8,13 @@ import { TimeRangeSelector, formatTimeRangeCaption, type TimeRange } from './Tim
 import { DisableModelModal } from './DisableModelModal';
 import { UnsupportedDisableModal } from './UnsupportedDisableModal';
 import {
-  maskSecret,
+  REQUEST_LOG_FILTER_KEYS,
+  REQUEST_LOG_TABLE_COLUMN_KEYS,
+  REQUEST_LOG_TABLE_HEADER_KEYS,
+  type RequestLogFilterKey,
+  type RequestLogTableColumnKey,
+} from './requestLogColumns';
+import {
   formatProviderDisplay,
   formatTimestamp,
   getRateClassName,
@@ -32,11 +38,9 @@ interface LogEntry {
   id: string;
   timestamp: string;
   timestampMs: number;
-  apiKey: string;
   model: string;
   source: string;
   providerName: string | null;
-  providerType: string;
   maskedKey: string;
   failed: boolean;
   inputTokens: number;
@@ -59,11 +63,9 @@ export function RequestLogs({
   authIndexMap,
 }: RequestLogsProps) {
   const { t } = useTranslation();
-  const [filterApi, setFilterApi] = useState('');
   const [filterModel, setFilterModel] = useState('');
   const [filterSource, setFilterSource] = useState('');
   const [filterStatus, setFilterStatus] = useState<'' | 'success' | 'failed'>('');
-  const [filterProviderType, setFilterProviderType] = useState('');
   const [autoRefresh, setAutoRefresh] = useState(10);
   const [countdown, setCountdown] = useState(0);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -82,11 +84,9 @@ export function RequestLogs({
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [filterOptions, setFilterOptions] = useState<{
-    apis: string[];
     models: string[];
     sources: string[];
   }>({
-    apis: [],
     models: [],
     sources: [],
   });
@@ -124,11 +124,9 @@ export function RequestLogs({
         id: `${item.timestamp}-${item.api_key}-${item.model}-${index}`,
         timestamp: item.timestamp,
         timestampMs,
-        apiKey: item.api_key,
         model: item.model,
         source,
         providerName: provider,
-        providerType: providerTypeMap[source] || '--',
         maskedKey: masked,
         failed: item.failed,
         inputTokens: item.input_tokens || 0,
@@ -143,7 +141,7 @@ export function RequestLogs({
         authIndex: item.auth_index || '',
       };
     },
-    [providerMap, providerTypeMap]
+    [providerMap]
   );
 
   // 独立获取日志数据
@@ -153,7 +151,6 @@ export function RequestLogs({
       const params = {
         page,
         page_size: pageSize,
-        api: filterApi || undefined,
         api_filter: apiFilter || undefined,
         model: filterModel || undefined,
         source: filterSource || undefined,
@@ -167,7 +164,6 @@ export function RequestLogs({
       setTotal(response.total || 0);
       setTotalPages(response.total_pages || 0);
       setFilterOptions((prev) => ({
-        apis: filterApi ? prev.apis : (response.filters?.apis || []),
         models: filterModel ? prev.models : (response.filters?.models || []),
         sources: filterSource ? prev.sources : (response.filters?.sources || []),
       }));
@@ -187,7 +183,6 @@ export function RequestLogs({
   }, [
     page,
     pageSize,
-    filterApi,
     apiFilter,
     filterModel,
     filterSource,
@@ -236,26 +231,8 @@ export function RequestLogs({
     fetchLogData();
   }, [fetchLogData, refreshKey]);
 
-  const providerTypes = useMemo(() => {
-    const typeSet = new Set<string>();
-    filterOptions.sources.forEach((source) => {
-      const providerType = providerTypeMap[source];
-      if (providerType && providerType !== '--') {
-        typeSet.add(providerType);
-      }
-    });
-    return Array.from(typeSet).sort();
-  }, [filterOptions.sources, providerTypeMap]);
-
-  const filteredEntries = useMemo(() => {
-    if (!filterProviderType) {
-      return logEntries;
-    }
-    return logEntries.filter((entry) => entry.providerType === filterProviderType);
-  }, [logEntries, filterProviderType]);
-
   const rowVirtualizer = useVirtualizer({
-    count: filteredEntries.length,
+    count: logEntries.length,
     getScrollElement: () => tableContainerRef.current,
     estimateSize: () => ROW_HEIGHT,
     overscan: 10,
@@ -284,77 +261,171 @@ export function RequestLogs({
     setPage(nextPage);
   };
 
-  const renderRow = (entry: LogEntry) => {
+  const renderCell = (entry: LogEntry, column: RequestLogTableColumnKey) => {
     const disabled = isModelDisabled(entry.source, entry.model);
-    // 将 authIndex 映射为文件名
     const authDisplayName = entry.authIndex
       ? authIndexMap[entry.authIndex] || entry.authIndex
       : '-';
 
+    switch (column) {
+      case 'auth':
+        return (
+          <td title={authDisplayName}>{authDisplayName}</td>
+        );
+      case 'model':
+        return <td title={entry.model}>{entry.model}</td>;
+      case 'source':
+        return (
+          <td title={entry.source}>
+            {entry.providerName ? (
+              <>
+                <span className={styles.channelName}>{entry.providerName}</span>
+                <span className={styles.channelSecret}> ({entry.maskedKey})</span>
+              </>
+            ) : (
+              entry.maskedKey
+            )}
+          </td>
+        );
+      case 'status':
+        return (
+          <td>
+            <span className={`${styles.statusPill} ${entry.failed ? styles.failed : styles.success}`}>
+              {entry.failed ? t('monitor.logs.failed') : t('monitor.logs.success')}
+            </span>
+          </td>
+        );
+      case 'recent':
+        return (
+          <td>
+            <div className={styles.statusBars}>
+              {entry.recentRequests.map((req, idx) => (
+                <div
+                  key={idx}
+                  className={`${styles.statusBar} ${req.failed ? styles.failure : styles.success}`}
+                />
+              ))}
+            </div>
+          </td>
+        );
+      case 'rate':
+        return (
+          <td className={getRateClassName(entry.successRate, styles)}>
+            {entry.successRate.toFixed(1)}%
+          </td>
+        );
+      case 'count':
+        return <td>{formatNumber(entry.requestCount)}</td>;
+      case 'input':
+        return (
+          <td className={styles.tokenCell} title={formatNumber(entry.inputTokens)}>
+            {formatCompactTokenNumber(entry.inputTokens)}
+          </td>
+        );
+      case 'output':
+        return (
+          <td className={styles.tokenCell} title={formatNumber(entry.outputTokens)}>
+            {formatCompactTokenNumber(entry.outputTokens)}
+          </td>
+        );
+      case 'cache':
+        return (
+          <td className={styles.tokenCell} title={formatNumber(entry.cachedTokens)}>
+            {formatCompactTokenNumber(entry.cachedTokens)}
+          </td>
+        );
+      case 'time':
+        return <td>{formatTimestamp(entry.timestamp)}</td>;
+      case 'actions':
+        return (
+          <td>
+            {entry.source && entry.source !== '-' && entry.source !== 'unknown' ? (
+              disabled ? (
+                <span className={styles.disabledLabel}>{t('monitor.logs.disabled')}</span>
+              ) : (
+                <button
+                  className={styles.disableBtn}
+                  title={t('monitor.logs.disable_model')}
+                  onClick={() => handleDisableClick(entry.source, entry.model)}
+                >
+                  {t('monitor.logs.disable')}
+                </button>
+              )
+            ) : (
+              '-'
+            )}
+          </td>
+        );
+    }
+  };
+
+  const renderRow = (entry: LogEntry) => {
     return (
       <>
-        <td title={authDisplayName}>{authDisplayName}</td>
-        <td title={entry.apiKey}>{maskSecret(entry.apiKey)}</td>
-        <td>{entry.providerType}</td>
-        <td title={entry.model}>{entry.model}</td>
-        <td title={entry.source}>
-          {entry.providerName ? (
-            <>
-              <span className={styles.channelName}>{entry.providerName}</span>
-              <span className={styles.channelSecret}> ({entry.maskedKey})</span>
-            </>
-          ) : (
-            entry.maskedKey
-          )}
-        </td>
-        <td>
-          <span className={`${styles.statusPill} ${entry.failed ? styles.failed : styles.success}`}>
-            {entry.failed ? t('monitor.logs.failed') : t('monitor.logs.success')}
-          </span>
-        </td>
-        <td>
-          <div className={styles.statusBars}>
-            {entry.recentRequests.map((req, idx) => (
-              <div
-                key={idx}
-                className={`${styles.statusBar} ${req.failed ? styles.failure : styles.success}`}
-              />
-            ))}
-          </div>
-        </td>
-        <td className={getRateClassName(entry.successRate, styles)}>
-          {entry.successRate.toFixed(1)}%
-        </td>
-        <td>{formatNumber(entry.requestCount)}</td>
-        <td className={styles.tokenCell} title={formatNumber(entry.inputTokens)}>
-          {formatCompactTokenNumber(entry.inputTokens)}
-        </td>
-        <td className={styles.tokenCell} title={formatNumber(entry.outputTokens)}>
-          {formatCompactTokenNumber(entry.outputTokens)}
-        </td>
-        <td className={styles.tokenCell} title={formatNumber(entry.cachedTokens)}>
-          {formatCompactTokenNumber(entry.cachedTokens)}
-        </td>
-        <td>{formatTimestamp(entry.timestamp)}</td>
-        <td>
-          {entry.source && entry.source !== '-' && entry.source !== 'unknown' ? (
-            disabled ? (
-              <span className={styles.disabledLabel}>{t('monitor.logs.disabled')}</span>
-            ) : (
-              <button
-                className={styles.disableBtn}
-                title={t('monitor.logs.disable_model')}
-                onClick={() => handleDisableClick(entry.source, entry.model)}
-              >
-                {t('monitor.logs.disable')}
-              </button>
-            )
-          ) : (
-            '-'
-          )}
-        </td>
+        {REQUEST_LOG_TABLE_COLUMN_KEYS.map((column) => (
+          <Fragment key={column}>{renderCell(entry, column)}</Fragment>
+        ))}
       </>
     );
+  };
+
+  const renderFilterSelect = (filterKey: RequestLogFilterKey) => {
+    switch (filterKey) {
+      case 'model':
+        return (
+          <select
+            key={filterKey}
+            className={styles.logSelect}
+            value={filterModel}
+            onChange={(e) => {
+              setFilterModel(e.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="">{t('monitor.logs.all_models')}</option>
+            {filterOptions.models.map((model) => (
+              <option key={model} value={model}>
+                {model}
+              </option>
+            ))}
+          </select>
+        );
+      case 'source':
+        return (
+          <select
+            key={filterKey}
+            className={styles.logSelect}
+            value={filterSource}
+            onChange={(e) => {
+              setFilterSource(e.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="">{t('monitor.logs.all_sources')}</option>
+            {filterOptions.sources.map((source) => (
+              <option key={source} value={source}>
+                {formatProviderDisplay(source, providerMap)}
+              </option>
+            ))}
+          </select>
+        );
+      case 'status':
+        return (
+          <select
+            key={filterKey}
+            className={styles.logSelect}
+            value={filterStatus}
+            onChange={(e) => {
+              setFilterStatus(e.target.value as '' | 'success' | 'failed');
+              setPage(1);
+            }}
+          >
+            <option value="">{t('monitor.logs.all_status')}</option>
+            <option value="success">{t('monitor.logs.success')}</option>
+            <option value="failed">{t('monitor.logs.failed')}</option>
+          </select>
+        );
+    }
   };
 
   const pageStart = total === 0 ? 0 : (page - 1) * pageSize + 1;
@@ -383,75 +454,7 @@ export function RequestLogs({
         }
       >
         <div className={styles.logFilters}>
-          <select
-            className={styles.logSelect}
-            value={filterApi}
-            onChange={(e) => {
-              setFilterApi(e.target.value);
-              setPage(1);
-            }}
-          >
-            <option value="">{t('monitor.logs.all_apis')}</option>
-            {filterOptions.apis.map((api) => (
-              <option key={api} value={api}>
-                {maskSecret(api)}
-              </option>
-            ))}
-          </select>
-          <select
-            className={styles.logSelect}
-            value={filterProviderType}
-            onChange={(e) => setFilterProviderType(e.target.value)}
-          >
-            <option value="">{t('monitor.logs.all_provider_types')}</option>
-            {providerTypes.map((type) => (
-              <option key={type} value={type}>
-                {type}
-              </option>
-            ))}
-          </select>
-          <select
-            className={styles.logSelect}
-            value={filterModel}
-            onChange={(e) => {
-              setFilterModel(e.target.value);
-              setPage(1);
-            }}
-          >
-            <option value="">{t('monitor.logs.all_models')}</option>
-            {filterOptions.models.map((model) => (
-              <option key={model} value={model}>
-                {model}
-              </option>
-            ))}
-          </select>
-          <select
-            className={styles.logSelect}
-            value={filterSource}
-            onChange={(e) => {
-              setFilterSource(e.target.value);
-              setPage(1);
-            }}
-          >
-            <option value="">{t('monitor.logs.all_sources')}</option>
-            {filterOptions.sources.map((source) => (
-              <option key={source} value={source}>
-                {formatProviderDisplay(source, providerMap)}
-              </option>
-            ))}
-          </select>
-          <select
-            className={styles.logSelect}
-            value={filterStatus}
-            onChange={(e) => {
-              setFilterStatus(e.target.value as '' | 'success' | 'failed');
-              setPage(1);
-            }}
-          >
-            <option value="">{t('monitor.logs.all_status')}</option>
-            <option value="success">{t('monitor.logs.success')}</option>
-            <option value="failed">{t('monitor.logs.failed')}</option>
-          </select>
+          {REQUEST_LOG_FILTER_KEYS.map(renderFilterSelect)}
 
           <span className={styles.logLastUpdate}>{getCountdownText()}</span>
 
@@ -485,7 +488,7 @@ export function RequestLogs({
         <div className={styles.tableWrapper}>
           {showLoading ? (
             <div className={styles.emptyState}>{t('common.loading')}</div>
-          ) : filteredEntries.length === 0 ? (
+          ) : logEntries.length === 0 ? (
             <div className={styles.emptyState}>{t('monitor.no_data')}</div>
           ) : (
             <>
@@ -493,20 +496,9 @@ export function RequestLogs({
                 <table className={`${styles.table} ${styles.virtualTable}`}>
                   <thead>
                     <tr>
-                      <th>{t('monitor.logs.header_auth')}</th>
-                      <th>{t('monitor.logs.header_api')}</th>
-                      <th>{t('monitor.logs.header_request_type')}</th>
-                      <th>{t('monitor.logs.header_model')}</th>
-                      <th>{t('monitor.logs.header_source')}</th>
-                      <th>{t('monitor.logs.header_status')}</th>
-                      <th>{t('monitor.logs.header_recent')}</th>
-                      <th>{t('monitor.logs.header_rate')}</th>
-                      <th>{t('monitor.logs.header_count')}</th>
-                      <th>{t('monitor.logs.header_input')}</th>
-                      <th>{t('monitor.logs.header_output')}</th>
-                      <th>{t('monitor.logs.header_cache')}</th>
-                      <th>{t('monitor.logs.header_time')}</th>
-                      <th>{t('monitor.logs.header_actions')}</th>
+                      {REQUEST_LOG_TABLE_COLUMN_KEYS.map((column) => (
+                        <th key={column}>{t(REQUEST_LOG_TABLE_HEADER_KEYS[column])}</th>
+                      ))}
                     </tr>
                   </thead>
                 </table>
@@ -532,7 +524,7 @@ export function RequestLogs({
                   <table className={`${styles.table} ${styles.virtualTable}`}>
                     <tbody>
                       {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-                        const entry = filteredEntries[virtualRow.index];
+                        const entry = logEntries[virtualRow.index];
                         return (
                           <tr
                             key={entry.id}
@@ -591,7 +583,7 @@ export function RequestLogs({
           </div>
         )}
 
-        {filteredEntries.length > 0 && (
+        {logEntries.length > 0 && (
           <div
             style={{
               textAlign: 'center',
