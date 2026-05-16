@@ -15,6 +15,7 @@ import type { QuotaStatusState } from './QuotaCard';
 import { useQuotaLoader } from './useQuotaLoader';
 import type { QuotaConfig } from './quotaConfigs';
 import { useGridColumns } from './useGridColumns';
+import { sortQuotaFiles } from './quotaFiles';
 import { IconRefreshCw } from '@/components/ui/icons';
 import styles from '@/pages/QuotaPage.module.scss';
 
@@ -114,10 +115,10 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
   const [viewMode, setViewMode] = useState<ViewMode>('paged');
   const [showTooManyWarning, setShowTooManyWarning] = useState(false);
 
-  const filteredFiles = useMemo(() => files.filter((file) => config.filterFn(file)), [
-    files,
-    config
-  ]);
+  const filteredFiles = useMemo(
+    () => sortQuotaFiles(files.filter((file) => config.filterFn(file))),
+    [files, config]
+  );
   const showAllAllowed = filteredFiles.length <= MAX_SHOW_ALL_THRESHOLD;
   const effectiveViewMode: ViewMode = viewMode === 'all' && !showAllAllowed ? 'paged' : viewMode;
 

@@ -12,11 +12,9 @@ import {
 } from '@/components/ui/icons';
 import { ProviderStatusBar } from '@/components/providers/ProviderStatusBar';
 import type { AuthFileItem } from '@/types';
-import { resolveAuthProvider } from '@/utils/quota';
 import { EMPTY_STATUS_BAR, normalizeAuthIndex, type KeyStats } from '@/utils/usage';
 import { formatFileSize } from '@/utils/format';
 import {
-  QUOTA_PROVIDER_TYPES,
   formatModified,
   getAuthFileStatusMessage,
   getTypeColor,
@@ -27,6 +25,7 @@ import {
   type QuotaProviderType,
   type ResolvedTheme,
 } from '@/features/authFiles/constants';
+import { resolveVisibleAuthFileQuotaType } from '@/features/authFiles/quotaDisplay';
 import type { AuthFileStatusBarData } from '@/features/authFiles/hooks/useAuthFilesStatusBarCache';
 import { AuthFileQuotaSection } from '@/features/authFiles/components/AuthFileQuotaSection';
 import styles from '@/pages/AuthFilesPage.module.scss';
@@ -50,12 +49,6 @@ export type AuthFileCardProps = {
   onDelete: (name: string) => void;
   onToggleStatus: (file: AuthFileItem, enabled: boolean) => void;
   onToggleSelect: (name: string) => void;
-};
-
-const resolveQuotaType = (file: AuthFileItem): QuotaProviderType | null => {
-  const provider = resolveAuthProvider(file);
-  if (!QUOTA_PROVIDER_TYPES.has(provider as QuotaProviderType)) return null;
-  return provider as QuotaProviderType;
 };
 
 export function AuthFileCard(props: AuthFileCardProps) {
@@ -85,8 +78,7 @@ export function AuthFileCard(props: AuthFileCardProps) {
   const showModelsButton = !isRuntimeOnly || isAistudio;
   const typeColor = getTypeColor(file.type || 'unknown', resolvedTheme);
 
-  const quotaType =
-    quotaFilterType && resolveQuotaType(file) === quotaFilterType ? quotaFilterType : null;
+  const quotaType = resolveVisibleAuthFileQuotaType(file, quotaFilterType);
 
   const showQuotaLayout = Boolean(quotaType) && !isRuntimeOnly;
 

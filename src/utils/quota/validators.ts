@@ -3,7 +3,7 @@
  */
 
 import type { AuthFileItem } from '@/types';
-import { GEMINI_CLI_IGNORED_MODEL_PREFIXES } from './constants';
+import { GEMINI_CLI_IGNORED_MODEL_PREFIXES } from './constants.ts';
 
 export function resolveAuthProvider(file: AuthFileItem): string {
   const raw = file.provider ?? file.type ?? '';
