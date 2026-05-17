@@ -1,7 +1,7 @@
 import { useCallback, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { ANTIGRAVITY_CONFIG, CLAUDE_CONFIG, CODEX_CONFIG, GEMINI_CLI_CONFIG, KIRO_CONFIG, KIMI_CONFIG } from '@/components/quota';
+import { ANTIGRAVITY_CONFIG, CLAUDE_CONFIG, CODEX_CONFIG, GEMINI_CLI_CONFIG, KIMI_CONFIG } from '@/components/quota';
 import { useNotificationStore, useQuotaStore } from '@/stores';
 import type { AuthFileItem } from '@/types';
 import { getStatusFromError } from '@/utils/quota';
@@ -19,7 +19,6 @@ const getQuotaConfig = (type: QuotaProviderType) => {
   if (type === 'antigravity') return ANTIGRAVITY_CONFIG;
   if (type === 'claude') return CLAUDE_CONFIG;
   if (type === 'codex') return CODEX_CONFIG;
-  if (type === 'kiro') return KIRO_CONFIG;
   if (type === 'kimi') return KIMI_CONFIG;
   return GEMINI_CLI_CONFIG;
 };
@@ -39,7 +38,6 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
     if (quotaType === 'antigravity') return state.antigravityQuota[file.name] as QuotaState;
     if (quotaType === 'claude') return state.claudeQuota[file.name] as QuotaState;
     if (quotaType === 'codex') return state.codexQuota[file.name] as QuotaState;
-    if (quotaType === 'kiro') return state.kiroQuota[file.name] as QuotaState;
     if (quotaType === 'kimi') return state.kimiQuota[file.name] as QuotaState;
     return state.geminiCliQuota[file.name] as QuotaState;
   });
@@ -48,7 +46,6 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
     if (quotaType === 'antigravity') return state.setAntigravityQuota as unknown as (updater: unknown) => void;
     if (quotaType === 'claude') return state.setClaudeQuota as unknown as (updater: unknown) => void;
     if (quotaType === 'codex') return state.setCodexQuota as unknown as (updater: unknown) => void;
-    if (quotaType === 'kiro') return state.setKiroQuota as unknown as (updater: unknown) => void;
     if (quotaType === 'kimi') return state.setKimiQuota as unknown as (updater: unknown) => void;
     return state.setGeminiCliQuota as unknown as (updater: unknown) => void;
   });

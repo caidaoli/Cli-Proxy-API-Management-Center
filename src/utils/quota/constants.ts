@@ -42,10 +42,6 @@ export const TYPE_COLORS: Record<string, TypeColorSet> = {
     light: { bg: '#e0f7fa', text: '#006064' },
     dark: { bg: '#004d40', text: '#80deea' },
   },
-  kiro: {
-    light: { bg: '#fff8e1', text: '#ff8f00' },
-    dark: { bg: '#ff6f00', text: '#ffe082' },
-  },
   iflow: {
     light: { bg: '#f5e3fc', text: '#9025c8' },
     dark: { bg: '#521490', text: '#d49cf5' },
@@ -195,20 +191,6 @@ export const CODEX_REQUEST_HEADERS = {
   'Content-Type': 'application/json',
   'User-Agent': 'codex_cli_rs/0.76.0 (Debian 13.0.0; x86_64) WindowsTerminal',
 };
-
-// Kiro (AWS CodeWhisperer) API configuration
-export const KIRO_QUOTA_URL = 'https://codewhisperer.us-east-1.amazonaws.com';
-
-export const KIRO_REQUEST_HEADERS = {
-  'Content-Type': 'application/x-amz-json-1.0',
-  'x-amz-target': 'AmazonCodeWhispererService.GetUsageLimits',
-  Authorization: 'Bearer $TOKEN$',
-};
-
-export const KIRO_REQUEST_BODY = JSON.stringify({
-  origin: 'AI_EDITOR',
-  resourceType: 'AGENTIC_REQUEST',
-});
 
 // Kimi API configuration
 export const KIMI_USAGE_URL = 'https://api.kimi.com/coding/v1/usages';

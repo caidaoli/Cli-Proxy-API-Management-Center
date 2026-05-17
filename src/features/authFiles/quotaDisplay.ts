@@ -1,14 +1,13 @@
 import type { AuthFileItem } from '../../types/authFile.ts';
 import { resolveAuthProvider } from '../../utils/quota/validators.ts';
 
-export type QuotaProviderType = 'antigravity' | 'claude' | 'codex' | 'gemini-cli' | 'kiro' | 'kimi';
+export type QuotaProviderType = 'antigravity' | 'claude' | 'codex' | 'gemini-cli' | 'kimi';
 
 export const QUOTA_PROVIDER_TYPES = new Set<QuotaProviderType>([
   'antigravity',
   'claude',
   'codex',
   'gemini-cli',
-  'kiro',
   'kimi',
 ]);
 

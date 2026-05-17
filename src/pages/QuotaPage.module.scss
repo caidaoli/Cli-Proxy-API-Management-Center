@@ -106,7 +106,6 @@
 .claudeGrid,
 .codexGrid,
 .geminiCliGrid,
-.kiroGrid,
 .kimiGrid {
   display: grid;
   gap: $spacing-md;
@@ -121,7 +120,6 @@
 .claudeControls,
 .codexControls,
 .geminiCliControls,
-.kiroControls,
 .kimiControls {
   display: flex;
   gap: $spacing-md;
@@ -134,7 +132,6 @@
 .claudeControl,
 .codexControl,
 .geminiCliControl,
-.kiroControl,
 .kimiControl {
   display: flex;
   flex-direction: column;
@@ -177,12 +174,6 @@
   background-image: linear-gradient(180deg,
       rgba(224, 232, 255, 0.2),
       rgba(224, 232, 255, 0));
-}
-
-.kiroCard {
-  background-image: linear-gradient(180deg,
-      rgba(255, 248, 225, 0.18),
-      rgba(255, 248, 225, 0));
 }
 
 .kimiCard {

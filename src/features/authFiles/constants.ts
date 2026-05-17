@@ -57,10 +57,6 @@ export const TYPE_COLORS: Record<string, TypeColorSet> = {
     light: { bg: '#e0f7fa', text: '#006064' },
     dark: { bg: '#004d40', text: '#80deea' }
   },
-  kiro: {
-    light: { bg: '#fff8e1', text: '#ff8f00' },
-    dark: { bg: '#ff6f00', text: '#ffe082' }
-  },
   iflow: {
     light: { bg: '#f3e5f5', text: '#7b1fa2' },
     dark: { bg: '#4a148c', text: '#ce93d8' }
