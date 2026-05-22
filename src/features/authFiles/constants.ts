@@ -57,9 +57,10 @@ export const TYPE_COLORS: Record<string, TypeColorSet> = {
     light: { bg: '#e0f7fa', text: '#006064' },
     dark: { bg: '#004d40', text: '#80deea' }
   },
+  // xAI / Grok: graphite brand treatment, distinct from blue and purple providers
   xai: {
-    light: { bg: '#eceff3', text: '#15181d' },
-    dark: { bg: '#e5e7eb', text: '#111827' }
+    light: { bg: '#f3f4f6', text: '#111827', border: '1px solid #d1d5db' },
+    dark: { bg: '#111827', text: '#f9fafb', border: '1px solid #374151' }
   },
   iflow: {
     light: { bg: '#f3e5f5', text: '#7b1fa2' },
