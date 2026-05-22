@@ -47,21 +47,98 @@ function parseApiKeysText(raw: unknown): string {
   return keys.join('\n');
 }
 
-function resolveApiKeysText(parsed: Record<string, unknown>): string {
-  if (Object.prototype.hasOwnProperty.call(parsed, 'api-keys')) {
-    return parseApiKeysText(parsed['api-keys']);
-  }
+type ApiKeysStorageMode = 'legacy' | 'auth-provider';
+type ApiKeysEntryMode = 'string' | 'object';
 
+type ApiKeysStorageMetadata = {
+  source: ApiKeysStorageMode;
+  providerListKey?: 'api-keys' | 'api-key-entries';
+  entryMode: ApiKeysEntryMode;
+  originalEntries: unknown[];
+  syncLegacy: boolean;
+};
+
+const DEFAULT_API_KEYS_STORAGE_METADATA: ApiKeysStorageMetadata = {
+  source: 'legacy',
+  entryMode: 'string',
+  originalEntries: [],
+  syncLegacy: false,
+};
+
+function replaceApiKeyValue(entry: unknown, apiKey: string): unknown {
+  const record = asRecord(entry);
+  if (!record) return apiKey;
+
+  if ('api-key' in record) return { ...record, 'api-key': apiKey };
+  if ('apiKey' in record) return { ...record, apiKey };
+  if ('key' in record) return { ...record, key: apiKey };
+  if ('Key' in record) return { ...record, Key: apiKey };
+
+  return { ...record, 'api-key': apiKey };
+}
+
+function buildApiKeyEntries(
+  apiKeys: string[],
+  metadata: ApiKeysStorageMetadata
+): Array<string | Record<string, unknown>> {
+  return apiKeys.map((apiKey, index) => {
+    const originalEntry = metadata.originalEntries[index];
+    if (metadata.entryMode === 'object') {
+      const replaced = replaceApiKeyValue(originalEntry, apiKey);
+      return asRecord(replaced) ?? { 'api-key': apiKey };
+    }
+
+    const record = asRecord(originalEntry);
+    return record
+      ? ({ ...record, ...(replaceApiKeyValue(record, apiKey) as Record<string, unknown>) })
+      : apiKey;
+  });
+}
+
+function resolveApiKeysStorage(parsed: Record<string, unknown>): {
+  text: string;
+  metadata: ApiKeysStorageMetadata;
+} {
+  const legacyEntries = Array.isArray(parsed['api-keys']) ? parsed['api-keys'] : [];
   const auth = asRecord(parsed.auth);
   const providers = asRecord(auth?.providers);
   const configApiKeyProvider = asRecord(providers?.['config-api-key']);
-  if (!configApiKeyProvider) return '';
 
-  if (Object.prototype.hasOwnProperty.call(configApiKeyProvider, 'api-key-entries')) {
-    return parseApiKeysText(configApiKeyProvider['api-key-entries']);
+  if (configApiKeyProvider) {
+    const providerEntries = Array.isArray(configApiKeyProvider['api-key-entries'])
+      ? configApiKeyProvider['api-key-entries']
+      : Array.isArray(configApiKeyProvider['api-keys'])
+        ? configApiKeyProvider['api-keys']
+        : [];
+    const providerListKey = Array.isArray(configApiKeyProvider['api-key-entries'])
+      ? 'api-key-entries'
+      : 'api-keys';
+
+    return {
+      text: parseApiKeysText(providerEntries),
+      metadata: {
+        source: 'auth-provider',
+        providerListKey,
+        entryMode:
+          providerListKey === 'api-key-entries' ||
+          providerEntries.some((entry) => Boolean(asRecord(entry)))
+            ? 'object'
+            : 'string',
+        originalEntries: providerEntries,
+        syncLegacy: legacyEntries.length > 0,
+      },
+    };
   }
 
-  return parseApiKeysText(configApiKeyProvider['api-keys']);
+  return {
+    text: parseApiKeysText(legacyEntries),
+    metadata: {
+      source: 'legacy',
+      entryMode: legacyEntries.some((entry) => Boolean(asRecord(entry))) ? 'object' : 'string',
+      originalEntries: legacyEntries,
+      syncLegacy: false,
+    },
+  };
 }
 
 type YamlDocument = ReturnType<typeof parseDocument>;
@@ -302,18 +379,6 @@ function parsePayloadProtocol(raw: unknown): string | undefined {
   return raw.trim() ? raw : undefined;
 }
 
-function deleteLegacyApiKeysProvider(doc: YamlDocument): void {
-  if (docHas(doc, ['auth', 'providers', 'config-api-key', 'api-key-entries'])) {
-    doc.deleteIn(['auth', 'providers', 'config-api-key', 'api-key-entries']);
-  }
-  if (docHas(doc, ['auth', 'providers', 'config-api-key', 'api-keys'])) {
-    doc.deleteIn(['auth', 'providers', 'config-api-key', 'api-keys']);
-  }
-  deleteIfMapEmpty(doc, ['auth', 'providers', 'config-api-key']);
-  deleteIfMapEmpty(doc, ['auth', 'providers']);
-  deleteIfMapEmpty(doc, ['auth']);
-}
-
 function parsePayloadRules(rules: unknown): PayloadRule[] {
   if (!Array.isArray(rules)) return [];
 
@@ -499,12 +564,14 @@ type VisualConfigState = {
   baselineValues: VisualConfigValues;
   dirtyFields: Set<string>;
   visualParseError: string | null;
+  apiKeysStorageMetadata: ApiKeysStorageMetadata;
 };
 
 type VisualConfigAction =
   | {
       type: 'load_success';
       values: VisualConfigValues;
+      apiKeysStorageMetadata: ApiKeysStorageMetadata;
     }
   | {
       type: 'load_error';
@@ -522,6 +589,7 @@ function createInitialVisualConfigState(): VisualConfigState {
     baselineValues: deepClone(initialValues),
     dirtyFields: new Set(),
     visualParseError: null,
+    apiKeysStorageMetadata: DEFAULT_API_KEYS_STORAGE_METADATA,
   };
 }
 
@@ -720,6 +788,7 @@ function visualConfigReducer(
         baselineValues: deepClone(action.values),
         dirtyFields: new Set(),
         visualParseError: null,
+        apiKeysStorageMetadata: action.apiKeysStorageMetadata,
       };
     case 'load_error':
       return {
@@ -752,7 +821,7 @@ export function useVisualConfig() {
     undefined,
     createInitialVisualConfigState
   );
-  const { visualValues, visualParseError } = state;
+  const { visualValues, visualParseError, apiKeysStorageMetadata } = state;
   const visualDirty = state.dirtyFields.size > 0;
   const visualValidationErrors = useMemo(
     () => getVisualConfigValidationErrors(visualValues),
@@ -787,6 +856,7 @@ export function useVisualConfig() {
       const routing = asRecord(parsed.routing);
       const payload = asRecord(parsed.payload);
       const streaming = asRecord(parsed.streaming);
+      const apiKeysStorage = resolveApiKeysStorage(parsed);
 
       const newValues: VisualConfigValues = {
         host: typeof parsed.host === 'string' ? parsed.host : '',
@@ -810,7 +880,7 @@ export function useVisualConfig() {
               : '',
 
         authDir: typeof parsed['auth-dir'] === 'string' ? parsed['auth-dir'] : '',
-        apiKeysText: resolveApiKeysText(parsed),
+        apiKeysText: apiKeysStorage.text,
 
         debug: Boolean(parsed.debug),
         commercialMode: Boolean(parsed['commercial-mode']),
@@ -848,7 +918,11 @@ export function useVisualConfig() {
         },
       };
 
-      dispatch({ type: 'load_success', values: newValues });
+      dispatch({
+        type: 'load_success',
+        values: newValues,
+        apiKeysStorageMetadata: apiKeysStorage.metadata,
+      });
       return { ok: true as const };
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Invalid YAML';
@@ -910,12 +984,38 @@ export function useVisualConfig() {
           .split('\n')
           .map((key) => key.trim())
           .filter(Boolean);
-        if (apiKeys.length > 0) {
-          doc.setIn(['api-keys'], apiKeys);
+        const apiKeyEntries = buildApiKeyEntries(apiKeys, apiKeysStorageMetadata);
+
+        if (apiKeysStorageMetadata.source === 'auth-provider') {
+          ensureMapInDoc(doc, ['auth']);
+          ensureMapInDoc(doc, ['auth', 'providers']);
+          ensureMapInDoc(doc, ['auth', 'providers', 'config-api-key']);
+
+          const providerListKey = apiKeysStorageMetadata.providerListKey ?? 'api-key-entries';
+          const providerPath = ['auth', 'providers', 'config-api-key', providerListKey];
+
+          if (apiKeys.length > 0) {
+            doc.setIn(providerPath, apiKeyEntries);
+          } else if (docHas(doc, providerPath)) {
+            doc.deleteIn(providerPath);
+          }
+
+          deleteIfMapEmpty(doc, ['auth', 'providers', 'config-api-key']);
+          deleteIfMapEmpty(doc, ['auth', 'providers']);
+          deleteIfMapEmpty(doc, ['auth']);
+
+          if (apiKeysStorageMetadata.syncLegacy) {
+            if (apiKeys.length > 0) {
+              doc.setIn(['api-keys'], apiKeys);
+            } else if (docHas(doc, ['api-keys'])) {
+              doc.deleteIn(['api-keys']);
+            }
+          }
+        } else if (apiKeys.length > 0) {
+          doc.setIn(['api-keys'], apiKeyEntries);
         } else if (docHas(doc, ['api-keys'])) {
           doc.deleteIn(['api-keys']);
         }
-        deleteLegacyApiKeysProvider(doc);
 
         setBooleanInDoc(doc, ['debug'], values.debug);
 
@@ -1029,7 +1129,7 @@ export function useVisualConfig() {
         return currentYaml;
       }
     },
-    [visualValues]
+    [apiKeysStorageMetadata, visualValues]
   );
 
   const setVisualValues = useCallback((newValues: Partial<VisualConfigValues>) => {
