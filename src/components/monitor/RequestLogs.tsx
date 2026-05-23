@@ -1,6 +1,5 @@
 import { Fragment, useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useVirtualizer } from '@tanstack/react-virtual';
 import { Card } from '@/components/ui/Card';
 import { monitorApi, type MonitorRequestLogItem } from '@/services/api';
 import { useDisableModel } from '@/hooks';
@@ -52,8 +51,6 @@ interface LogEntry {
   authIndex: string;
 }
 
-const ROW_HEIGHT = 40;
-
 export function RequestLogs({
   refreshKey,
   loading,
@@ -70,9 +67,6 @@ export function RequestLogs({
   const [countdown, setCountdown] = useState(0);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const fetchLogDataRef = useRef<() => Promise<void>>(() => Promise.resolve());
-
-  const tableContainerRef = useRef<HTMLDivElement>(null);
-  const headerRef = useRef<HTMLDivElement>(null);
 
   const [timeRange, setTimeRange] = useState<TimeRange>(1);
   const [customRange, setCustomRange] = useState<DateRange | undefined>();
@@ -102,12 +96,6 @@ export function RequestLogs({
     handleCancelDisable,
     handleCloseUnsupported,
   } = useDisableModel({ providerMap, providerTypeMap });
-
-  const handleScroll = useCallback(() => {
-    if (tableContainerRef.current && headerRef.current) {
-      headerRef.current.scrollLeft = tableContainerRef.current.scrollLeft;
-    }
-  }, []);
 
   const handleTimeRangeChange = useCallback((range: TimeRange, custom?: DateRange) => {
     setTimeRange(range);
@@ -230,13 +218,6 @@ export function RequestLogs({
   useEffect(() => {
     fetchLogData();
   }, [fetchLogData, refreshKey]);
-
-  const rowVirtualizer = useVirtualizer({
-    count: logEntries.length,
-    getScrollElement: () => tableContainerRef.current,
-    estimateSize: () => ROW_HEIGHT,
-    overscan: 10,
-  });
 
   const showLoading = (logLoading || loading) && logEntries.length === 0;
 
@@ -485,69 +466,26 @@ export function RequestLogs({
           </select>
         </div>
 
-        <div className={styles.tableWrapper}>
+        <div className={styles.logTableWrapper}>
           {showLoading ? (
             <div className={styles.emptyState}>{t('common.loading')}</div>
           ) : logEntries.length === 0 ? (
             <div className={styles.emptyState}>{t('monitor.no_data')}</div>
           ) : (
-            <>
-              <div ref={headerRef} className={styles.stickyHeader}>
-                <table className={`${styles.table} ${styles.virtualTable}`}>
-                  <thead>
-                    <tr>
-                      {REQUEST_LOG_TABLE_COLUMN_KEYS.map((column) => (
-                        <th key={column}>{t(REQUEST_LOG_TABLE_HEADER_KEYS[column])}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                </table>
-              </div>
-
-              <div
-                ref={tableContainerRef}
-                className={styles.virtualScrollContainer}
-                style={{
-                  height: 'calc(100vh - 420px)',
-                  minHeight: '360px',
-                  overflow: 'auto',
-                }}
-                onScroll={handleScroll}
-              >
-                <div
-                  style={{
-                    height: `${rowVirtualizer.getTotalSize()}px`,
-                    width: '100%',
-                    position: 'relative',
-                  }}
-                >
-                  <table className={`${styles.table} ${styles.virtualTable}`}>
-                    <tbody>
-                      {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-                        const entry = logEntries[virtualRow.index];
-                        return (
-                          <tr
-                            key={entry.id}
-                            style={{
-                              position: 'absolute',
-                              top: 0,
-                              left: 0,
-                              width: '100%',
-                              height: `${virtualRow.size}px`,
-                              transform: `translateY(${virtualRow.start}px)`,
-                              display: 'table',
-                              tableLayout: 'fixed',
-                            }}
-                          >
-                            {renderRow(entry)}
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </>
+            <table className={`${styles.table} ${styles.virtualTable}`}>
+              <thead>
+                <tr>
+                  {REQUEST_LOG_TABLE_COLUMN_KEYS.map((column) => (
+                    <th key={column}>{t(REQUEST_LOG_TABLE_HEADER_KEYS[column])}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {logEntries.map((entry) => (
+                  <tr key={entry.id}>{renderRow(entry)}</tr>
+                ))}
+              </tbody>
+            </table>
           )}
         </div>
 

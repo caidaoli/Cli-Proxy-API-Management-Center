@@ -543,46 +543,9 @@
   }
 }
 
-// 虚拟滚动容器
-.virtualScrollContainer {
-  overflow: auto;
-  -webkit-overflow-scrolling: touch;
-
-  // 自定义滚动条
-  &::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: var(--bg-tertiary);
-    border-radius: 4px;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: var(--border-color);
-    border-radius: 4px;
-
-    &:hover {
-      background: var(--text-tertiary);
-    }
-  }
-}
-
-// 固定表头容器
-.stickyHeader {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background-color: var(--bg-secondary);
-  overflow-x: auto;
-
-  // 隐藏滚动条但保持可滚动
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  &::-webkit-scrollbar {
-    display: none;
-  }
+// 请求日志专用容器：完全跟随外层主滚动，不创建独立滚动上下文
+.logTableWrapper {
+  width: 100%;
 }
 
 // 虚拟滚动表格固定列宽
