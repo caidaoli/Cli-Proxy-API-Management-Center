@@ -116,7 +116,11 @@ export function ServiceHealthCard() {
   }, [activeTooltip]);
 
   const buildTooltipState = useCallback(
-    (idx: number, anchorEl: HTMLDivElement): ActiveTooltipState => {
+    (idx: number, anchorEl: HTMLDivElement | null): ActiveTooltipState | null => {
+      if (!anchorEl || !anchorEl.isConnected) {
+        return null;
+      }
+
       const rect = anchorEl.getBoundingClientRect();
       const centerX = rect.left + rect.width / 2;
 
@@ -190,9 +194,8 @@ export function ServiceHealthCard() {
     (e: React.PointerEvent<HTMLDivElement>, idx: number) => {
       if (e.pointerType === 'touch') {
         e.preventDefault();
-        setActiveTooltip((prev) =>
-          prev?.idx === idx ? null : buildTooltipState(idx, e.currentTarget)
-        );
+        const anchorEl = e.currentTarget;
+        setActiveTooltip((prev) => (prev?.idx === idx ? null : buildTooltipState(idx, anchorEl)));
       }
     },
     [buildTooltipState]
