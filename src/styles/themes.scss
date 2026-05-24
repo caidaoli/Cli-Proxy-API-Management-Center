@@ -10,6 +10,9 @@
   --bg-hover: var(--bg-tertiary);
   --bg-quinary: #f9fafb;
   --bg-error-light: rgba(239, 68, 68, 0.1);
+  --floating-surface: #ffffff;
+  --floating-border: #e5e7eb;
+  --floating-shadow: 0 12px 26px rgba(0, 0, 0, 0.14);
 
   --text-primary: #1f2937;
   --text-secondary: #6b7280;
@@ -72,6 +75,9 @@
   --bg-hover: var(--bg-tertiary);
   --bg-quinary: #ffffff;
   --bg-error-light: rgba(198, 87, 70, 0.08);
+  --floating-surface: #ffffff;
+  --floating-border: #d9d9d9;
+  --floating-shadow: 0 12px 26px rgba(0, 0, 0, 0.12);
 
   --text-primary: #2d2a26;
   --text-secondary: #6d6760;
@@ -126,6 +132,9 @@
   --bg-hover: #2a2a2a;
   --bg-quinary: #1f1f1f;
   --bg-error-light: rgba(239, 68, 68, 0.18);
+  --floating-surface: #2a2a2a;
+  --floating-border: #404040;
+  --floating-shadow: 0 14px 30px rgba(0, 0, 0, 0.4);
 
   --text-primary: #fafafa;
   --text-secondary: #a3a3a3;

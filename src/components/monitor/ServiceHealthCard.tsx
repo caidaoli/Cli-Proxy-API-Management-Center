@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { monitorApi, type MonitorServiceHealthData } from '@/services/api/monitor';
 import styles from '@/pages/MonitorPage.module.scss';
@@ -13,6 +14,23 @@ const COLOR_STOPS = [
   { r: 250, g: 204, b: 21 },  // #facc15
   { r: 34, g: 197, b: 94 },   // #22c55e
 ] as const;
+
+const TOOLTIP_OFFSET = 8;
+const TOOLTIP_SAFE_WIDTH = 180;
+const TOOLTIP_SAFE_HEIGHT = 72;
+
+type TooltipHorizontalPosition = 'center' | 'left' | 'right';
+type TooltipVerticalPosition = 'above' | 'below';
+
+interface ActiveTooltipState {
+  idx: number;
+  anchorEl: HTMLDivElement;
+  horizontal: TooltipHorizontalPosition;
+  vertical: TooltipVerticalPosition;
+  left: number;
+  top: number;
+  transform: string;
+}
 
 function rateToColor(rate: number): string {
   const t = Math.max(0, Math.min(1, rate));
@@ -65,7 +83,7 @@ export function ServiceHealthCard() {
   const [data, setData] = useState<MonitorServiceHealthData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [activeTooltip, setActiveTooltip] = useState<number | null>(null);
+  const [activeTooltip, setActiveTooltip] = useState<ActiveTooltipState | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -97,42 +115,111 @@ export function ServiceHealthCard() {
     return () => document.removeEventListener('pointerdown', handler);
   }, [activeTooltip]);
 
-  const handlePointerEnter = useCallback((e: React.PointerEvent, idx: number) => {
-    if (e.pointerType === 'mouse') setActiveTooltip(idx);
-  }, []);
+  const buildTooltipState = useCallback(
+    (idx: number, anchorEl: HTMLDivElement): ActiveTooltipState => {
+      const rect = anchorEl.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+
+      let horizontal: TooltipHorizontalPosition = 'center';
+      let left = centerX;
+
+      if (centerX <= TOOLTIP_SAFE_WIDTH / 2) {
+        horizontal = 'left';
+        left = rect.left;
+      } else if (centerX >= window.innerWidth - TOOLTIP_SAFE_WIDTH / 2) {
+        horizontal = 'right';
+        left = rect.right;
+      }
+
+      const vertical: TooltipVerticalPosition = rect.top <= TOOLTIP_SAFE_HEIGHT ? 'below' : 'above';
+      const top = vertical === 'below' ? rect.bottom + TOOLTIP_OFFSET : rect.top - TOOLTIP_OFFSET;
+      const translateX = horizontal === 'center' ? '-50%' : horizontal === 'right' ? '-100%' : '0';
+      const translateY = vertical === 'below' ? '0' : '-100%';
+
+      return {
+        idx,
+        anchorEl,
+        horizontal,
+        vertical,
+        left: Math.round(left),
+        top: Math.round(top),
+        transform: `translate(${translateX}, ${translateY})`,
+      };
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (!activeTooltip) return;
+
+    const updateTooltipPosition = () => {
+      if (!document.body.contains(activeTooltip.anchorEl)) {
+        setActiveTooltip(null);
+        return;
+      }
+      setActiveTooltip(buildTooltipState(activeTooltip.idx, activeTooltip.anchorEl));
+    };
+
+    window.addEventListener('resize', updateTooltipPosition);
+    window.addEventListener('scroll', updateTooltipPosition, true);
+    return () => {
+      window.removeEventListener('resize', updateTooltipPosition);
+      window.removeEventListener('scroll', updateTooltipPosition, true);
+    };
+  }, [activeTooltip, buildTooltipState]);
+
+  const openTooltip = useCallback(
+    (idx: number, anchorEl: HTMLDivElement) => {
+      setActiveTooltip(buildTooltipState(idx, anchorEl));
+    },
+    [buildTooltipState]
+  );
+
+  const handlePointerEnter = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>, idx: number) => {
+      if (e.pointerType === 'mouse') openTooltip(idx, e.currentTarget);
+    },
+    [openTooltip]
+  );
 
   const handlePointerLeave = useCallback((e: React.PointerEvent) => {
     if (e.pointerType === 'mouse') setActiveTooltip(null);
   }, []);
 
-  const handlePointerDown = useCallback((e: React.PointerEvent, idx: number) => {
-    if (e.pointerType === 'touch') {
-      e.preventDefault();
-      setActiveTooltip((prev) => (prev === idx ? null : idx));
-    }
-  }, []);
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>, idx: number) => {
+      if (e.pointerType === 'touch') {
+        e.preventDefault();
+        setActiveTooltip((prev) =>
+          prev?.idx === idx ? null : buildTooltipState(idx, e.currentTarget)
+        );
+      }
+    },
+    [buildTooltipState]
+  );
 
-  const getTooltipPositionClass = (idx: number): string => {
-    const col = Math.floor(idx / ROWS);
-    if (col <= 2) return styles.healthTooltipLeft;
-    if (col >= COLS - 3) return styles.healthTooltipRight;
-    return '';
-  };
-
-  const getTooltipVerticalClass = (idx: number): string => {
-    const row = idx % ROWS;
-    if (row <= 1) return styles.healthTooltipBelow;
-    return '';
-  };
-
-  const renderTooltip = (detail: BlockDetail, idx: number) => {
+  const renderTooltip = (detail: BlockDetail, tooltipState: ActiveTooltipState) => {
     const total = detail.success + detail.failure;
-    const posClass = getTooltipPositionClass(idx);
-    const vertClass = getTooltipVerticalClass(idx);
+    const posClass =
+      tooltipState.horizontal === 'left'
+        ? styles.healthTooltipLeft
+        : tooltipState.horizontal === 'right'
+          ? styles.healthTooltipRight
+          : '';
+    const vertClass = tooltipState.vertical === 'below' ? styles.healthTooltipBelow : '';
     const timeRange = `${formatDateTime(detail.startTime)} – ${formatDateTime(detail.endTime)}`;
-
-    return (
-      <div className={`${styles.healthTooltip} ${posClass} ${vertClass}`}>
+    const tooltip = (
+      <div
+        className={`${styles.healthTooltip} ${posClass} ${vertClass}`}
+        style={{
+          position: 'fixed',
+          left: `${tooltipState.left}px`,
+          top: `${tooltipState.top}px`,
+          bottom: 'auto',
+          right: 'auto',
+          transform: tooltipState.transform,
+        }}
+      >
         <span className={styles.healthTooltipTime}>{timeRange}</span>
         {total > 0 ? (
           <span className={styles.healthTooltipStats}>
@@ -145,6 +232,8 @@ export function ServiceHealthCard() {
         )}
       </div>
     );
+
+    return typeof document === 'undefined' ? tooltip : createPortal(tooltip, document.body);
   };
 
   const blockDetails = data ? buildBlockDetails(data) : [];
@@ -190,7 +279,7 @@ export function ServiceHealthCard() {
               {blockDetails.map((detail, idx) => {
                 const isIdle = detail.rate === -1;
                 const blockStyle = isIdle ? undefined : { backgroundColor: rateToColor(detail.rate) };
-                const isActive = activeTooltip === idx;
+                const isActive = activeTooltip?.idx === idx;
 
                 return (
                   <div
@@ -204,7 +293,7 @@ export function ServiceHealthCard() {
                       className={`${styles.healthBlock} ${isIdle ? styles.healthBlockIdle : ''}`}
                       style={blockStyle}
                     />
-                    {isActive && renderTooltip(detail, idx)}
+                    {isActive && activeTooltip && renderTooltip(detail, activeTooltip)}
                   </div>
                 );
               })}
