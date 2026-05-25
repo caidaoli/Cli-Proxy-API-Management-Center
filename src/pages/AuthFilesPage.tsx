@@ -118,8 +118,8 @@ export function AuthFilesPage() {
   const [disabledOnly, setDisabledOnly] = useState(false);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(9);
-  const [pageSizeInput, setPageSizeInput] = useState('9');
+  const [pageSize, setPageSize] = useState(12);
+  const [pageSizeInput, setPageSizeInput] = useState('12');
   const [viewMode, setViewMode] = useState<'diagram' | 'list'>('list');
   const [sortMode, setSortMode] = useState<AuthFilesSortMode>('default');
   const [batchActionBarVisible, setBatchActionBarVisible] = useState(false);
@@ -803,9 +803,7 @@ export function AuthFilesPage() {
             description={t('auth_files.search_empty_desc')}
           />
         ) : (
-          <div
-            className={`${styles.fileGrid} ${quotaFilterType ? styles.fileGridQuotaManaged : ''}`}
-          >
+          <div className={styles.fileGrid}>
             {pageItems.map((file) => (
               <AuthFileCard
                 key={file.name}

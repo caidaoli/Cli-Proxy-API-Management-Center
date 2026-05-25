@@ -212,10 +212,6 @@
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
 }
 
-.fileGridQuotaManaged {
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
-}
-
 .antigravityGrid {
   display: grid;
   gap: $spacing-md;
