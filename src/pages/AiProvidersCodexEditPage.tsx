@@ -541,6 +541,10 @@ export function AiProvidersCodexEditPage() {
           <>
             <Input
               label={t('ai_providers.codex_add_modal_key_label')}
+              autoComplete="new-password"
+              data-1p-ignore="true"
+              data-lpignore="true"
+              data-bwignore="true"
               value={form.apiKey}
               onChange={(e) => setForm((prev) => ({ ...prev, apiKey: e.target.value }))}
               disabled={disableControls || saving}

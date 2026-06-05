@@ -305,6 +305,10 @@ export function AiProvidersClaudeEditPage() {
           <div className={styles.openaiEditForm}>
             <Input
               label={t('ai_providers.claude_add_modal_key_label')}
+              autoComplete="new-password"
+              data-1p-ignore="true"
+              data-lpignore="true"
+              data-bwignore="true"
               value={form.apiKey}
               onChange={(e) => setForm((prev) => ({ ...prev, apiKey: e.target.value }))}
               disabled={saving || disableControls || isTesting}

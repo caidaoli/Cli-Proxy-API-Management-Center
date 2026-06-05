@@ -390,6 +390,10 @@ export function AiProvidersAmpcodeEditPage() {
           label={t('ai_providers.ampcode_upstream_api_key_label')}
           placeholder={t('ai_providers.ampcode_upstream_api_key_placeholder')}
           type="password"
+          autoComplete="new-password"
+          data-1p-ignore="true"
+          data-lpignore="true"
+          data-bwignore="true"
           value={form.upstreamApiKey}
           onChange={(e) => setForm((prev) => ({ ...prev, upstreamApiKey: e.target.value }))}
           disabled={loading || saving || disableControls}
@@ -468,6 +472,10 @@ export function AiProvidersAmpcodeEditPage() {
                   className="input"
                   placeholder={t('ai_providers.ampcode_upstream_api_keys_upstream_placeholder')}
                   aria-label={t('ai_providers.ampcode_upstream_api_keys_upstream_placeholder')}
+                  autoComplete="new-password"
+                  data-1p-ignore="true"
+                  data-lpignore="true"
+                  data-bwignore="true"
                   value={entry.upstreamApiKey}
                   onChange={(e) => {
                     const value = e.target.value;

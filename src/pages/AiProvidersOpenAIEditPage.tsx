@@ -445,6 +445,10 @@ export function AiProvidersOpenAIEditPage() {
                 <div className={styles.keyTableColKey}>
                   <input
                     type="text"
+                    autoComplete="new-password"
+                    data-1p-ignore="true"
+                    data-lpignore="true"
+                    data-bwignore="true"
                     value={entry.apiKey}
                     onChange={(e) => updateEntry(index, 'apiKey', e.target.value)}
                     disabled={saving || disableControls || isTestingKeys}
