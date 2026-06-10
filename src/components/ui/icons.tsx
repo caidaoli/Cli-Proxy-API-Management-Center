@@ -104,6 +104,17 @@ export function IconSettings({ size = 20, ...props }: IconProps) {
   );
 }
 
+export function IconPlug({ size = 20, ...props }: IconProps) {
+  return (
+    <svg {...baseSvgProps} width={size} height={size} {...props}>
+      <path d="M12 22v-5" />
+      <path d="M9 8V2" />
+      <path d="M15 8V2" />
+      <path d="M6 8h12v4a6 6 0 0 1-12 0Z" />
+    </svg>
+  );
+}
+
 export function IconScrollText({ size = 20, ...props }: IconProps) {
   return (
     <svg {...baseSvgProps} width={size} height={size} {...props}>
@@ -379,6 +390,17 @@ export function IconSidebarConfig({ size = 20, ...props }: IconProps) {
       <path d="M4 16h16" />
       <circle cx="9.5" cy="8" r="2.8" fill="currentColor" fillOpacity="0.12" />
       <circle cx="15" cy="16" r="2.8" fill="currentColor" fillOpacity="0.12" />
+    </svg>
+  );
+}
+
+export function IconSidebarPlugins({ size = 20, ...props }: IconProps) {
+  return (
+    <svg {...sidebarSvgProps} width={size} height={size} {...props}>
+      <path d="M12 22v-5" />
+      <path d="M9 8V2" />
+      <path d="M15 8V2" />
+      <path d="M6 8h12v4a6 6 0 0 1-12 0Z" />
     </svg>
   );
 }
