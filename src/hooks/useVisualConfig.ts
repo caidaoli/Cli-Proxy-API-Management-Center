@@ -679,6 +679,9 @@ function getNextDirtyFields(
   if (Object.prototype.hasOwnProperty.call(patch, 'apiKeysText')) {
     updateDirty('apiKeysText', nextValues.apiKeysText === baselineValues.apiKeysText);
   }
+  if (Object.prototype.hasOwnProperty.call(patch, 'pluginsEnabled')) {
+    updateDirty('pluginsEnabled', nextValues.pluginsEnabled === baselineValues.pluginsEnabled);
+  }
   if (Object.prototype.hasOwnProperty.call(patch, 'debug')) {
     updateDirty('debug', nextValues.debug === baselineValues.debug);
   }
@@ -910,6 +913,7 @@ export function useVisualConfig() {
       const routing = asRecord(parsed.routing);
       const payload = asRecord(parsed.payload);
       const streaming = asRecord(parsed.streaming);
+      const plugins = asRecord(parsed.plugins);
       const codex = asRecord(parsed.codex);
       const apiKeysStorage = resolveApiKeysStorage(parsed);
 
@@ -936,6 +940,7 @@ export function useVisualConfig() {
 
         authDir: typeof parsed['auth-dir'] === 'string' ? parsed['auth-dir'] : '',
         apiKeysText: apiKeysStorage.text,
+        pluginsEnabled: Boolean(plugins?.enabled),
 
         debug: Boolean(parsed.debug),
         commercialMode: Boolean(parsed['commercial-mode']),
@@ -948,6 +953,7 @@ export function useVisualConfig() {
         requestRetry: String(parsed['request-retry'] ?? ''),
         maxRetryCredentials: String(parsed['max-retry-credentials'] ?? ''),
         maxRetryInterval: String(parsed['max-retry-interval'] ?? ''),
+
         gptImage2BaseModel:
           typeof parsed['gpt-image-2-base-model'] === 'string'
             ? parsed['gpt-image-2-base-model']
@@ -1091,6 +1097,16 @@ export function useVisualConfig() {
           doc.deleteIn(['api-keys']);
         }
 
+        if (
+          docHas(doc, ['plugins']) ||
+          values.pluginsEnabled ||
+          shouldWriteManagedField(doc, ['plugins', 'enabled'], dirtyFields, 'pluginsEnabled')
+        ) {
+          ensureMapInDoc(doc, ['plugins']);
+          setBooleanInDoc(doc, ['plugins', 'enabled'], values.pluginsEnabled);
+          deleteIfMapEmpty(doc, ['plugins']);
+        }
+
         setBooleanInDoc(doc, ['debug'], values.debug);
 
         setBooleanInDoc(doc, ['commercial-mode'], values.commercialMode);
@@ -1103,6 +1119,7 @@ export function useVisualConfig() {
         setIntFromStringInDoc(doc, ['request-retry'], values.requestRetry);
         setIntFromStringInDoc(doc, ['max-retry-credentials'], values.maxRetryCredentials);
         setIntFromStringInDoc(doc, ['max-retry-interval'], values.maxRetryInterval);
+
         setBooleanInDoc(doc, ['ws-auth'], values.wsAuth);
 
         if (

@@ -277,6 +277,13 @@ export function VisualConfigEditor({ values, validationErrors, disabled = false,
               onChange={(loggingToFile) => onChange({ loggingToFile })}
             />
             <ToggleRow
+              title={t('config_management.visual.sections.system.plugins_enabled')}
+              description={t('config_management.visual.sections.system.plugins_enabled_desc')}
+              checked={values.pluginsEnabled}
+              disabled={disabled}
+              onChange={(pluginsEnabled) => onChange({ pluginsEnabled })}
+            />
+            <ToggleRow
               title={t('config_management.visual.sections.system.usage_statistics')}
               description={t('config_management.visual.sections.system.usage_statistics_desc')}
               checked={values.usageStatisticsEnabled}

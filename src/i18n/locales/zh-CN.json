@@ -1236,6 +1236,8 @@
           "commercial_mode_desc": "禁用高开销中间件以支持高并发",
           "logging_to_file": "写入日志文件",
           "logging_to_file_desc": "将日志保存到文件",
+          "plugins_enabled": "启用插件系统",
+          "plugins_enabled_desc": "启用标准动态库插件加载；具体插件实例仍在插件管理页启停",
           "usage_statistics": "使用统计",
           "usage_statistics_desc": "收集使用统计信息",
           "logs_max_size": "日志文件大小限制 (MB)"
@@ -1248,6 +1250,7 @@
           "max_retry_credentials": "最大重试凭据数",
           "max_retry_credentials_hint": "留空表示不设置；设为 0 表示保留 legacy 行为，并尝试所有可用凭据。",
           "max_retry_interval": "最大重试间隔 (秒)",
+
           "routing_strategy": "路由策略",
           "routing_strategy_hint": "选择凭据选择策略",
           "strategy_round_robin": "轮询 (Round Robin)",
