@@ -502,6 +502,30 @@
   text-transform: capitalize;
 }
 
+.codexPlanSeparator {
+  width: 1px;
+  height: 12px;
+  background-color: var(--border-color);
+}
+
+.quotaInlineActions {
+  display: flex;
+  justify-content: flex-start;
+  padding-top: $spacing-xs;
+}
+
+.quotaResetCreditButton:global(.btn.btn-sm) {
+  border-radius: 999px;
+  padding-inline: 12px;
+
+  > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+  }
+}
+
 .premiumPlanValue {
   display: inline-flex;
   align-items: center;
