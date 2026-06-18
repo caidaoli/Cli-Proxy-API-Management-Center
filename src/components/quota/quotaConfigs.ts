@@ -72,6 +72,7 @@ import {
   parseXaiBillingPayload,
   resolveCodexChatgptAccountId,
   resolveCodexPlanType,
+  resolveCodexSubscriptionActiveUntil,
   resolveGeminiCliProjectId,
   formatCodexResetLabel,
   formatQuotaResetTime,
@@ -91,6 +92,7 @@ import {
   isXaiFile,
 } from '@/utils/quota';
 import { normalizeAuthIndex } from '@/utils/usage';
+import { formatUnixTimestamp } from '@/utils/format';
 import type { QuotaRenderHelpers } from './QuotaCard';
 import styles from '@/pages/QuotaPage.module.scss';
 
@@ -491,6 +493,7 @@ const fetchCodexQuota = async (
   t: TFunction
 ): Promise<{
   planType: string | null;
+  subscriptionActiveUntil: string | number | null;
   rateLimitResetCreditsAvailableCount: number | null;
   windows: CodexQuotaWindow[];
 }> => {
@@ -501,6 +504,7 @@ const fetchCodexQuota = async (
   }
 
   const planTypeFromFile = resolveCodexPlanType(file);
+  const subscriptionActiveUntil = resolveCodexSubscriptionActiveUntil(file);
   const accountId = resolveCodexChatgptAccountId(file);
 
   const requestHeader: Record<string, string> = {
@@ -534,6 +538,7 @@ const fetchCodexQuota = async (
   const windows = buildCodexQuotaWindows(payload, t);
   return {
     planType: planTypeFromUsage ?? planTypeFromFile,
+    subscriptionActiveUntil,
     rateLimitResetCreditsAvailableCount,
     windows,
   };
@@ -589,6 +594,7 @@ const resetCodexQuota = async (
   t: TFunction
 ): Promise<{
   planType: string | null;
+  subscriptionActiveUntil: string | number | null;
   rateLimitResetCreditsAvailableCount: number | null;
   windows: CodexQuotaWindow[];
 }> => {
@@ -948,6 +954,7 @@ const renderCodexItems = (
   const { createElement: h, Fragment } = React;
   const windows = quota.windows ?? [];
   const planType = quota.planType ?? null;
+  const subscriptionActiveUntil = quota.subscriptionActiveUntil ?? null;
   const rateLimitResetCreditsAvailableCount = quota.rateLimitResetCreditsAvailableCount ?? null;
 
   const getPlanLabel = (pt?: string | null): string | null => {
@@ -965,13 +972,14 @@ const renderCodexItems = (
 
   const planLabel = getPlanLabel(planType);
   const isPremiumPlan = PREMIUM_CODEX_PLAN_TYPES.has(normalizePlanType(planType) ?? '');
+  const expiryLabel = subscriptionActiveUntil ? formatUnixTimestamp(subscriptionActiveUntil) : '';
   const resetQuotaAction =
     rateLimitResetCreditsAvailableCount !== null && rateLimitResetCreditsAvailableCount > 0
       ? resetQuotaActionHelper
       : null;
   const nodes: ReactNode[] = [];
 
-  if (planLabel || rateLimitResetCreditsAvailableCount !== null) {
+  if (planLabel || rateLimitResetCreditsAvailableCount !== null || expiryLabel) {
     const planValueClass = isPremiumPlan ? styleMap.premiumPlanValue : styleMap.codexPlanValue;
     const planNodes: ReactNode[] = [];
     const appendSeparator = (key: string) => {
@@ -987,6 +995,22 @@ const renderCodexItems = (
           t('codex_quota.plan_label')
         ),
         h('span', { key: 'plan-value', className: planValueClass }, planLabel)
+      );
+    }
+
+    if (expiryLabel) {
+      appendSeparator('subscription-expiry-separator');
+      planNodes.push(
+        h(
+          'span',
+          { key: 'subscription-expiry-label', className: styleMap.codexPlanLabel },
+          t('codex_quota.expires_label')
+        ),
+        h(
+          'span',
+          { key: 'subscription-expiry-value', className: styleMap.codexPlanValue },
+          expiryLabel
+        )
       );
     }
 
@@ -1435,6 +1459,7 @@ export const CODEX_CONFIG: QuotaConfig<
   CodexQuotaState,
   {
     planType: string | null;
+    subscriptionActiveUntil: string | number | null;
     rateLimitResetCreditsAvailableCount: number | null;
     windows: CodexQuotaWindow[];
   }
@@ -1452,6 +1477,7 @@ export const CODEX_CONFIG: QuotaConfig<
     status: 'success',
     windows: data.windows,
     planType: data.planType,
+    subscriptionActiveUntil: data.subscriptionActiveUntil,
     rateLimitResetCreditsAvailableCount: data.rateLimitResetCreditsAvailableCount,
   }),
   buildErrorState: (message, status) => ({

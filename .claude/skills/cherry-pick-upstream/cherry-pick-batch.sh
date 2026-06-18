@@ -247,7 +247,7 @@ SKIP_HASHES=(
   848eefb   # feat(ui): PluginsPage restructure — 计划跳过，依赖未采纳插件管理
   7418fac   # feat(plugins): plugin resource routing — 计划跳过，依赖未采纳插件管理且触碰 MainRoutes
   4b3daa0   # feat(plugins): logo fallback/sidebar layout — 计划跳过，依赖未采纳插件管理
-  67c4041   # feat(quota): subscription expiry handling — 计划跳过，配额订阅/重置 UX 大功能未纳入本次同步
+  67c4041   # feat(quota): subscription expiry handling — 已手工移植（+28ce5be 文案），复用 formatUnixTimestamp/appendSeparator/codexPlanSeparator 脚手架
   f3959a0   # feat(quota): manual quota reset — 计划跳过，配额订阅/重置 UX 大功能未纳入本次同步
   c7051ae   # feat(quota): reset UI refinements — 计划跳过，依赖 f3959a0 手动重置功能
   9fae287   # feat: Plugin Store page — 计划跳过，依赖未采纳插件管理
@@ -280,18 +280,18 @@ SKIP_HASHES=(
   246069d   # feat(pluginStore): source information — 计划跳过，依赖未采纳插件管理
   6442c92   # feat(connectivityTest): Codex connectivity test — 计划跳过，依赖上游 Provider Workbench
   67d3fe6   # feat(pluginInstall): third-party install gate — 计划跳过，依赖未采纳插件管理
-  28ce5be   # feat(i18n): expiration label renewal time — 计划跳过，依赖未采纳订阅/配额 UI
+  28ce5be   # feat(i18n): expiration label renewal time — 已并入 67c4041 移植（"续期时间"/"Renewal time"/"Истекает" 均已采纳）
   729df08   # feat(logs): optimize pagination requests — 计划跳过，依赖 1dcf8fe 日志分页系列
   b5d18d8   # feat(pluginStore): default source identification — 计划跳过，依赖未采纳插件管理
   cc16be4   # feat(pluginInstall): repository link/caution text — 计划跳过，依赖未采纳插件管理
   1279cc1   # feat(pluginStore): third-party sources/config — 计划跳过，依赖未采纳插件管理
   b0db1df   # feat(logs): cursor/after incremental fetching — 计划跳过，依赖 1dcf8fe 日志分页系列
   dbeefda   # fix(plugins): poll runtime state after plugin changes — 计划跳过，依赖未采纳插件管理
-  e95cc2b   # feat(quota): new quota structures/UI — 计划跳过，配额订阅/重置 UX 大功能未纳入本次同步
-  c595ada   # feat(antigravity): subscription management — 计划跳过，订阅管理大功能未纳入本次同步
-  d9045a7   # feat(authFiles): premium subscription badge — 计划跳过，依赖 c595ada 订阅管理
+  e95cc2b   # feat(quota): new quota structures/UI — Codex 手动重置已等价于本地 23e59d75；quota 已分叉走独立实现，其余结构性改动无需摘取，跳过
+  c595ada   # feat(antigravity): subscription management — 上游中间架构（AuthFileCard badge + useAntigravitySubscriptions hook），被上游自身 069eaf21 废弃(-82行)；本地 ddb5ce40 走 quotaConfigs 路线已等价，跳过避免回退
+  d9045a7   # feat(authFiles): premium subscription badge — 上游废弃架构配套 scss；本地 ddb5ce40 已有 premiumPlanValue 等价样式，跳过
   a44bcd3   # feat(providers): config handling/serialization — 本地已 pick 为 8e6c923e（手工解决 7 处冲突，patch-id 不同故 git cherry 仍显示未应用）
-  069eaf2   # feat(quota): subscription mgmt + Antigravity localization — 计划跳过，antigravity 订阅链收尾，依赖 c595ada/d9045a7（本地缺 antigravitySubscriptionApi），本地 quota 已分叉
+  069eaf2   # feat(quota): subscription mgmt + Antigravity localization — 本地 ddb5ce40 已具备 antigravitySubscriptionApi + getAntigravityPlanLabel(free/pro/ultra/ultra-lite/unknown) + premiumPlanValue scss(含 dark 主题)，与上游终点收敛，跳过
   496f990   # fix(usage): normalize RFC3339 timestamps — 本地已应用 parseTimestamp（timestamp.ts/format.ts/constants.ts/useTraceResolver.ts），剩余 usage.ts/authFiles.ts 已分叉、RequestEventsDetailsCard 已删
   d173349   # fix: commas/formatting in TokenBreakdownChart+UsagePage — 路径已迁移，UsagePage 与 usage 组件本地已删，纯格式化无效
 )

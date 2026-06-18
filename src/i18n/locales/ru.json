@@ -720,6 +720,7 @@
     "additional_secondary_window": "{{name}}: недельный лимит",
     "additional_team_secondary_window": "{{name}}: месячный лимит",
     "plan_label": "Тариф",
+    "expires_label": "Истекает",
     "reset_credits_label": "Ручные сбросы",
     "reset_button": "Сбросить квоту",
     "reset_confirm_title": "Сброс квоты Codex",
