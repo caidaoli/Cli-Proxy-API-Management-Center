@@ -61,7 +61,7 @@ export interface DisableState {
  * @param key API Key 字符串
  * @returns 脱敏后的字符串
  */
-export function maskSecret(key: string): string {
+function maskSecret(key: string): string {
   if (!key || key === '-' || key === 'unknown') return key || '-';
   if (key.length <= 8) {
     return `${key.slice(0, 4)}***`;
@@ -102,7 +102,7 @@ export function resolveProvider(
  * @param source 来源标识（如 gemini-putthzli.json 或 xxx@gmail.com）
  * @returns 脱敏后的名称（如 g-put*zli）
  */
-export function formatGeminiSource(source: string): string {
+function formatGeminiSource(source: string): string {
   const lower = source.toLowerCase();
   // 判断是否是 gemini 类型（gemini- 开头或 .json 结尾）
   const isGeminiType = lower.startsWith('gemini-') || lower.endsWith('.json');
@@ -247,55 +247,6 @@ export function getRateClassName(rate: number, styles: Record<string, string>): 
   if (rate >= 90) return styles.rateHigh || '';
   if (rate >= 70) return styles.rateMedium || '';
   return styles.rateLow || '';
-}
-
-/**
- * 检查模型是否在配置中可用（未被移除）
- * @param source 来源标识
- * @param modelAlias 模型别名
- * @param providerModels 渠道模型映射表
- * @returns 是否可用
- */
-export function isModelEnabled(
-  source: string,
-  modelAlias: string,
-  providerModels: Record<string, Set<string>>
-): boolean {
-  if (!source || !modelAlias) return true; // 无法判断时默认显示
-  // 首先尝试完全匹配
-  if (providerModels[source]) {
-    return providerModels[source].has(modelAlias);
-  }
-  // 然后尝试前缀匹配
-  const entries = Object.entries(providerModels);
-  for (const [key, modelSet] of entries) {
-    if (source.startsWith(key) || key.startsWith(source)) {
-      return modelSet.has(modelAlias);
-    }
-  }
-  return true; // 找不到渠道配置时默认显示
-}
-
-/**
- * 检查模型是否已禁用（会话中禁用或配置中已移除）
- * @param source 来源标识
- * @param model 模型名称
- * @param disabledModels 已禁用模型集合
- * @param providerModels 渠道模型映射表
- * @returns 是否已禁用
- */
-export function isModelDisabled(
-  source: string,
-  model: string,
-  disabledModels: Set<string>,
-  providerModels: Record<string, Set<string>>
-): boolean {
-  // 首先检查会话中是否已禁用
-  if (disabledModels.has(`${source}|||${model}`)) {
-    return true;
-  }
-  // 然后检查配置中是否已移除
-  return !isModelEnabled(source, model, providerModels);
 }
 
 /**
