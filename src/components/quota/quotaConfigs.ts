@@ -7,7 +7,7 @@ import type { ReactNode } from 'react';
 import type { TFunction } from 'i18next';
 import type {
   AntigravityQuotaGroup,
-  AntigravityModelsPayload,
+  AntigravityQuotaSummaryPayload,
   AntigravityQuotaState,
   AntigravityQuotaSubscription,
   AuthFileItem,
@@ -100,7 +100,6 @@ type QuotaUpdater<T> = T | ((prev: T) => T);
 
 type QuotaType = 'antigravity' | 'claude' | 'codex' | 'gemini-cli' | 'kimi' | 'xai';
 
-const DEFAULT_ANTIGRAVITY_PROJECT_ID = 'bamboo-precept-lgxtn';
 const QUOTA_PROGRESS_HIGH_THRESHOLD = 70;
 const QUOTA_PROGRESS_MEDIUM_THRESHOLD = 30;
 const geminiCliSupplementaryRequestIds = new Map<string, number>();
@@ -151,10 +150,33 @@ export interface QuotaConfig<TState, TData> {
 }
 
 const resolveAntigravityProjectId = async (file: AuthFileItem): Promise<string> => {
+  const directProjectId = normalizeStringValue(file.project_id ?? file.projectId);
+  if (directProjectId) return directProjectId;
+
+  const metadata =
+    file.metadata && typeof file.metadata === 'object' && file.metadata !== null
+      ? (file.metadata as Record<string, unknown>)
+      : null;
+  const metadataProjectId = metadata
+    ? normalizeStringValue(metadata.project_id ?? metadata.projectId)
+    : null;
+  if (metadataProjectId) return metadataProjectId;
+
+  const attributes =
+    file.attributes && typeof file.attributes === 'object' && file.attributes !== null
+      ? (file.attributes as Record<string, unknown>)
+      : null;
+  const attributesProjectId = attributes
+    ? normalizeStringValue(
+        attributes.project_id ?? attributes.projectId ?? attributes.gemini_virtual_project
+      )
+    : null;
+  if (attributesProjectId) return attributesProjectId;
+
   try {
     const text = await authFilesApi.downloadText(file.name);
     const trimmed = text.trim();
-    if (!trimmed) return DEFAULT_ANTIGRAVITY_PROJECT_ID;
+    if (!trimmed) return '';
 
     const parsed = JSON.parse(trimmed) as Record<string, unknown>;
     const topLevel = normalizeStringValue(parsed.project_id ?? parsed.projectId);
@@ -176,15 +198,28 @@ const resolveAntigravityProjectId = async (file: AuthFileItem): Promise<string> 
     const webProjectId = web ? normalizeStringValue(web.project_id ?? web.projectId) : null;
     if (webProjectId) return webProjectId;
   } catch {
-    return DEFAULT_ANTIGRAVITY_PROJECT_ID;
+    return '';
   }
 
-  return DEFAULT_ANTIGRAVITY_PROJECT_ID;
+  return '';
+};
+
+const resolveResponseServerTimeOffsetMs = (
+  header: Record<string, string[]> | undefined
+): number | null => {
+  if (!header) return null;
+  const dateEntry = Object.entries(header).find(([key]) => key.toLowerCase() === 'date');
+  const rawDate = dateEntry?.[1]?.[0];
+  if (!rawDate) return null;
+  const serverTime = new Date(rawDate).getTime();
+  if (Number.isNaN(serverTime)) return null;
+  return serverTime - Date.now();
 };
 
 type AntigravityQuotaData = {
   groups: AntigravityQuotaGroup[];
   subscription: AntigravityQuotaSubscription | null;
+  serverTimeOffsetMs: number | null;
 };
 
 const toAntigravityQuotaSubscription = (
@@ -209,6 +244,9 @@ const fetchAntigravityQuota = async (
   }
 
   const projectId = await resolveAntigravityProjectId(file);
+  if (!projectId) {
+    throw new Error(t('antigravity_quota.missing_project_id'));
+  }
   const requestBody = JSON.stringify({ project: projectId });
   const subscriptionPromise = antigravitySubscriptionApi
     .get(authIndex)
@@ -240,20 +278,25 @@ const fetchAntigravityQuota = async (
       }
 
       hadSuccess = true;
-      const payload = parseAntigravityPayload(result.body ?? result.bodyText);
-      const models = payload?.models;
-      if (!models || typeof models !== 'object' || Array.isArray(models)) {
+      const payload = parseAntigravityPayload(
+        result.body ?? result.bodyText
+      ) as AntigravityQuotaSummaryPayload | null;
+      if (!payload || !Array.isArray(payload.groups)) {
         lastError = t('antigravity_quota.empty_models');
         continue;
       }
 
-      const groups = buildAntigravityQuotaGroups(models as AntigravityModelsPayload);
+      const groups = buildAntigravityQuotaGroups(payload);
       if (groups.length === 0) {
         lastError = t('antigravity_quota.empty_models');
         continue;
       }
 
-      return { groups, subscription: await subscriptionPromise };
+      return {
+        groups,
+        subscription: await subscriptionPromise,
+        serverTimeOffsetMs: resolveResponseServerTimeOffsetMs(result.header),
+      };
     } catch (err: unknown) {
       lastError = err instanceof Error ? err.message : t('common.unknown_error');
       const status = getStatusFromError(err);
@@ -267,7 +310,7 @@ const fetchAntigravityQuota = async (
   }
 
   if (hadSuccess) {
-    return { groups: [], subscription: await subscriptionPromise };
+    return { groups: [], subscription: await subscriptionPromise, serverTimeOffsetMs: null };
   }
 
   throw createStatusError(lastError || t('common.unknown_error'), priorityStatus ?? lastStatus);
@@ -866,6 +909,39 @@ const getAntigravityPlanLabel = (
   );
 };
 
+const formatAntigravityDuration = (t: TFunction, deltaMs: number): string => {
+  const totalMinutes = Math.max(1, Math.ceil(deltaMs / 60000));
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+
+  if (days > 0) {
+    return t('antigravity_quota.duration_day_hour', { days, hours });
+  }
+  if (hours > 0) {
+    return t('antigravity_quota.duration_hour_minute', { hours, minutes });
+  }
+  if (minutes > 0) {
+    return t('antigravity_quota.duration_minute', { minutes });
+  }
+  return t('antigravity_quota.duration_less_than_minute');
+};
+
+const formatAntigravityResetLabel = (
+  resetTime: string | undefined,
+  t: TFunction,
+  nowMs: number
+): string => {
+  if (!resetTime) return '-';
+  const resetMs = new Date(resetTime).getTime();
+  if (Number.isNaN(resetMs)) return '-';
+  const deltaMs = resetMs - nowMs;
+  if (deltaMs <= 0) return t('antigravity_quota.refresh_available');
+  return t('antigravity_quota.refreshes_in', {
+    duration: formatAntigravityDuration(t, deltaMs),
+  });
+};
+
 const renderAntigravityItems = (
   quota: AntigravityQuotaState,
   t: TFunction,
@@ -911,33 +987,59 @@ const renderAntigravityItems = (
     return h(Fragment, null, ...nodes);
   }
 
-  nodes.push(
-    ...groups.map((group) => {
-    const clamped = Math.max(0, Math.min(1, group.remainingFraction));
-    const percent = Math.round(clamped * 100);
-    const resetLabel = formatQuotaResetTime(group.resetTime);
+  const nowMs = Date.now() + (quota.serverTimeOffsetMs ?? 0);
 
-    return h(
-      'div',
-      { key: group.id, className: styleMap.quotaRow },
+  nodes.push(
+    ...groups.map((group) =>
       h(
         'div',
-        { className: styleMap.quotaRowHeader },
-        h('span', { className: styleMap.quotaModel, title: group.models.join(', ') }, group.label),
+        { key: group.id, className: styleMap.antigravityQuotaGroup },
         h(
           'div',
-          { className: styleMap.quotaMeta },
-          h('span', { className: styleMap.quotaPercent }, `${percent}%`),
-          h('span', { className: styleMap.quotaReset }, resetLabel)
-        )
-      ),
-      h(QuotaProgressBar, {
-        percent,
-        highThreshold: QUOTA_PROGRESS_HIGH_THRESHOLD,
-        mediumThreshold: QUOTA_PROGRESS_MEDIUM_THRESHOLD,
-      })
-    );
-    })
+          { className: styleMap.antigravityQuotaGroupHeader },
+          h('span', { className: styleMap.antigravityQuotaGroupTitle }, group.label),
+          group.description
+            ? h('span', { className: styleMap.antigravityQuotaGroupDescription }, group.description)
+            : null
+        ),
+        ...group.buckets.map((bucket) => {
+          const clamped = Math.max(0, Math.min(1, bucket.remainingFraction));
+          const percent = clamped * 100;
+          const percentLabel =
+            bucket.remainingFraction === 1
+              ? t('antigravity_quota.quota_available')
+              : t('antigravity_quota.remaining_percent', {
+                  percent: Math.round(percent),
+                });
+          const resetLabel = formatAntigravityResetLabel(bucket.resetTime, t, nowMs);
+
+          return h(
+            'div',
+            { key: bucket.id, className: styleMap.quotaRow },
+            h(
+              'div',
+              { className: styleMap.quotaRowHeader },
+              h(
+                'span',
+                { className: styleMap.quotaModel, title: bucket.description },
+                bucket.label
+              ),
+              h(
+                'div',
+                { className: styleMap.quotaMeta },
+                h('span', { className: styleMap.quotaPercent }, percentLabel),
+                h('span', { className: styleMap.quotaReset }, resetLabel)
+              )
+            ),
+            h(QuotaProgressBar, {
+              percent,
+              highThreshold: QUOTA_PROGRESS_HIGH_THRESHOLD,
+              mediumThreshold: QUOTA_PROGRESS_MEDIUM_THRESHOLD,
+            })
+          );
+        })
+      )
+    )
   );
 
   return h(Fragment, null, ...nodes);
@@ -1428,16 +1530,18 @@ export const ANTIGRAVITY_CONFIG: QuotaConfig<AntigravityQuotaState, AntigravityQ
   fetchQuota: fetchAntigravityQuota,
   storeSelector: (state) => state.antigravityQuota,
   storeSetter: 'setAntigravityQuota',
-  buildLoadingState: () => ({ status: 'loading', groups: [], subscription: null }),
+  buildLoadingState: () => ({ status: 'loading', groups: [], subscription: null, serverTimeOffsetMs: null }),
   buildSuccessState: (data) => ({
     status: 'success',
     groups: data.groups,
     subscription: data.subscription,
+    serverTimeOffsetMs: data.serverTimeOffsetMs,
   }),
   buildErrorState: (message, status) => ({
     status: 'error',
     groups: [],
     subscription: null,
+    serverTimeOffsetMs: null,
     error: message,
     errorStatus: status,
   }),
