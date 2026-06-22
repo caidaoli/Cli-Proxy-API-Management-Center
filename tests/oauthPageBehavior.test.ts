@@ -1,19 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { normalizeGeminiCliProjectId } from '../src/pages/oauthProject.ts';
 
 const oauthPageSource = readFileSync(
   new URL('../src/pages/OAuthPage.tsx', import.meta.url),
   'utf8'
 );
 
-test('Gemini CLI OAuth 项目 ID 归一化保留 ALL 语义', () => {
-  assert.equal(normalizeGeminiCliProjectId(undefined), undefined);
-  assert.equal(normalizeGeminiCliProjectId(''), undefined);
-  assert.equal(normalizeGeminiCliProjectId('   '), undefined);
-  assert.equal(normalizeGeminiCliProjectId(' all '), 'ALL');
-  assert.equal(normalizeGeminiCliProjectId(' Project-123 '), 'Project-123');
+test('OAuth 页面不再暴露 Gemini CLI 登录和项目 ID 输入', () => {
+  assert.doesNotMatch(oauthPageSource, /gemini-cli/);
+  assert.doesNotMatch(oauthPageSource, /gemini_cli_project_id/);
+  assert.doesNotMatch(oauthPageSource, /projectIdError/);
 });
 
 test('OAuth 成功态提供重新登录和查看认证文件入口', () => {
