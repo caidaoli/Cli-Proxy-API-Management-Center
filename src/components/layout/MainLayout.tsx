@@ -606,7 +606,6 @@ export function MainLayout() {
       ? [
           { path: '/plugins', label: t('nav.plugins'), icon: sidebarIcons.plugins },
           { path: '/plugin-store', label: t('nav.plugin_store'), icon: sidebarIcons.pluginStore },
-          ...pluginPageNavItems,
         ]
       : []),
     ...(config?.loggingToFile
@@ -615,7 +614,10 @@ export function MainLayout() {
     { path: '/system', label: t('nav.system_info'), icon: sidebarIcons.system },
     { path: '/monitor', label: t('nav.monitor'), icon: sidebarIcons.monitor },
   ];
-  const navOrder = flattenNavItems(navItems).map((item) => item.path);
+  const pluginNavItems = pluginPageNavItems;
+  const navOrder = [...flattenNavItems(navItems), ...flattenNavItems(pluginNavItems)].map(
+    (item) => item.path
+  );
   const getRouteOrder = (pathname: string) => {
     const trimmedPath =
       pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
@@ -1000,6 +1002,14 @@ export function MainLayout() {
           <div className="nav-section">
             {navItems.map((item) => renderNavItem(item))}
           </div>
+          {pluginNavItems.length > 0 ? (
+            <div className="nav-section nav-section-plugin-pages">
+              {showSidebarLabels ? (
+                <div className="nav-group-label">{t('nav_groups.plugin_pages')}</div>
+              ) : null}
+              {pluginNavItems.map((item) => renderNavItem(item))}
+            </div>
+          ) : null}
         </aside>
 
         <div
