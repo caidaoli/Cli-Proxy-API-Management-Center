@@ -118,7 +118,7 @@
 .xaiGrid {
   display: grid;
   gap: $spacing-md;
-  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
 
   @include mobile {
     grid-template-columns: 1fr;
@@ -604,6 +604,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
+  flex-wrap: wrap;
   gap: $spacing-md;
   margin-top: $spacing-lg;
   padding-top: $spacing-md;
@@ -616,6 +617,39 @@
   padding: $spacing-xs $spacing-md;
   background-color: var(--bg-secondary);
   border-radius: $radius-md;
+}
+
+.pageSizeControl {
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-xs;
+  font-size: 13px;
+  color: var(--text-secondary);
+  padding: $spacing-xs $spacing-md;
+  background-color: var(--bg-secondary);
+  border-radius: $radius-md;
+}
+
+.pageSizeInput {
+  width: 64px;
+  height: 28px;
+  padding: 4px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: $radius-sm;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+  box-sizing: border-box;
+
+  &:focus {
+    outline: none;
+    border-color: var(--primary-color);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 }
 
 .warningOverlay {

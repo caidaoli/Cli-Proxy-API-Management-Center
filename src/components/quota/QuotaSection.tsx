@@ -16,7 +16,6 @@ import type { QuotaStatusState } from './QuotaCard';
 import { canRunQuotaResetAction } from './quotaActions';
 import { useQuotaLoader } from './useQuotaLoader';
 import type { QuotaConfig } from './quotaConfigs';
-import { useGridColumns } from './useGridColumns';
 import { sortQuotaFiles } from './quotaFiles';
 import { IconRefreshCw } from '@/components/ui/icons';
 import styles from '@/pages/QuotaPage.module.scss';
@@ -27,8 +26,15 @@ type QuotaSetter<T> = (updater: QuotaUpdater<T>) => void;
 
 type ViewMode = 'paged' | 'all';
 
-const MAX_ITEMS_PER_PAGE = 25;
+const MIN_QUOTA_PAGE_SIZE = 1;
+const DEFAULT_QUOTA_PAGE_SIZE = 12;
 const MAX_SHOW_ALL_THRESHOLD = 30;
+
+const normalizeQuotaPageSize = (value: string | number): number => {
+  const parsed = typeof value === 'number' ? value : Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed)) return DEFAULT_QUOTA_PAGE_SIZE;
+  return Math.min(MAX_SHOW_ALL_THRESHOLD, Math.max(MIN_QUOTA_PAGE_SIZE, parsed));
+};
 
 interface QuotaPaginationState<T> {
   pageSize: number;
@@ -43,7 +49,10 @@ interface QuotaPaginationState<T> {
   setLoading: (loading: boolean, scope?: 'page' | 'all' | null) => void;
 }
 
-const useQuotaPagination = <T,>(items: T[], defaultPageSize = 6): QuotaPaginationState<T> => {
+const useQuotaPagination = <T,>(
+  items: T[],
+  defaultPageSize = DEFAULT_QUOTA_PAGE_SIZE
+): QuotaPaginationState<T> => {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSizeState] = useState(defaultPageSize);
   const [loading, setLoadingState] = useState(false);
@@ -114,9 +123,8 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
     Record<string, TState>
   >;
 
-  /* Removed useRef */
-  const [columns, gridRef] = useGridColumns(380); // Min card width 380px matches SCSS
   const [viewMode, setViewMode] = useState<ViewMode>('paged');
+  const [pageSizeInput, setPageSizeInput] = useState(String(DEFAULT_QUOTA_PAGE_SIZE));
   const [showTooManyWarning, setShowTooManyWarning] = useState(false);
   const [resettingQuotaName, setResettingQuotaName] = useState<string | null>(null);
 
@@ -137,7 +145,28 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
     goToNext,
     loading: sectionLoading,
     setLoading
-  } = useQuotaPagination(filteredFiles);
+  } = useQuotaPagination(filteredFiles, DEFAULT_QUOTA_PAGE_SIZE);
+
+  const applyPageSizeInput = useCallback(() => {
+    const nextPageSize = normalizeQuotaPageSize(pageSizeInput);
+    setViewMode('paged');
+    setPageSize(nextPageSize);
+    setPageSizeInput(String(nextPageSize));
+  }, [pageSizeInput, setPageSize]);
+
+  const applyShowAllPageSize = useCallback(() => {
+    setPageSize(MAX_SHOW_ALL_THRESHOLD);
+    setPageSizeInput(String(MAX_SHOW_ALL_THRESHOLD));
+  }, [setPageSize]);
+
+  const handlePageSizeInputKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLInputElement>) => {
+      if (event.key === 'Enter') {
+        event.currentTarget.blur();
+      }
+    },
+    []
+  );
 
   useEffect(() => {
     if (showAllAllowed) return;
@@ -155,15 +184,11 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
     };
   }, [showAllAllowed, viewMode]);
 
-  // Update page size based on view mode and columns
   useEffect(() => {
     if (effectiveViewMode === 'all') {
-      setPageSize(Math.max(1, filteredFiles.length));
-    } else {
-      // Paged mode: 3 rows * columns, capped to avoid oversized pages.
-      setPageSize(Math.min(columns * 3, MAX_ITEMS_PER_PAGE));
+      applyShowAllPageSize();
     }
-  }, [effectiveViewMode, columns, filteredFiles.length, setPageSize]);
+  }, [applyShowAllPageSize, effectiveViewMode]);
 
   const { quota, loadQuota } = useQuotaLoader(config);
 
@@ -330,6 +355,7 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
               }`}
               onClick={() => {
                 if (filteredFiles.length > MAX_SHOW_ALL_THRESHOLD) {
+                  applyShowAllPageSize();
                   setShowTooManyWarning(true);
                 } else {
                   setViewMode('all');
@@ -362,7 +388,7 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
         />
       ) : (
         <>
-          <div ref={gridRef} className={config.gridClassName}>
+          <div className={config.gridClassName}>
             {pageItems.map((item) => {
               const itemQuota = quota[item.name];
               const isResettingQuota = resettingQuotaName === item.name;
@@ -432,6 +458,21 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
                   count: filteredFiles.length
                 })}
               </div>
+              <label className={styles.pageSizeControl}>
+                <span>{t('auth_files.page_size_label')}</span>
+                <input
+                  type="number"
+                  min={MIN_QUOTA_PAGE_SIZE}
+                  max={MAX_SHOW_ALL_THRESHOLD}
+                  value={pageSizeInput}
+                  onChange={(event) => setPageSizeInput(event.target.value)}
+                  onBlur={applyPageSizeInput}
+                  onKeyDown={handlePageSizeInputKeyDown}
+                  disabled={effectiveViewMode !== 'paged'}
+                  className={styles.pageSizeInput}
+                />
+                <span>{t('auth_files.page_size_unit')}</span>
+              </label>
               <Button
                 variant="secondary"
                 size="sm"
