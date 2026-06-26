@@ -4,12 +4,12 @@ export const REQUEST_LOG_TABLE_COLUMN_KEYS = [
   'source',
   'status',
   'recent',
-  'rate',
   'timing',
   'toks',
   'input',
   'output',
   'cache',
+  'cacheRate',
   'time',
 ] as const;
 
@@ -24,12 +24,12 @@ export const REQUEST_LOG_TABLE_COLUMN_WIDTHS: Record<RequestLogTableColumnKey, n
   source: 96,
   status: 70,
   recent: 110,
-  rate: 75,
   timing: 120,
   toks: 70,
   input: 88,
   output: 88,
-  cache: 110,
+  cache: 88,
+  cacheRate: 88,
   time: 180,
 };
 
@@ -44,11 +44,11 @@ export const REQUEST_LOG_TABLE_HEADER_KEYS: Record<RequestLogTableColumnKey, str
   source: 'monitor.logs.header_source',
   status: 'monitor.logs.header_status',
   recent: 'monitor.logs.header_recent',
-  rate: 'monitor.logs.header_rate',
   timing: 'monitor.logs.header_timing',
   toks: 'monitor.logs.header_toks',
   input: 'monitor.logs.header_input',
   output: 'monitor.logs.header_output',
-  cache: 'monitor.logs.header_cache_ratio',
+  cache: 'monitor.logs.header_cache',
+  cacheRate: 'monitor.logs.header_cache_ratio',
   time: 'monitor.logs.header_time',
 };

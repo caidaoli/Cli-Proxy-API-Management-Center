@@ -33,6 +33,13 @@ test('配置响应归一化只接受后端实际输出的 kebab-case 字段', ()
   assert.doesNotMatch(source, /raw\.wsAuth|raw\.forceModelPrefix|raw\.routingStrategy/);
 });
 
+test('配置响应归一化拒绝非对象响应', () => {
+  const source = readProjectFile('src/services/api/transformers.ts');
+
+  assert.match(source, /Invalid config response/);
+  assert.doesNotMatch(source, /if \(!isRecord\(raw\)\) \{\s*return config;\s*\}/);
+});
+
 test('提供商保存逻辑不再保留 camelCase 或 snake_case 影子字段', () => {
   const source = readProjectFile('src/services/api/providers.ts');
 

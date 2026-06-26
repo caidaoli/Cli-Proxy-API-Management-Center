@@ -143,7 +143,7 @@
       "header_output": "Output",
       "header_total": "Total Tokens",
       "header_cache": "Cache",
-      "header_cache_ratio": "Cache/%",
+      "header_cache_ratio": "Cache Rate",
       "header_time": "Time",
       "header_actions": "Actions",
       "showing": "Showing {{start}}-{{end}} of {{total}}",

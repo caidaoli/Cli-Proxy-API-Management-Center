@@ -15,10 +15,8 @@ import {
 import {
   formatProviderDisplay,
   formatTimestamp,
-  getRateClassName,
   getProviderDisplayParts,
   buildMonitorTimeRangeParams,
-  formatCompactTokenNumber,
   formatCacheTokenRatio,
   type DateRange,
 } from '@/utils/monitor';
@@ -44,12 +42,19 @@ interface LogEntry {
   inputTokens: number;
   outputTokens: number;
   cachedTokens: number;
-  successRate: number;
   latencyMs: number;
   ttftMs: number;
   recentRequests: { failed: boolean; timestamp: number }[];
   authIndex: string;
 }
+
+const REQUEST_LOG_NUMERIC_COLUMN_KEYS = new Set<RequestLogTableColumnKey>([
+  'toks',
+  'input',
+  'output',
+  'cache',
+  'cacheRate',
+]);
 
 export function RequestLogs({
   refreshKey,
@@ -107,7 +112,6 @@ export function RequestLogs({
         inputTokens: item.input_tokens || 0,
         outputTokens: item.output_tokens || 0,
         cachedTokens: item.cached_tokens || 0,
-        successRate: item.success_rate || 0,
         latencyMs: item.latency_ms || 0,
         ttftMs: item.ttft_ms || 0,
         recentRequests: (item.recent_requests || []).map((req) => ({
@@ -276,12 +280,6 @@ export function RequestLogs({
             </div>
           </td>
         );
-      case 'rate':
-        return (
-          <td className={getRateClassName(entry.successRate, styles)}>
-            {entry.successRate.toFixed(1)}%
-          </td>
-        );
       case 'timing': {
         const ttft = entry.ttftMs > 0 ? (entry.ttftMs / 1000).toFixed(2) : '-';
         const latency = entry.latencyMs > 0 ? (entry.latencyMs / 1000).toFixed(2) : '-';
@@ -301,31 +299,41 @@ export function RequestLogs({
         );
       }
       case 'toks': {
-        if (entry.latencyMs <= 0 || entry.outputTokens <= 0) return <td className={styles.tokenCell}>-</td>;
+        if (entry.latencyMs <= 0 || entry.outputTokens <= 0) {
+          return <td className={`${styles.tokenCell} ${styles.numberCell}`}>-</td>;
+        }
         const toks = (entry.outputTokens / (entry.latencyMs / 1000)).toFixed(1);
-        return <td className={styles.tokenCell}>{toks}</td>;
+        return <td className={`${styles.tokenCell} ${styles.numberCell}`}>{toks}</td>;
       }
       case 'input':
         return (
-          <td className={styles.tokenCell} title={formatNumber(entry.inputTokens)}>
-            {formatCompactTokenNumber(entry.inputTokens)}
+          <td className={`${styles.tokenCell} ${styles.numberCell}`} title={formatNumber(entry.inputTokens)}>
+            {formatNumber(entry.inputTokens)}
           </td>
         );
       case 'output':
         return (
-          <td className={styles.tokenCell} title={formatNumber(entry.outputTokens)}>
-            {formatCompactTokenNumber(entry.outputTokens)}
+          <td className={`${styles.tokenCell} ${styles.numberCell}`} title={formatNumber(entry.outputTokens)}>
+            {formatNumber(entry.outputTokens)}
           </td>
         );
       case 'cache':
-        const cache = formatCacheTokenRatio(entry.cachedTokens, entry.inputTokens);
         return (
-          <td className={styles.tokenCell} title={cache.title}>
-            {cache.count}
-            {' / '}
-            <span style={{ color: 'var(--text-secondary)' }}>{cache.ratio}</span>
+          <td
+            className={`${styles.tokenCell} ${styles.numberCell}`}
+            title={entry.cachedTokens > 0 ? formatNumber(entry.cachedTokens) : ''}
+          >
+            {entry.cachedTokens > 0 ? formatNumber(entry.cachedTokens) : ''}
           </td>
         );
+      case 'cacheRate': {
+        const cache = formatCacheTokenRatio(entry.cachedTokens, entry.inputTokens);
+        return (
+          <td className={`${styles.tokenCell} ${styles.numberCell}`} title={entry.cachedTokens > 0 ? cache.title : ''}>
+            {entry.cachedTokens > 0 ? cache.ratio : ''}
+          </td>
+        );
+      }
       case 'time':
         return <td>{formatTimestamp(entry.timestamp)}</td>;
     }
@@ -475,7 +483,12 @@ export function RequestLogs({
               <thead>
                 <tr>
                   {REQUEST_LOG_TABLE_COLUMN_KEYS.map((column) => (
-                    <th key={column}>{t(REQUEST_LOG_TABLE_HEADER_KEYS[column])}</th>
+                    <th
+                      key={column}
+                      className={REQUEST_LOG_NUMERIC_COLUMN_KEYS.has(column) ? styles.numberCell : undefined}
+                    >
+                      {t(REQUEST_LOG_TABLE_HEADER_KEYS[column])}
+                    </th>
                   ))}
                 </tr>
               </thead>

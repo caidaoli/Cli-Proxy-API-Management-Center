@@ -3,6 +3,11 @@
  */
 
 import { apiClient } from './client';
+import {
+  normalizeMonitorHourlyModelsData,
+  normalizeMonitorHourlyTokensData,
+  normalizeMonitorKpiData,
+} from '@/utils/monitor';
 
 const MONITOR_TIMEOUT_MS = 60 * 1000;
 
@@ -86,6 +91,9 @@ export interface MonitorModelStatsItem {
   requests: number;
   success: number;
   failed: number;
+  input_tokens: number;
+  output_tokens: number;
+  cached_tokens: number;
   success_rate: number;
   last_request_at?: string;
   recent_requests: MonitorRecentRequest[];
@@ -96,6 +104,9 @@ export interface MonitorChannelStatsItem {
   total_requests: number;
   success_requests: number;
   failed_requests: number;
+  input_tokens: number;
+  output_tokens: number;
+  cached_tokens: number;
   success_rate: number;
   last_request_at?: string;
   recent_requests: MonitorRecentRequest[];
@@ -251,8 +262,13 @@ export const monitorApi = {
       timeout: MONITOR_TIMEOUT_MS,
     }),
 
-  getKpi: (params: MonitorTimeRangeQuery = {}) =>
-    apiClient.get<MonitorKpiData>('/custom/monitor/kpi', { params, timeout: MONITOR_TIMEOUT_MS }),
+  getKpi: async (params: MonitorTimeRangeQuery = {}) => {
+    const data = await apiClient.get('/custom/monitor/kpi', {
+      params,
+      timeout: MONITOR_TIMEOUT_MS,
+    });
+    return normalizeMonitorKpiData(data);
+  },
 
   getModelDistribution: (params: MonitorTimeRangeQuery & { sort?: 'requests' | 'tokens'; limit?: number } = {}) =>
     apiClient.get<{ items: MonitorModelDistributionItem[] }>('/custom/monitor/model-distribution', { params, timeout: MONITOR_TIMEOUT_MS }),
@@ -260,11 +276,21 @@ export const monitorApi = {
   getDailyTrend: (params: MonitorTimeRangeQuery = {}) =>
     apiClient.get<{ items: MonitorDailyTrendItem[] }>('/custom/monitor/daily-trend', { params, timeout: MONITOR_TIMEOUT_MS }),
 
-  getHourlyModels: (params: MonitorTimeRangeQuery & { hours?: number; limit?: number } = {}) =>
-    apiClient.get<MonitorHourlyModelsData>('/custom/monitor/hourly-models', { params, timeout: MONITOR_TIMEOUT_MS }),
+  getHourlyModels: async (params: MonitorTimeRangeQuery & { hours?: number; limit?: number } = {}) => {
+    const data = await apiClient.get('/custom/monitor/hourly-models', {
+      params,
+      timeout: MONITOR_TIMEOUT_MS,
+    });
+    return normalizeMonitorHourlyModelsData(data);
+  },
 
-  getHourlyTokens: (params: MonitorTimeRangeQuery & { hours?: number } = {}) =>
-    apiClient.get<MonitorHourlyTokensData>('/custom/monitor/hourly-tokens', { params, timeout: MONITOR_TIMEOUT_MS }),
+  getHourlyTokens: async (params: MonitorTimeRangeQuery & { hours?: number } = {}) => {
+    const data = await apiClient.get('/custom/monitor/hourly-tokens', {
+      params,
+      timeout: MONITOR_TIMEOUT_MS,
+    });
+    return normalizeMonitorHourlyTokensData(data);
+  },
 
   getServiceHealth: () =>
     apiClient.get<MonitorServiceHealthData>('/custom/monitor/service-health', {

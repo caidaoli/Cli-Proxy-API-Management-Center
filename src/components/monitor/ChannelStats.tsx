@@ -7,6 +7,8 @@ import { TimeRangeSelector, type TimeRange } from './TimeRangeSelector';
 import { DisableModelModal } from './DisableModelModal';
 import {
   formatTimestamp,
+  formatCompactTokenNumber,
+  formatCacheTokenRatio,
   getRateClassName,
   getProviderDisplayParts,
   buildMonitorTimeRangeParams,
@@ -25,6 +27,9 @@ interface ModelStat {
   requests: number;
   success: number;
   failed: number;
+  inputTokens: number;
+  outputTokens: number;
+  cachedTokens: number;
   successRate: number;
   recentRequests: { failed: boolean; timestamp: number }[];
   lastTimestamp: number;
@@ -38,6 +43,9 @@ interface ChannelStat {
   totalRequests: number;
   successRequests: number;
   failedRequests: number;
+  inputTokens: number;
+  outputTokens: number;
+  cachedTokens: number;
   successRate: number;
   lastRequestTime: number;
   recentRequests: { failed: boolean; timestamp: number }[];
@@ -94,6 +102,9 @@ export function ChannelStats({ refreshKey, loading, providerMap, providerModels 
         requests: model.requests || 0,
         success: model.success || 0,
         failed: model.failed || 0,
+        inputTokens: model.input_tokens || 0,
+        outputTokens: model.output_tokens || 0,
+        cachedTokens: model.cached_tokens || 0,
         successRate: model.success_rate || 0,
         recentRequests: (model.recent_requests || []).map((req) => ({
           failed: !!req.failed,
@@ -111,6 +122,9 @@ export function ChannelStats({ refreshKey, loading, providerMap, providerModels 
       totalRequests: item.total_requests || 0,
       successRequests: item.success_requests || 0,
       failedRequests: item.failed_requests || 0,
+      inputTokens: item.input_tokens || 0,
+      outputTokens: item.output_tokens || 0,
+      cachedTokens: item.cached_tokens || 0,
       successRate: item.success_rate || 0,
       lastRequestTime: item.last_request_at ? new Date(item.last_request_at).getTime() : 0,
       recentRequests: (item.recent_requests || []).map((req) => ({
@@ -186,6 +200,31 @@ export function ChannelStats({ refreshKey, loading, providerMap, providerModels 
     onDisableClick(source, model);
   };
 
+  const renderTokenCell = (tokens: number) => (
+    <td className={`${styles.tokenCell} ${styles.numberCell}`} title={tokens.toLocaleString('zh-CN')}>
+      {formatCompactTokenNumber(tokens)}
+    </td>
+  );
+
+  const renderCacheCell = (cachedTokens: number) => (
+    <td
+      className={`${styles.tokenCell} ${styles.numberCell}`}
+      title={cachedTokens > 0 ? cachedTokens.toLocaleString('zh-CN') : ''}
+    >
+      {cachedTokens > 0 ? formatCompactTokenNumber(cachedTokens) : ''}
+    </td>
+  );
+
+  const renderCacheRatioCell = (cachedTokens: number, inputTokens: number) => {
+    const cache = formatCacheTokenRatio(cachedTokens, inputTokens);
+
+    return (
+      <td className={`${styles.tokenCell} ${styles.numberCell}`} title={cachedTokens > 0 ? cache.title : ''}>
+        {cachedTokens > 0 ? cache.ratio : ''}
+      </td>
+    );
+  };
+
   return (
     <>
       <Card
@@ -237,12 +276,16 @@ export function ChannelStats({ refreshKey, loading, providerMap, providerModels 
           ) : filteredStats.length === 0 ? (
             <div className={styles.emptyState}>{t('monitor.no_data')}</div>
           ) : (
-            <table className={styles.table}>
+            <table className={`${styles.table} ${styles.channelStatsTable}`}>
               <thead>
                 <tr>
                   <th>{t('monitor.channel.header_name')}</th>
-                  <th>{t('monitor.channel.header_count')}</th>
-                  <th>{t('monitor.channel.header_rate')}</th>
+                  <th className={styles.numberCell}>{t('monitor.channel.header_count')}</th>
+                  <th className={styles.numberCell}>{t('monitor.logs.header_input')}</th>
+                  <th className={styles.numberCell}>{t('monitor.logs.header_output')}</th>
+                  <th className={styles.numberCell}>{t('monitor.logs.header_cache')}</th>
+                  <th className={styles.numberCell}>{t('monitor.logs.header_cache_ratio')}</th>
+                  <th className={styles.numberCell}>{t('monitor.channel.header_rate')}</th>
                   <th>{t('monitor.channel.header_recent')}</th>
                   <th>{t('monitor.channel.header_time')}</th>
                 </tr>
@@ -264,8 +307,12 @@ export function ChannelStats({ refreshKey, loading, providerMap, providerModels 
                           stat.maskedKey
                         )}
                       </td>
-                      <td>{stat.totalRequests.toLocaleString()}</td>
-                      <td className={getRateClassName(stat.successRate, styles)}>
+                      <td className={styles.numberCell}>{stat.totalRequests.toLocaleString()}</td>
+                      {renderTokenCell(stat.inputTokens)}
+                      {renderTokenCell(stat.outputTokens)}
+                      {renderCacheCell(stat.cachedTokens)}
+                      {renderCacheRatioCell(stat.cachedTokens, stat.inputTokens)}
+                      <td className={`${getRateClassName(stat.successRate, styles)} ${styles.numberCell}`}>
                         {stat.successRate.toFixed(1)}%
                       </td>
                       <td>
@@ -282,15 +329,19 @@ export function ChannelStats({ refreshKey, loading, providerMap, providerModels 
                     </tr>
                     {expandedChannel === stat.source && (
                       <tr key={`${stat.source}-detail`}>
-                        <td colSpan={5} className={styles.expandDetail}>
+                        <td colSpan={9} className={styles.expandDetail}>
                           <div className={styles.expandTableWrapper}>
-                            <table className={styles.table}>
+                            <table className={`${styles.table} ${styles.channelModelStatsTable}`}>
                               <thead>
                                 <tr>
                                   <th>{t('monitor.channel.model')}</th>
-                                  <th>{t('monitor.channel.header_count')}</th>
-                                  <th>{t('monitor.channel.header_rate')}</th>
-                                  <th>{t('monitor.channel.success')}/{t('monitor.channel.failed')}</th>
+                                  <th className={styles.numberCell}>{t('monitor.channel.header_count')}</th>
+                                  <th className={styles.numberCell}>{t('monitor.logs.header_input')}</th>
+                                  <th className={styles.numberCell}>{t('monitor.logs.header_output')}</th>
+                                  <th className={styles.numberCell}>{t('monitor.logs.header_cache')}</th>
+                                  <th className={styles.numberCell}>{t('monitor.logs.header_cache_ratio')}</th>
+                                  <th className={styles.numberCell}>{t('monitor.channel.header_rate')}</th>
+                                  <th className={styles.numberCell}>{t('monitor.channel.success')}/{t('monitor.channel.failed')}</th>
                                   <th>{t('monitor.channel.header_recent')}</th>
                                   <th>{t('monitor.channel.header_time')}</th>
                                   <th>{t('monitor.logs.header_actions')}</th>
@@ -311,11 +362,15 @@ export function ChannelStats({ refreshKey, loading, providerMap, providerModels 
                                     return (
                                       <tr key={modelName} className={disabled ? styles.modelDisabled : ''}>
                                         <td>{modelName}</td>
-                                        <td>{modelStat.requests.toLocaleString()}</td>
-                                        <td className={getRateClassName(modelStat.successRate, styles)}>
+                                        <td className={styles.numberCell}>{modelStat.requests.toLocaleString()}</td>
+                                        {renderTokenCell(modelStat.inputTokens)}
+                                        {renderTokenCell(modelStat.outputTokens)}
+                                        {renderCacheCell(modelStat.cachedTokens)}
+                                        {renderCacheRatioCell(modelStat.cachedTokens, modelStat.inputTokens)}
+                                        <td className={`${getRateClassName(modelStat.successRate, styles)} ${styles.numberCell}`}>
                                           {modelStat.successRate.toFixed(1)}%
                                         </td>
-                                        <td>
+                                        <td className={styles.numberCell}>
                                           <span className={styles.kpiSuccess}>{modelStat.success}</span>
                                           {' / '}
                                           <span className={styles.kpiFailure}>{modelStat.failed}</span>

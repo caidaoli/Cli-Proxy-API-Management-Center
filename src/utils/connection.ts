@@ -8,6 +8,15 @@ export const normalizeApiBase = (input: string): string => {
   if (!/^https?:\/\//i.test(base)) {
     base = `http://${base}`;
   }
+  try {
+    const url = new URL(base);
+    if (isLocalhost(url.hostname) && url.port === '5173') {
+      url.port = String(DEFAULT_API_PORT);
+      base = url.toString().replace(/\/+$/i, '');
+    }
+  } catch {
+    return base;
+  }
   return base;
 };
 
@@ -20,6 +29,9 @@ export const computeApiUrl = (base: string): string => {
 export const detectApiBaseFromLocation = (): string => {
   try {
     const { protocol, hostname, port } = window.location;
+    if (isLocalhost(hostname) && port === '5173') {
+      return normalizeApiBase(`${protocol}//${hostname}:${DEFAULT_API_PORT}`);
+    }
     const normalizedPort = port ? `:${port}` : '';
     return normalizeApiBase(`${protocol}//${hostname}${normalizedPort}`);
   } catch (error) {
@@ -30,5 +42,5 @@ export const detectApiBaseFromLocation = (): string => {
 
 export const isLocalhost = (hostname: string): boolean => {
   const value = (hostname || '').toLowerCase();
-  return value === 'localhost' || value === '127.0.0.1' || value === '[::1]';
+  return value === 'localhost' || value === '127.0.0.1' || value === '::1' || value === '[::1]';
 };

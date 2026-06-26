@@ -315,10 +315,11 @@ const normalizeAmpcodeConfig = (payload: unknown): AmpcodeConfig | undefined => 
  * 规范化 /config 返回值
  */
 export const normalizeConfigResponse = (raw: unknown): Config => {
-  const config: Config = { raw: isRecord(raw) ? raw : {} };
   if (!isRecord(raw)) {
-    return config;
+    throw new Error('Invalid config response');
   }
+
+  const config: Config = { raw };
 
   config.debug = normalizeBoolean(raw.debug);
   const proxyUrl = raw['proxy-url'];

@@ -143,7 +143,7 @@
       "header_output": "输出",
       "header_total": "总 Token",
       "header_cache": "缓存",
-      "header_cache_ratio": "缓存/%",
+      "header_cache_ratio": "缓存率",
       "header_time": "时间",
       "header_actions": "操作",
       "showing": "显示 {{start}}-{{end}} 条，共 {{total}} 条",

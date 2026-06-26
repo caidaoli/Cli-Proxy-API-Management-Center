@@ -2,27 +2,17 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TimeRange } from '@/pages/MonitorPage';
 import { monitorApi, type MonitorKpiData } from '@/services/api/monitor';
-import { buildMonitorTimeRangeParams } from '@/utils/monitor';
+import {
+  buildMonitorTimeRangeParams,
+  formatMonitorNumber,
+  normalizeMonitorKpiData,
+} from '@/utils/monitor';
 import styles from '@/pages/MonitorPage.module.scss';
 
 interface KpiCardsProps {
   timeRange: TimeRange;
   apiFilter: string;
   isDark?: boolean;
-}
-
-// 格式化数字
-function formatNumber(num: number): string {
-  if (num >= 1000000000) {
-    return (num / 1000000000).toFixed(2) + 'B';
-  }
-  if (num >= 1000000) {
-    return (num / 1000000).toFixed(2) + 'M';
-  }
-  if (num >= 1000) {
-    return (num / 1000).toFixed(2) + 'K';
-  }
-  return num.toLocaleString();
 }
 
 export function KpiCards({ timeRange, apiFilter }: KpiCardsProps) {
@@ -64,20 +54,8 @@ export function KpiCards({ timeRange, apiFilter }: KpiCardsProps) {
     return t('monitor.last_n_days', { n: timeRange });
   })();
 
-  const stats = kpiData ?? {
-    total_requests: 0,
-    success_requests: 0,
-    failed_requests: 0,
-    success_rate: 0,
-    total_tokens: 0,
-    input_tokens: 0,
-    output_tokens: 0,
-    reasoning_tokens: 0,
-    cached_tokens: 0,
-    avg_tpm: 0,
-    avg_rpm: 0,
-    avg_rpd: 0,
-  };
+  const stats = normalizeMonitorKpiData(kpiData);
+  const hasStats = !loading && stats !== null;
 
   return (
     <div className={styles.kpiGrid}>
@@ -88,17 +66,17 @@ export function KpiCards({ timeRange, apiFilter }: KpiCardsProps) {
           <span className={styles.kpiTag}>{timeRangeLabel}</span>
         </div>
         <div className={styles.kpiValue}>
-          {loading ? '--' : formatNumber(stats.total_requests)}
+          {hasStats ? formatMonitorNumber(stats.total_requests) : '--'}
         </div>
         <div className={styles.kpiMeta}>
           <span className={styles.kpiSuccess}>
-            {t('monitor.kpi.success')}: {loading ? '--' : stats.success_requests.toLocaleString()}
+            {t('monitor.kpi.success')}: {hasStats ? stats.success_requests.toLocaleString() : '--'}
           </span>
           <span className={styles.kpiFailure}>
-            {t('monitor.kpi.failed')}: {loading ? '--' : stats.failed_requests.toLocaleString()}
+            {t('monitor.kpi.failed')}: {hasStats ? stats.failed_requests.toLocaleString() : '--'}
           </span>
           <span>
-            {t('monitor.kpi.rate')}: {loading ? '--' : stats.success_rate.toFixed(1)}%
+            {t('monitor.kpi.rate')}: {hasStats ? `${stats.success_rate.toFixed(1)}%` : '--'}
           </span>
         </div>
       </div>
@@ -110,11 +88,11 @@ export function KpiCards({ timeRange, apiFilter }: KpiCardsProps) {
           <span className={styles.kpiTag}>{timeRangeLabel}</span>
         </div>
         <div className={styles.kpiValue}>
-          {loading ? '--' : formatNumber(stats.total_tokens)}
+          {hasStats ? formatMonitorNumber(stats.total_tokens) : '--'}
         </div>
         <div className={styles.kpiMeta}>
-          <span>{t('monitor.kpi.input')}: {loading ? '--' : formatNumber(stats.input_tokens)}</span>
-          <span>{t('monitor.kpi.output')}: {loading ? '--' : formatNumber(stats.output_tokens)}</span>
+          <span>{t('monitor.kpi.input')}: {hasStats ? formatMonitorNumber(stats.input_tokens) : '--'}</span>
+          <span>{t('monitor.kpi.output')}: {hasStats ? formatMonitorNumber(stats.output_tokens) : '--'}</span>
         </div>
       </div>
 
@@ -125,7 +103,7 @@ export function KpiCards({ timeRange, apiFilter }: KpiCardsProps) {
           <span className={styles.kpiTag}>{timeRangeLabel}</span>
         </div>
         <div className={styles.kpiValue}>
-          {loading ? '--' : formatNumber(stats.avg_tpm)}
+          {hasStats ? formatMonitorNumber(stats.avg_tpm) : '--'}
         </div>
         <div className={styles.kpiMeta}>
           <span>{t('monitor.kpi.tokens_per_minute')}</span>
@@ -139,7 +117,7 @@ export function KpiCards({ timeRange, apiFilter }: KpiCardsProps) {
           <span className={styles.kpiTag}>{timeRangeLabel}</span>
         </div>
         <div className={styles.kpiValue}>
-          {loading ? '--' : stats.avg_rpm.toFixed(1)}
+          {hasStats ? stats.avg_rpm.toFixed(1) : '--'}
         </div>
         <div className={styles.kpiMeta}>
           <span>{t('monitor.kpi.requests_per_minute')}</span>
@@ -153,7 +131,7 @@ export function KpiCards({ timeRange, apiFilter }: KpiCardsProps) {
           <span className={styles.kpiTag}>{timeRangeLabel}</span>
         </div>
         <div className={styles.kpiValue}>
-          {loading ? '--' : formatNumber(stats.avg_rpd)}
+          {hasStats ? formatMonitorNumber(stats.avg_rpd) : '--'}
         </div>
         <div className={styles.kpiMeta}>
           <span>{t('monitor.kpi.requests_per_day')}</span>

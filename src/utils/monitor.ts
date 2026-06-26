@@ -2,7 +2,12 @@
  * 监控中心公共工具函数
  */
 
-import type { MonitorTimeRangeQuery } from '@/services/api/monitor';
+import type {
+  MonitorHourlyModelsData,
+  MonitorHourlyTokensData,
+  MonitorKpiData,
+  MonitorTimeRangeQuery,
+} from '@/services/api/monitor';
 
 /**
  * 日期范围接口
@@ -44,6 +49,105 @@ export function buildMonitorTimeRangeParams(
   }
 
   return { time_range: String(range) };
+}
+
+const monitorKpiNumberFields = [
+  'total_requests',
+  'success_requests',
+  'failed_requests',
+  'success_rate',
+  'total_tokens',
+  'input_tokens',
+  'output_tokens',
+  'reasoning_tokens',
+  'cached_tokens',
+  'avg_tpm',
+  'avg_rpm',
+  'avg_rpd',
+] as const satisfies readonly (keyof MonitorKpiData)[];
+
+const toSafeMonitorNumber = (value: unknown): number => {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : 0;
+};
+
+const toSafeMonitorNumberArray = (value: unknown): number[] =>
+  Array.isArray(value) ? value.map(toSafeMonitorNumber) : [];
+
+const toSafeMonitorStringArray = (value: unknown): string[] =>
+  Array.isArray(value) ? value.map((item) => String(item)) : [];
+
+const toSafeMonitorNumberArrayRecord = (value: unknown): Record<string, number[]> => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([key, values]) => [
+      key,
+      toSafeMonitorNumberArray(values),
+    ])
+  );
+};
+
+export function formatMonitorNumber(value: unknown): string {
+  const num = toSafeMonitorNumber(value);
+
+  if (num >= 1000000000) {
+    return (num / 1000000000).toFixed(2) + 'B';
+  }
+  if (num >= 1000000) {
+    return (num / 1000000).toFixed(2) + 'M';
+  }
+  if (num >= 1000) {
+    return (num / 1000).toFixed(2) + 'K';
+  }
+  return num.toLocaleString();
+}
+
+export function normalizeMonitorKpiData(raw: unknown): MonitorKpiData | null {
+  const source = raw && typeof raw === 'object'
+    ? raw as Partial<Record<keyof MonitorKpiData, unknown>>
+    : null;
+  if (!source || !monitorKpiNumberFields.some((field) => field in source)) {
+    return null;
+  }
+
+  const normalized = {} as MonitorKpiData;
+
+  for (const field of monitorKpiNumberFields) {
+    normalized[field] = toSafeMonitorNumber(source[field]);
+  }
+
+  return normalized;
+}
+
+export function normalizeMonitorHourlyModelsData(raw: unknown): MonitorHourlyModelsData {
+  const source = raw && typeof raw === 'object'
+    ? raw as Partial<Record<keyof MonitorHourlyModelsData, unknown>>
+    : {};
+
+  return {
+    hours: toSafeMonitorStringArray(source.hours),
+    models: toSafeMonitorStringArray(source.models),
+    model_data: toSafeMonitorNumberArrayRecord(source.model_data),
+    success_rates: toSafeMonitorNumberArray(source.success_rates),
+  };
+}
+
+export function normalizeMonitorHourlyTokensData(raw: unknown): MonitorHourlyTokensData {
+  const source = raw && typeof raw === 'object'
+    ? raw as Partial<Record<keyof MonitorHourlyTokensData, unknown>>
+    : {};
+
+  return {
+    hours: toSafeMonitorStringArray(source.hours),
+    total_tokens: toSafeMonitorNumberArray(source.total_tokens),
+    input_tokens: toSafeMonitorNumberArray(source.input_tokens),
+    output_tokens: toSafeMonitorNumberArray(source.output_tokens),
+    reasoning_tokens: toSafeMonitorNumberArray(source.reasoning_tokens),
+    cached_tokens: toSafeMonitorNumberArray(source.cached_tokens),
+  };
 }
 
 /**

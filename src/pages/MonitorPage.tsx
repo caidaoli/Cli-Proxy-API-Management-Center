@@ -49,6 +49,7 @@ ChartJS.register(
 
 // 时间范围选项
 export type TimeRange = 'yesterday' | 'dayBeforeYesterday' | 1 | 7 | 14 | 30;
+type StatsTab = 'channel' | 'failure';
 
 export function MonitorPage() {
   const { t } = useTranslation();
@@ -61,6 +62,7 @@ export function MonitorPage() {
   const [timeRange, setTimeRange] = useState<TimeRange>(7);
   const [apiFilter, setApiFilter] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
+  const [activeStatsTab, setActiveStatsTab] = useState<StatsTab>('channel');
   const [providerMap, setProviderMap] = useState<Record<string, string>>({});
   const [providerModels, setProviderModels] = useState<Record<string, Set<string>>>({});
   const [authIndexMap, setAuthIndexMap] = useState<Record<string, string>>({});
@@ -325,9 +327,43 @@ export function MonitorPage() {
       <ServiceHealthCard />
 
       {/* 统计表格 */}
-      <div className={styles.statsGrid}>
-        <ChannelStats refreshKey={refreshKey} loading={loading} providerMap={providerMap} providerModels={providerModels} />
-        <FailureAnalysis refreshKey={refreshKey} loading={loading} providerMap={providerMap} providerModels={providerModels} />
+      <div className={styles.statsSection}>
+        <div className={styles.statsTabs} role="tablist" aria-label={t('monitor.title')}>
+          <button
+            id="monitor-stats-tab-channel"
+            type="button"
+            role="tab"
+            aria-selected={activeStatsTab === 'channel'}
+            aria-controls="monitor-stats-panel-channel"
+            className={`${styles.statsTabButton} ${activeStatsTab === 'channel' ? styles.statsTabButtonActive : ''}`}
+            onClick={() => setActiveStatsTab('channel')}
+          >
+            {t('monitor.channel.title')}
+          </button>
+          <button
+            id="monitor-stats-tab-failure"
+            type="button"
+            role="tab"
+            aria-selected={activeStatsTab === 'failure'}
+            aria-controls="monitor-stats-panel-failure"
+            className={`${styles.statsTabButton} ${activeStatsTab === 'failure' ? styles.statsTabButtonActive : ''}`}
+            onClick={() => setActiveStatsTab('failure')}
+          >
+            {t('monitor.failure.title')}
+          </button>
+        </div>
+        <div
+          id={`monitor-stats-panel-${activeStatsTab}`}
+          className={styles.statsTabPanel}
+          role="tabpanel"
+          aria-labelledby={`monitor-stats-tab-${activeStatsTab}`}
+        >
+          {activeStatsTab === 'channel' ? (
+            <ChannelStats refreshKey={refreshKey} loading={loading} providerMap={providerMap} providerModels={providerModels} />
+          ) : (
+            <FailureAnalysis refreshKey={refreshKey} loading={loading} providerMap={providerMap} providerModels={providerModels} />
+          )}
+        </div>
       </div>
 
       {/* 请求日志 */}
