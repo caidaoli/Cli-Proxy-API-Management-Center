@@ -13,6 +13,7 @@ import {
   getProviderDisplayParts,
   buildMonitorTimeRangeParams,
   computeUncachedInputTokens,
+  applyMonitorChannelStatsModelFilter,
   type DateRange,
 } from '@/utils/monitor';
 import styles from '@/pages/MonitorPage.module.scss';
@@ -154,7 +155,8 @@ export function ChannelStats({ refreshKey, loading, providerMap, providerModels 
         model: filterModel || undefined,
         ...buildMonitorTimeRangeParams(timeRange, customRange),
       });
-      const mapped = (response.items || []).map(mapChannelStat);
+      const rawItems = response.items || [];
+      const mapped = applyMonitorChannelStatsModelFilter(rawItems, filterModel).map(mapChannelStat);
       setChannelStats(mapped);
 
       const sourceSet = new Set<string>(
@@ -170,7 +172,7 @@ export function ChannelStats({ refreshKey, loading, providerMap, providerModels 
       const modelSet = new Set<string>(
         (response.filters?.models && response.filters.models.length > 0)
           ? response.filters.models
-          : mapped.flatMap((stat) => Object.keys(stat.models))
+          : rawItems.flatMap((stat) => (stat.models || []).map((model) => model.model))
       );
 
       setFilters({ channels, models: Array.from(modelSet).sort() });

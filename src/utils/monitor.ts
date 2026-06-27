@@ -3,6 +3,8 @@
  */
 
 import type {
+  MonitorChannelStatsItem,
+  MonitorFailureStatsItem,
   MonitorHourlyModelsData,
   MonitorHourlyTokensData,
   MonitorKpiData,
@@ -148,6 +150,125 @@ export function normalizeMonitorHourlyTokensData(raw: unknown): MonitorHourlyTok
     reasoning_tokens: toSafeMonitorNumberArray(source.reasoning_tokens),
     cached_tokens: toSafeMonitorNumberArray(source.cached_tokens),
   };
+}
+
+export function applyMonitorChannelStatsModelFilter(
+  items: MonitorChannelStatsItem[],
+  modelFilter?: string
+): MonitorChannelStatsItem[] {
+  const selectedModel = String(modelFilter ?? '').trim();
+  if (!selectedModel) {
+    return items;
+  }
+
+  return items.flatMap((item) => {
+    const models = (item.models || []).filter((model) => model.model === selectedModel);
+    if (models.length === 0) {
+      return [];
+    }
+
+    const totalRequests = models.reduce(
+      (sum, model) => sum + toSafeMonitorNumber(model.requests),
+      0
+    );
+    const successRequests = models.reduce(
+      (sum, model) => sum + toSafeMonitorNumber(model.success),
+      0
+    );
+    const failedRequests = models.reduce(
+      (sum, model) => sum + toSafeMonitorNumber(model.failed),
+      0
+    );
+    const inputTokens = models.reduce(
+      (sum, model) => sum + toSafeMonitorNumber(model.input_tokens),
+      0
+    );
+    const outputTokens = models.reduce(
+      (sum, model) => sum + toSafeMonitorNumber(model.output_tokens),
+      0
+    );
+    const cachedTokens = models.reduce(
+      (sum, model) => sum + toSafeMonitorNumber(model.cached_tokens),
+      0
+    );
+    const successRate = totalRequests > 0 ? (successRequests / totalRequests) * 100 : 0;
+    const recentRequests = models
+      .flatMap((model) => model.recent_requests || [])
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .slice(0, 10);
+    const lastRequestAt = models.reduce<string | undefined>((latest, model) => {
+      if (!model.last_request_at) {
+        return latest;
+      }
+      if (!latest || new Date(model.last_request_at).getTime() > new Date(latest).getTime()) {
+        return model.last_request_at;
+      }
+      return latest;
+    }, undefined);
+
+    return [
+      {
+        ...item,
+        total_requests: totalRequests,
+        success_requests: successRequests,
+        failed_requests: failedRequests,
+        input_tokens: inputTokens,
+        output_tokens: outputTokens,
+        cached_tokens: cachedTokens,
+        success_rate: successRate,
+        last_request_at: lastRequestAt,
+        recent_requests: recentRequests,
+        models: models.map((model) => ({ ...model })),
+      },
+    ];
+  });
+}
+
+export function applyMonitorFailureAnalysisModelFilter(
+  items: MonitorFailureStatsItem[],
+  modelFilter?: string
+): MonitorFailureStatsItem[] {
+  const selectedModel = String(modelFilter ?? '').trim();
+  if (!selectedModel) {
+    return items;
+  }
+
+  return items.flatMap((item) => {
+    const models = (item.models || []).filter((model) => model.model === selectedModel);
+    const failedCount = models.reduce(
+      (sum, model) => sum + toSafeMonitorNumber(model.failed),
+      0
+    );
+
+    if (models.length === 0 || failedCount <= 0) {
+      return [];
+    }
+
+    const lastFailedAt =
+      models
+        .flatMap((model) => model.recent_requests || [])
+        .filter((request) => request.failed)
+        .map((request) => request.timestamp)
+        .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0] ||
+      models.reduce<string | undefined>((latest, model) => {
+        if (!model.last_request_at) {
+          return latest;
+        }
+        if (!latest || new Date(model.last_request_at).getTime() > new Date(latest).getTime()) {
+          return model.last_request_at;
+        }
+        return latest;
+      }, undefined);
+
+    return [
+      {
+        ...item,
+        failed_count: failedCount,
+        last_failed_at: lastFailedAt,
+        models: models.map((model) => ({ ...model })),
+      },
+    ];
+  });
 }
 
 /**

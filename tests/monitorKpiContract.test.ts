@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  applyMonitorChannelStatsModelFilter,
+  applyMonitorFailureAnalysisModelFilter,
   computeUncachedInputTokens,
   formatOutputTokensPerSecond,
   formatMonitorNumber,
@@ -76,4 +78,175 @@ test('小时图响应缺少数组字段时归一化为空数据', () => {
     reasoning_tokens: [],
     cached_tokens: [],
   });
+});
+
+test('渠道统计按选中模型过滤展开行并重算渠道汇总', () => {
+  const raw = [
+    {
+      source: 'yga-key',
+      total_requests: 467,
+      success_requests: 445,
+      failed_requests: 22,
+      input_tokens: 5_117_000,
+      output_tokens: 213_700,
+      cached_tokens: 43_002_000,
+      success_rate: 95.3,
+      last_request_at: '2026-06-27T08:10:08Z',
+      recent_requests: [{ failed: false, timestamp: '2026-06-27T08:10:08Z' }],
+      models: [
+        {
+          model: 'gpt-5.5',
+          requests: 458,
+          success: 436,
+          failed: 22,
+          input_tokens: 5_100_000,
+          output_tokens: 209_000,
+          cached_tokens: 43_000_000,
+          success_rate: 95.2,
+          last_request_at: '2026-06-27T07:54:35Z',
+          recent_requests: [{ failed: true, timestamp: '2026-06-27T07:54:35Z' }],
+        },
+        {
+          model: 'gpt-5.4-mini',
+          requests: 9,
+          success: 9,
+          failed: 0,
+          input_tokens: 17_000,
+          output_tokens: 4_700,
+          cached_tokens: 2_700,
+          success_rate: 100,
+          last_request_at: '2026-06-27T08:10:08Z',
+          recent_requests: [{ failed: false, timestamp: '2026-06-27T08:10:08Z' }],
+        },
+      ],
+    },
+    {
+      source: 'other-key',
+      total_requests: 1,
+      success_requests: 1,
+      failed_requests: 0,
+      input_tokens: 100,
+      output_tokens: 20,
+      cached_tokens: 0,
+      success_rate: 100,
+      last_request_at: '2026-06-27T08:11:00Z',
+      recent_requests: [{ failed: false, timestamp: '2026-06-27T08:11:00Z' }],
+      models: [
+        {
+          model: 'gpt-5.5',
+          requests: 1,
+          success: 1,
+          failed: 0,
+          input_tokens: 100,
+          output_tokens: 20,
+          cached_tokens: 0,
+          success_rate: 100,
+          last_request_at: '2026-06-27T08:11:00Z',
+          recent_requests: [{ failed: false, timestamp: '2026-06-27T08:11:00Z' }],
+        },
+      ],
+    },
+  ];
+
+  const filtered = applyMonitorChannelStatsModelFilter(raw, 'gpt-5.4-mini');
+
+  assert.equal(filtered.length, 1);
+  assert.equal(filtered[0].source, 'yga-key');
+  assert.deepEqual(
+    filtered[0].models.map((model) => model.model),
+    ['gpt-5.4-mini']
+  );
+  assert.equal(filtered[0].total_requests, 9);
+  assert.equal(filtered[0].success_requests, 9);
+  assert.equal(filtered[0].failed_requests, 0);
+  assert.equal(filtered[0].input_tokens, 17_000);
+  assert.equal(filtered[0].output_tokens, 4_700);
+  assert.equal(filtered[0].cached_tokens, 2_700);
+  assert.equal(filtered[0].success_rate, 100);
+  assert.equal(filtered[0].last_request_at, '2026-06-27T08:10:08Z');
+  assert.deepEqual(filtered[0].recent_requests, [
+    { failed: false, timestamp: '2026-06-27T08:10:08Z' },
+  ]);
+  assert.equal(raw[0].total_requests, 467);
+  assert.equal(raw[0].models.length, 2);
+});
+
+test('失败来源分析按选中模型过滤展开行并重算失败汇总', () => {
+  const raw = [
+    {
+      source: 'yga-key',
+      failed_count: 23,
+      last_failed_at: '2026-06-27T08:10:08Z',
+      models: [
+        {
+          model: 'gpt-5.5',
+          requests: 458,
+          success: 436,
+          failed: 22,
+          input_tokens: 5_100_000,
+          output_tokens: 209_000,
+          cached_tokens: 43_000_000,
+          success_rate: 95.2,
+          last_request_at: '2026-06-27T07:54:35Z',
+          recent_requests: [{ failed: true, timestamp: '2026-06-27T07:54:35Z' }],
+        },
+        {
+          model: 'gpt-5.4-mini',
+          requests: 9,
+          success: 8,
+          failed: 1,
+          input_tokens: 17_000,
+          output_tokens: 4_700,
+          cached_tokens: 2_700,
+          success_rate: 88.9,
+          last_request_at: '2026-06-27T08:10:08Z',
+          recent_requests: [{ failed: true, timestamp: '2026-06-27T08:10:08Z' }],
+        },
+      ],
+    },
+    {
+      source: 'other-key',
+      failed_count: 2,
+      last_failed_at: '2026-06-27T08:11:00Z',
+      models: [
+        {
+          model: 'gpt-5.4-mini',
+          requests: 4,
+          success: 4,
+          failed: 0,
+          input_tokens: 100,
+          output_tokens: 20,
+          cached_tokens: 0,
+          success_rate: 100,
+          last_request_at: '2026-06-27T08:11:00Z',
+          recent_requests: [{ failed: false, timestamp: '2026-06-27T08:11:00Z' }],
+        },
+        {
+          model: 'gpt-5.5',
+          requests: 2,
+          success: 0,
+          failed: 2,
+          input_tokens: 100,
+          output_tokens: 20,
+          cached_tokens: 0,
+          success_rate: 0,
+          last_request_at: '2026-06-27T08:11:00Z',
+          recent_requests: [{ failed: true, timestamp: '2026-06-27T08:11:00Z' }],
+        },
+      ],
+    },
+  ];
+
+  const filtered = applyMonitorFailureAnalysisModelFilter(raw, 'gpt-5.4-mini');
+
+  assert.equal(filtered.length, 1);
+  assert.equal(filtered[0].source, 'yga-key');
+  assert.equal(filtered[0].failed_count, 1);
+  assert.equal(filtered[0].last_failed_at, '2026-06-27T08:10:08Z');
+  assert.deepEqual(
+    filtered[0].models.map((model) => model.model),
+    ['gpt-5.4-mini']
+  );
+  assert.equal(raw[0].failed_count, 23);
+  assert.equal(raw[0].models.length, 2);
 });
