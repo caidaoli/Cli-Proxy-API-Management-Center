@@ -30,12 +30,18 @@
     },
     "distribution": {
       "title": "模型用量分布",
+      "channel_title": "渠道用量分布",
+      "models": "模型",
+      "channels": "渠道",
+      "other": "其他",
       "by_requests": "按请求数",
       "by_tokens": "按 Token 数",
       "requests": "请求",
       "tokens": "Token",
       "request_share": "请求占比",
-      "token_share": "Token 占比"
+      "token_share": "Token 占比",
+      "channel_request_share": "渠道请求占比",
+      "channel_token_share": "渠道 Token 占比"
     },
     "trend": {
       "title": "每日用量趋势",

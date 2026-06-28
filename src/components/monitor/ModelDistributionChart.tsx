@@ -1,15 +1,21 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Doughnut } from 'react-chartjs-2';
+import type { TooltipItem } from 'chart.js';
 import type { TimeRange } from '@/pages/MonitorPage';
 import { monitorApi, type MonitorModelDistributionItem } from '@/services/api/monitor';
-import { buildMonitorTimeRangeParams } from '@/utils/monitor';
+import {
+  buildMonitorChannelDistributionItems,
+  buildMonitorTimeRangeParams,
+  type MonitorDistributionListItem,
+} from '@/utils/monitor';
 import styles from '@/pages/MonitorPage.module.scss';
 
 interface ModelDistributionChartProps {
   timeRange: TimeRange;
   apiFilter: string;
   isDark: boolean;
+  providerMap: Record<string, string>;
 }
 
 // 颜色调色板
@@ -27,43 +33,66 @@ const COLORS = [
 ];
 
 type ViewMode = 'request' | 'token';
+type DistributionMode = 'model' | 'channel';
 
-const EMPTY_DISTRIBUTION_ITEMS: MonitorModelDistributionItem[] = [];
+const EMPTY_DISTRIBUTION_ITEMS: MonitorDistributionListItem[] = [];
 
-export function ModelDistributionChart({ timeRange, apiFilter, isDark }: ModelDistributionChartProps) {
+export function ModelDistributionChart({ timeRange, apiFilter, isDark, providerMap }: ModelDistributionChartProps) {
   const { t } = useTranslation();
   const [viewMode, setViewMode] = useState<ViewMode>('request');
-  const requestKey = `${timeRange}\0${apiFilter}\0${viewMode}`;
+  const [distributionMode, setDistributionMode] = useState<DistributionMode>('model');
+  const requestKey = `${timeRange}\0${apiFilter}\0${viewMode}\0${distributionMode}`;
+  const otherLabel = t('monitor.distribution.other');
   const [distributionState, setDistributionState] = useState<{
     requestKey: string;
-    items: MonitorModelDistributionItem[];
+    items: MonitorDistributionListItem[];
   } | null>(null);
   const loading = distributionState?.requestKey !== requestKey;
   const distributionItems = distributionState?.items ?? EMPTY_DISTRIBUTION_ITEMS;
 
   useEffect(() => {
     let cancelled = false;
+    const timeParams = buildMonitorTimeRangeParams(timeRange);
 
-    const params = {
-      sort: viewMode === 'request' ? 'requests' as const : 'tokens' as const,
-      limit: 10,
-      ...buildMonitorTimeRangeParams(timeRange),
-      ...(apiFilter ? { api_filter: apiFilter } : {}),
+    const loadDistribution = async () => {
+      if (distributionMode === 'channel') {
+        const data = await monitorApi.getChannelStats({
+          limit: 100,
+          ...timeParams,
+          ...(apiFilter ? { api_filter: apiFilter } : {}),
+        });
+        return buildMonitorChannelDistributionItems(data.items || [], providerMap, viewMode, 10, otherLabel);
+      }
+
+      const data = await monitorApi.getModelDistribution({
+        sort: viewMode === 'request' ? 'requests' as const : 'tokens' as const,
+        limit: 10,
+        ...timeParams,
+        ...(apiFilter ? { api_filter: apiFilter } : {}),
+      });
+
+      return (data.items || []).map((item: MonitorModelDistributionItem) => ({
+        label: item.model,
+        requests: item.requests,
+        tokens: item.tokens,
+      }));
     };
 
-    monitorApi.getModelDistribution(params).then((data) => {
-      if (!cancelled) {
-        setDistributionState({ requestKey, items: data.items || [] });
-      }
-    }).catch((err) => {
-      console.error('Model distribution load failed:', err);
-      if (!cancelled) {
-        setDistributionState({ requestKey, items: [] });
-      }
-    });
+    loadDistribution()
+      .then((items) => {
+        if (!cancelled) {
+          setDistributionState({ requestKey, items });
+        }
+      })
+      .catch((err) => {
+        console.error('Distribution load failed:', err);
+        if (!cancelled) {
+          setDistributionState({ requestKey, items: [] });
+        }
+      });
 
     return () => { cancelled = true; };
-  }, [timeRange, apiFilter, viewMode, requestKey]);
+  }, [timeRange, apiFilter, viewMode, distributionMode, providerMap, otherLabel, requestKey]);
 
   const timeRangeLabel = (() => {
     if (timeRange === 'yesterday') return t('monitor.yesterday');
@@ -82,7 +111,7 @@ export function ModelDistributionChart({ timeRange, apiFilter, isDark }: ModelDi
   // 图表数据
   const chartData = useMemo(() => {
     return {
-      labels: distributionItems.map((item) => item.model),
+      labels: distributionItems.map((item) => item.label),
       datasets: [
         {
           data: distributionItems.map((item) =>
@@ -113,8 +142,8 @@ export function ModelDistributionChart({ timeRange, apiFilter, isDark }: ModelDi
         borderWidth: 1,
         padding: 12,
         callbacks: {
-          label: (context: any) => {
-            const value = context.raw;
+          label: (context: TooltipItem<'doughnut'>) => {
+            const value = Number(context.raw || 0);
             const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
             if (viewMode === 'request') {
               return `${value.toLocaleString()} ${t('monitor.requests')} (${percentage}%)`;
@@ -137,29 +166,62 @@ export function ModelDistributionChart({ timeRange, apiFilter, isDark }: ModelDi
     return value.toString();
   };
 
+  const titleKey = distributionMode === 'channel'
+    ? 'monitor.distribution.channel_title'
+    : 'monitor.distribution.title';
+  const dimensionLabel = distributionMode === 'channel'
+    ? t('monitor.distribution.channels')
+    : t('monitor.distribution.models');
+  const shareLabel = (() => {
+    if (distributionMode === 'channel') {
+      return viewMode === 'request'
+        ? t('monitor.distribution.channel_request_share')
+        : t('monitor.distribution.channel_token_share');
+    }
+    return viewMode === 'request'
+      ? t('monitor.distribution.request_share')
+      : t('monitor.distribution.token_share');
+  })();
+
   return (
     <div className={styles.chartCard}>
       <div className={styles.chartHeader}>
         <div>
-          <h3 className={styles.chartTitle}>{t('monitor.distribution.title')}</h3>
+          <h3 className={styles.chartTitle}>{t(titleKey)}</h3>
           <p className={styles.chartSubtitle}>
-            {timeRangeLabel} · {viewMode === 'request' ? t('monitor.distribution.by_requests') : t('monitor.distribution.by_tokens')}
+            {timeRangeLabel} · {dimensionLabel} · {viewMode === 'request' ? t('monitor.distribution.by_requests') : t('monitor.distribution.by_tokens')}
             {' · Top 10'}
           </p>
         </div>
-        <div className={styles.chartControls}>
-          <button
-            className={`${styles.chartControlBtn} ${viewMode === 'request' ? styles.active : ''}`}
-            onClick={() => setViewMode('request')}
-          >
-            {t('monitor.distribution.requests')}
-          </button>
-          <button
-            className={`${styles.chartControlBtn} ${viewMode === 'token' ? styles.active : ''}`}
-            onClick={() => setViewMode('token')}
-          >
-            {t('monitor.distribution.tokens')}
-          </button>
+        <div className={styles.chartControlGroups}>
+          <div className={styles.chartControls}>
+            <button
+              className={`${styles.chartControlBtn} ${distributionMode === 'model' ? styles.active : ''}`}
+              onClick={() => setDistributionMode('model')}
+            >
+              {t('monitor.distribution.models')}
+            </button>
+            <button
+              className={`${styles.chartControlBtn} ${distributionMode === 'channel' ? styles.active : ''}`}
+              onClick={() => setDistributionMode('channel')}
+            >
+              {t('monitor.distribution.channels')}
+            </button>
+          </div>
+          <div className={styles.chartControls}>
+            <button
+              className={`${styles.chartControlBtn} ${viewMode === 'request' ? styles.active : ''}`}
+              onClick={() => setViewMode('request')}
+            >
+              {t('monitor.distribution.requests')}
+            </button>
+            <button
+              className={`${styles.chartControlBtn} ${viewMode === 'token' ? styles.active : ''}`}
+              onClick={() => setViewMode('token')}
+            >
+              {t('monitor.distribution.tokens')}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -175,7 +237,7 @@ export function ModelDistributionChart({ timeRange, apiFilter, isDark }: ModelDi
             <Doughnut data={chartData} options={chartOptions} />
             <div className={styles.donutCenter}>
               <div className={styles.donutLabel}>
-                {viewMode === 'request' ? t('monitor.distribution.request_share') : t('monitor.distribution.token_share')}
+                {shareLabel}
               </div>
             </div>
           </div>
@@ -184,13 +246,13 @@ export function ModelDistributionChart({ timeRange, apiFilter, isDark }: ModelDi
               const value = viewMode === 'request' ? item.requests : item.tokens;
               const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0';
               return (
-                <div key={item.model} className={styles.legendItem}>
+                <div key={`${item.label}-${index}`} className={styles.legendItem}>
                   <span
                     className={styles.legendDot}
                     style={{ backgroundColor: COLORS[index] }}
                   />
-                  <span className={styles.legendName} title={item.model}>
-                    {item.model}
+                  <span className={styles.legendName} title={item.label}>
+                    {item.label}
                   </span>
                   <span className={styles.legendValue}>
                     {formatValue(value)} ({percentage}%)

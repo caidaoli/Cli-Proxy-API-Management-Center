@@ -11,6 +11,7 @@ import {
   getProviderDisplayParts,
   buildMonitorTimeRangeParams,
   applyMonitorFailureAnalysisModelFilter,
+  mergeMonitorFilterOptions,
   type DateRange,
 } from '@/utils/monitor';
 import styles from '@/pages/MonitorPage.module.scss';
@@ -139,7 +140,11 @@ export function FailureAnalysis({ refreshKey, loading, providerMap, providerMode
           ? response.filters.models
           : rawItems.flatMap((stat) => (stat.models || []).map((model) => model.model))
       );
-      setFilters({ channels, models: Array.from(modelSet).sort() });
+      const nextFilters = { channels, models: Array.from(modelSet).sort() };
+      setFilters((prev) => mergeMonitorFilterOptions(prev, nextFilters, {
+        channel: filterChannel,
+        model: filterModel,
+      }));
     } catch (err) {
       console.error('失败分析加载失败：', err);
       setFailureStats([]);

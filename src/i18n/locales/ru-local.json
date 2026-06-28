@@ -2,6 +2,14 @@
   "monitor": {
     "yesterday": "Вчера",
     "day_before_yesterday": "Позавчера",
+    "distribution": {
+      "channel_title": "Распределение использования каналов",
+      "models": "Модели",
+      "channels": "Каналы",
+      "other": "Прочее",
+      "channel_request_share": "Доля запросов каналов",
+      "channel_token_share": "Доля токенов каналов"
+    },
     "time": {
       "yesterday": "Вчера",
       "dayBeforeYesterday": "Позавчера"

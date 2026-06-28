@@ -3,9 +3,11 @@ import assert from 'node:assert/strict';
 import {
   applyMonitorChannelStatsModelFilter,
   applyMonitorFailureAnalysisModelFilter,
+  buildMonitorChannelDistributionItems,
   computeUncachedInputTokens,
   formatOutputTokensPerSecond,
   formatMonitorNumber,
+  mergeMonitorFilterOptions,
   normalizeMonitorHourlyModelsData,
   normalizeMonitorHourlyTokensData,
   normalizeMonitorKpiData,
@@ -249,4 +251,109 @@ test('失败来源分析按选中模型过滤展开行并重算失败汇总', ()
   );
   assert.equal(raw[0].failed_count, 23);
   assert.equal(raw[0].models.length, 2);
+});
+
+test('监控筛选项在任一渠道或模型筛选激活时保留原始可选集合', () => {
+  const previous = {
+    channels: ['alpha-key', 'beta-key', 'gamma-key'],
+    models: ['gpt-5.5', 'gpt-5.4-mini'],
+  };
+  const narrowed = {
+    channels: ['alpha-key'],
+    models: ['gpt-5.5'],
+  };
+
+  assert.deepEqual(
+    mergeMonitorFilterOptions(previous, narrowed, { channel: 'alpha-key' }),
+    previous
+  );
+
+  assert.deepEqual(
+    mergeMonitorFilterOptions(previous, narrowed, { model: 'gpt-5.5' }),
+    previous
+  );
+
+  assert.deepEqual(
+    mergeMonitorFilterOptions(previous, narrowed, { channel: 'alpha-key', model: 'gpt-5.5' }),
+    previous
+  );
+
+  assert.deepEqual(
+    mergeMonitorFilterOptions(previous, narrowed, {}),
+    narrowed
+  );
+});
+
+test('渠道用量分布按请求或 Token 生成 Top 项并格式化渠道名', () => {
+  const items = [
+    {
+      source: 'sk-alpha1234',
+      total_requests: 8,
+      success_requests: 8,
+      failed_requests: 0,
+      input_tokens: 100,
+      output_tokens: 50,
+      cached_tokens: 40,
+      success_rate: 100,
+      recent_requests: [],
+      models: [],
+    },
+    {
+      source: 'plainchannel',
+      total_requests: 3,
+      success_requests: 3,
+      failed_requests: 0,
+      input_tokens: 400,
+      output_tokens: 10,
+      cached_tokens: 300,
+      success_rate: 100,
+      recent_requests: [],
+      models: [],
+    },
+  ];
+
+  assert.deepEqual(
+    buildMonitorChannelDistributionItems(items, { 'sk-alpha1234': 'OpenAI' }, 'request', 1),
+    [{ label: 'OpenAI (sk-a***1234)', requests: 8, tokens: 150 }]
+  );
+
+  assert.deepEqual(
+    buildMonitorChannelDistributionItems(items, { 'sk-alpha1234': 'OpenAI' }, 'token', 2),
+    [
+      { label: 'plai***nnel', requests: 3, tokens: 410 },
+      { label: 'OpenAI (sk-a***1234)', requests: 8, tokens: 150 },
+    ]
+  );
+});
+
+test('渠道用量分布超过九个渠道时聚合为其他', () => {
+  const items = Array.from({ length: 12 }, (_, index) => {
+    const rank = 12 - index;
+
+    return {
+      source: `channel-${rank}`,
+      total_requests: rank,
+      success_requests: rank,
+      failed_requests: 0,
+      input_tokens: rank * 10,
+      output_tokens: rank,
+      cached_tokens: 0,
+      success_rate: 100,
+      recent_requests: [],
+      models: [],
+    };
+  });
+
+  const distribution = buildMonitorChannelDistributionItems(items, {}, 'request', 10, '其他');
+
+  assert.equal(distribution.length, 10);
+  assert.deepEqual(
+    distribution.slice(0, 9).map((item) => item.requests),
+    [12, 11, 10, 9, 8, 7, 6, 5, 4]
+  );
+  assert.deepEqual(distribution[9], {
+    label: '其他',
+    requests: 6,
+    tokens: 66,
+  });
 });

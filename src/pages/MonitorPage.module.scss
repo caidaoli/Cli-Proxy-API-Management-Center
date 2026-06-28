@@ -459,6 +459,19 @@
   }
 }
 
+.chartControlGroups {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+
+  @include mobile {
+    width: 100%;
+    justify-content: stretch;
+  }
+}
+
 .chartControls {
   display: flex;
   gap: 4px;

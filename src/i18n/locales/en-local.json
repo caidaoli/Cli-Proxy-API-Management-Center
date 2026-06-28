@@ -30,12 +30,18 @@
     },
     "distribution": {
       "title": "Model Usage Distribution",
+      "channel_title": "Channel Usage Distribution",
+      "models": "Models",
+      "channels": "Channels",
+      "other": "Other",
       "by_requests": "By Requests",
       "by_tokens": "By Tokens",
       "requests": "Requests",
       "tokens": "Tokens",
       "request_share": "Request Share",
-      "token_share": "Token Share"
+      "token_share": "Token Share",
+      "channel_request_share": "Channel Request Share",
+      "channel_token_share": "Channel Token Share"
     },
     "trend": {
       "title": "Daily Usage Trend",

@@ -92,6 +92,80 @@ const toSafeMonitorNumberArrayRecord = (value: unknown): Record<string, number[]
   );
 };
 
+export interface MonitorFilterOptionsState<TChannel = string, TModel = string> {
+  channels: TChannel[];
+  models: TModel[];
+}
+
+export function mergeMonitorFilterOptions<TChannel, TModel>(
+  previous: MonitorFilterOptionsState<TChannel, TModel>,
+  incoming: MonitorFilterOptionsState<TChannel, TModel>,
+  activeFilters: Record<string, unknown>
+): MonitorFilterOptionsState<TChannel, TModel> {
+  const hasActiveFilter = Object.values(activeFilters).some(
+    (value) => String(value ?? '').trim() !== ''
+  );
+
+  return hasActiveFilter ? previous : incoming;
+}
+
+export interface MonitorDistributionListItem {
+  label: string;
+  requests: number;
+  tokens: number;
+}
+
+export function buildMonitorChannelDistributionItems(
+  items: MonitorChannelStatsItem[],
+  providerMap: Record<string, string>,
+  sortBy: 'request' | 'token',
+  limit = 10,
+  otherLabel = '其他'
+): MonitorDistributionListItem[] {
+  const metric = sortBy === 'request' ? 'requests' : 'tokens';
+  const maxItems = Math.max(0, Math.floor(limit));
+
+  if (maxItems === 0) {
+    return [];
+  }
+
+  const sorted = items
+    .map((item) => {
+      const source = item.source || 'unknown';
+      const { provider, masked } = getProviderDisplayParts(source, providerMap);
+
+      return {
+        label: provider ? `${provider} (${masked})` : masked,
+        requests: toSafeMonitorNumber(item.total_requests),
+        tokens: toSafeMonitorNumber(item.input_tokens) + toSafeMonitorNumber(item.output_tokens),
+      };
+    })
+    .filter((item) => item[metric] > 0)
+    .sort((a, b) => b[metric] - a[metric]);
+
+  if (sorted.length <= maxItems) {
+    return sorted;
+  }
+
+  if (maxItems < 2) {
+    return sorted.slice(0, maxItems);
+  }
+
+  const visibleCount = Math.max(0, maxItems - 1);
+  const visible = sorted.slice(0, visibleCount);
+  const rest = sorted.slice(visibleCount);
+  const other = rest.reduce<MonitorDistributionListItem>(
+    (sum, item) => ({
+      label: otherLabel,
+      requests: sum.requests + item.requests,
+      tokens: sum.tokens + item.tokens,
+    }),
+    { label: otherLabel, requests: 0, tokens: 0 }
+  );
+
+  return [...visible, other];
+}
+
 export function formatMonitorNumber(value: unknown): string {
   const num = toSafeMonitorNumber(value);
 

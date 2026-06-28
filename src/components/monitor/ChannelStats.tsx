@@ -14,6 +14,7 @@ import {
   buildMonitorTimeRangeParams,
   computeUncachedInputTokens,
   applyMonitorChannelStatsModelFilter,
+  mergeMonitorFilterOptions,
   type DateRange,
 } from '@/utils/monitor';
 import styles from '@/pages/MonitorPage.module.scss';
@@ -175,7 +176,12 @@ export function ChannelStats({ refreshKey, loading, providerMap, providerModels 
           : rawItems.flatMap((stat) => (stat.models || []).map((model) => model.model))
       );
 
-      setFilters({ channels, models: Array.from(modelSet).sort() });
+      const nextFilters = { channels, models: Array.from(modelSet).sort() };
+      setFilters((prev) => mergeMonitorFilterOptions(prev, nextFilters, {
+        channel: filterChannel,
+        model: filterModel,
+        status: filterStatus,
+      }));
     } catch (err) {
       console.error('渠道统计加载失败：', err);
       setChannelStats([]);

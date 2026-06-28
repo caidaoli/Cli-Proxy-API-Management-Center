@@ -315,7 +315,7 @@ export function MonitorPage() {
 
       {/* 图表区域 */}
       <div className={styles.chartsGrid}>
-        <ModelDistributionChart timeRange={timeRange} apiFilter={apiFilter} isDark={isDark} />
+        <ModelDistributionChart timeRange={timeRange} apiFilter={apiFilter} isDark={isDark} providerMap={providerMap} />
         <DailyTrendChart timeRange={timeRange} apiFilter={apiFilter} isDark={isDark} />
       </div>
 
