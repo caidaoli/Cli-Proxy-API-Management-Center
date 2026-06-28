@@ -93,6 +93,7 @@ export function SystemPage() {
   const [requestLogTouched, setRequestLogTouched] = useState(false);
   const [requestLogSaving, setRequestLogSaving] = useState(false);
   const [checkingVersion, setCheckingVersion] = useState(false);
+  const [checkingPanelVersion, setCheckingPanelVersion] = useState(false);
 
   const apiKeysCache = useRef<string[]>([]);
   const versionTapCount = useRef(0);
@@ -107,7 +108,8 @@ export function SystemPage() {
   const requestLogDirty = requestLogDraft !== requestLogEnabled;
   const canEditRequestLog = auth.connectionStatus === 'connected' && Boolean(config);
 
-  const appVersion = __APP_VERSION__ || t('system_info.version_unknown');
+  const appVersionRaw = __APP_VERSION__ || '';
+  const appVersion = appVersionRaw || t('system_info.version_unknown');
   const apiVersion = auth.serverVersion || t('system_info.version_unknown');
   const buildTime = auth.serverBuildDate
     ? new Date(auth.serverBuildDate).toLocaleString(i18n.language)
@@ -315,6 +317,49 @@ export function SystemPage() {
     }
   }, [auth.serverVersion, showNotification, t]);
 
+  const handlePanelVersionCheck = useCallback(async () => {
+    setCheckingPanelVersion(true);
+    try {
+      const data = await versionApi.checkLatestPanel();
+      const latestRaw = data?.['latest-version'] ?? data?.latest_version ?? data?.latest ?? '';
+      const latest = typeof latestRaw === 'string' ? latestRaw : String(latestRaw ?? '');
+      const comparison = compareVersions(latest, appVersionRaw);
+
+      if (!latest) {
+        showNotification(t('system_info.version_check_error'), 'error');
+        return;
+      }
+
+      if (comparison === null) {
+        showNotification(t('system_info.panel_version_current_missing'), 'warning');
+        return;
+      }
+
+      if (comparison <= 0) {
+        showNotification(t('system_info.version_is_latest'), 'success');
+        return;
+      }
+
+      showNotification(
+        t('system_info.panel_version_update_downloading', { version: latest }),
+        'info'
+      );
+      await versionApi.updatePanel();
+      showNotification(
+        t('system_info.panel_version_updated_refresh', { version: latest }),
+        'success',
+        0
+      );
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : typeof error === 'string' ? error : '';
+      const suffix = message ? `: ${message}` : '';
+      showNotification(`${t('system_info.version_check_error')}${suffix}`, 'error');
+    } finally {
+      setCheckingPanelVersion(false);
+    }
+  }, [appVersionRaw, showNotification, t]);
+
   useEffect(() => {
     fetchConfig().catch(() => {
       // ignore
@@ -351,16 +396,30 @@ export function SystemPage() {
           </div>
 
           <div className={styles.aboutInfoGrid}>
-            <button
-              type="button"
-              className={`${styles.infoTile} ${styles.tapTile}`}
-              onClick={handleInfoVersionTap}
-            >
+            <div className={styles.infoTile}>
               <div className={styles.tileHeader}>
                 <div className={styles.tileLabel}>{t('footer.version')}</div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className={styles.tileAction}
+                  onClick={() => void handlePanelVersionCheck()}
+                  loading={checkingPanelVersion}
+                  title={t('system_info.version_check_button')}
+                  aria-label={t('system_info.version_check_button')}
+                >
+                  {t('system_info.version_check_button')}
+                </Button>
               </div>
-              <div className={styles.tileValue}>{appVersion}</div>
-            </button>
+              <button
+                type="button"
+                className={styles.tileValueButton}
+                onClick={handleInfoVersionTap}
+              >
+                {appVersion}
+              </button>
+            </div>
 
             <div className={styles.infoTile}>
               <div className={styles.tileHeader}>
@@ -417,24 +476,6 @@ export function SystemPage() {
 
             <a
               href="https://github.com/caidaoli/Cli-Proxy-API-Management-Center"
-              target="_blank"
-              rel="noopener noreferrer"
-              className={styles.linkCard}
-            >
-              <div className={`${styles.linkIcon} ${styles.github}`}>
-                <IconCode size={22} />
-              </div>
-              <div className={styles.linkContent}>
-                <div className={styles.linkTitle}>
-                  {t('system_info.link_webui_repo')}
-                  <IconExternalLink size={14} />
-                </div>
-                <div className={styles.linkDesc}>{t('system_info.link_webui_repo_desc')}</div>
-              </div>
-            </a>
-
-            <a
-              href="https://github.com/router-for-me/Cli-Proxy-API-Management-Center"
               target="_blank"
               rel="noopener noreferrer"
               className={styles.linkCard}

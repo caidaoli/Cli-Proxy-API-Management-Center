@@ -122,6 +122,21 @@
   word-break: break-word;
 }
 
+.tileValueButton {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.25;
+  word-break: break-word;
+  cursor: pointer;
+}
+
 .tileSub {
   font-size: 12px;
   color: var(--text-tertiary);
