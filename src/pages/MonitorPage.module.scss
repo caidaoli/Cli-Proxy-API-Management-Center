@@ -325,6 +325,11 @@
   display: grid;
   gap: 20px;
   grid-template-columns: 1fr 2fr;
+  min-width: 0;
+
+  > * {
+    min-width: 0;
+  }
 
   @include tablet {
     grid-template-columns: 1fr;
@@ -416,10 +421,12 @@
   border-radius: $radius-lg;
   padding: 20px;
   box-shadow: var(--shadow-lg);
+  min-width: 0;
 
   @include mobile {
     padding: 14px;
     border-radius: $radius-md;
+    overflow: hidden;
   }
 }
 
@@ -512,6 +519,25 @@
   }
 }
 
+.distributionTabs {
+  @include mobile {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+    max-width: calc(100vw - 62px);
+    justify-content: stretch;
+    border-radius: $radius-md;
+  }
+}
+
+.distributionTabButton {
+  @include mobile {
+    min-width: 0;
+    text-align: center;
+    white-space: normal;
+  }
+}
+
 .chartContent {
   position: relative;
   min-height: 280px;
@@ -531,6 +557,31 @@
   font-size: 13px;
 }
 
+.trendChartCard {
+  display: flex;
+  flex-direction: column;
+  min-height: 448px;
+
+  @include mobile {
+    min-height: auto;
+  }
+}
+
+.trendChartContent {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  overflow: hidden;
+
+  :global(canvas) {
+    max-width: 100% !important;
+  }
+
+  @include mobile {
+    min-height: 260px;
+  }
+}
+
 // 分布图特殊布局
 .distributionContent {
   display: flex;
@@ -540,6 +591,8 @@
   @include mobile {
     flex-direction: column;
     align-items: center;
+    width: calc(100vw - 62px);
+    max-width: 100%;
   }
 }
 
@@ -573,6 +626,10 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+
+  @include mobile {
+    width: 100%;
+  }
 }
 
 .legendItem {
@@ -593,6 +650,7 @@
 
 .legendName {
   flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -601,6 +659,7 @@
 .legendValue {
   font-weight: 600;
   color: var(--text-primary);
+  flex-shrink: 0;
 }
 
 // 表格样式

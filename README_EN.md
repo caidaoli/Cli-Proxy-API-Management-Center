@@ -60,10 +60,11 @@ All metrics are dynamically calculated and updated in real-time based on the sel
 
 #### Model Usage Distribution
 
-Intuitive pie chart showing the usage distribution of different models:
-- Distribution by request count
-- Distribution by token count
-- Switchable between request percentage and token percentage
+Intuitive pie chart showing channel and model usage share:
+- Channel token distribution
+- Channel cost distribution
+- Model token distribution
+- Model cost distribution
 
 #### Daily Trend Analysis
 

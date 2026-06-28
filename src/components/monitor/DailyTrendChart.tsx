@@ -3,7 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { Chart } from 'react-chartjs-2';
 import type { TimeRange } from '@/pages/MonitorPage';
 import { monitorApi, type MonitorDailyTrendItem } from '@/services/api/monitor';
-import { buildMonitorTimeRangeParams } from '@/utils/monitor';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
+import {
+  buildMonitorTimeRangeParams,
+} from '@/utils/monitor';
 import styles from '@/pages/MonitorPage.module.scss';
 
 interface DailyTrendChartProps {
@@ -16,6 +19,7 @@ const EMPTY_DAILY_ITEMS: MonitorDailyTrendItem[] = [];
 
 export function DailyTrendChart({ timeRange, apiFilter, isDark }: DailyTrendChartProps) {
   const { t } = useTranslation();
+  const isMobile = useMediaQuery('(max-width: 768px)');
   const requestKey = `${timeRange}\0${apiFilter}`;
   const [dailyState, setDailyState] = useState<{
     requestKey: string;
@@ -114,9 +118,9 @@ export function DailyTrendChart({ timeRange, apiFilter, isDark }: DailyTrendChar
         labels: {
           color: isDark ? '#9ca3af' : '#6b7280',
           usePointStyle: true,
-          padding: 16,
+          padding: isMobile ? 8 : 16,
           font: {
-            size: 11,
+            size: isMobile ? 10 : 11,
           },
           generateLabels: (chart: any) => {
             return chart.data.datasets.map((dataset: any, i: number) => {
@@ -160,8 +164,11 @@ export function DailyTrendChart({ timeRange, apiFilter, isDark }: DailyTrendChar
         },
         ticks: {
           color: isDark ? '#9ca3af' : '#6b7280',
+          autoSkip: true,
+          maxTicksLimit: isMobile ? 4 : 8,
+          maxRotation: 0,
           font: {
-            size: 11,
+            size: isMobile ? 10 : 11,
           },
         },
       },
@@ -174,13 +181,14 @@ export function DailyTrendChart({ timeRange, apiFilter, isDark }: DailyTrendChar
         },
         ticks: {
           color: isDark ? '#9ca3af' : '#6b7280',
+          maxTicksLimit: isMobile ? 4 : 8,
           font: {
-            size: 11,
+            size: isMobile ? 10 : 11,
           },
           callback: (value: string | number) => `${value}K`,
         },
         title: {
-          display: true,
+          display: !isMobile,
           text: 'Tokens (K)',
           color: isDark ? '#9ca3af' : '#6b7280',
           font: {
@@ -191,6 +199,7 @@ export function DailyTrendChart({ timeRange, apiFilter, isDark }: DailyTrendChar
       y1: {
         type: 'linear' as const,
         position: 'right' as const,
+        display: !isMobile,
         grid: {
           drawOnChartArea: false,
         },
@@ -201,7 +210,7 @@ export function DailyTrendChart({ timeRange, apiFilter, isDark }: DailyTrendChar
           },
         },
         title: {
-          display: true,
+          display: !isMobile,
           text: t('monitor.trend.requests'),
           color: isDark ? '#9ca3af' : '#6b7280',
           font: {
@@ -210,7 +219,7 @@ export function DailyTrendChart({ timeRange, apiFilter, isDark }: DailyTrendChar
         },
       },
     },
-  }), [isDark, t]);
+  }), [isDark, isMobile, t]);
 
   const timeRangeLabel = (() => {
     if (timeRange === 'yesterday') return t('monitor.yesterday');
@@ -220,7 +229,7 @@ export function DailyTrendChart({ timeRange, apiFilter, isDark }: DailyTrendChar
   })();
 
   return (
-    <div className={styles.chartCard}>
+    <div className={`${styles.chartCard} ${styles.trendChartCard}`}>
       <div className={styles.chartHeader}>
         <div>
           <h3 className={styles.chartTitle}>{t('monitor.trend.title')}</h3>
@@ -230,7 +239,7 @@ export function DailyTrendChart({ timeRange, apiFilter, isDark }: DailyTrendChar
         </div>
       </div>
 
-      <div className={styles.chartContent}>
+      <div className={`${styles.chartContent} ${styles.trendChartContent}`}>
         {loading || dailyItems.length === 0 ? (
           <div className={styles.chartEmpty}>
             {loading ? t('common.loading') : t('monitor.no_data')}

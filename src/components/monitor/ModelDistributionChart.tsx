@@ -3,10 +3,13 @@ import { useTranslation } from 'react-i18next';
 import { Doughnut } from 'react-chartjs-2';
 import type { TooltipItem } from 'chart.js';
 import type { TimeRange } from '@/pages/MonitorPage';
-import { monitorApi, type MonitorModelDistributionItem } from '@/services/api/monitor';
+import { monitorApi } from '@/services/api/monitor';
 import {
   buildMonitorChannelDistributionItems,
+  buildMonitorModelDistributionItems,
   buildMonitorTimeRangeParams,
+  formatMonitorCost,
+  type MonitorDistributionMetric,
   type MonitorDistributionListItem,
 } from '@/utils/monitor';
 import styles from '@/pages/MonitorPage.module.scss';
@@ -32,16 +35,26 @@ const COLORS = [
   '#6366f1', // 靛蓝
 ];
 
-type ViewMode = 'request' | 'token';
-type DistributionMode = 'model' | 'channel';
+type DistributionTab = 'channel-token' | 'channel-cost' | 'model-token' | 'model-cost';
+
+const DISTRIBUTION_TABS: { id: DistributionTab; labelKey: string }[] = [
+  { id: 'channel-token', labelKey: 'monitor.distribution.tab_channel_token' },
+  { id: 'channel-cost', labelKey: 'monitor.distribution.tab_channel_cost' },
+  { id: 'model-token', labelKey: 'monitor.distribution.tab_model_token' },
+  { id: 'model-cost', labelKey: 'monitor.distribution.tab_model_cost' },
+];
+
+const DISTRIBUTION_TOP_LIMIT = 10;
+const DISTRIBUTION_SOURCE_LIMIT = 1000;
 
 const EMPTY_DISTRIBUTION_ITEMS: MonitorDistributionListItem[] = [];
 
 export function ModelDistributionChart({ timeRange, apiFilter, isDark, providerMap }: ModelDistributionChartProps) {
   const { t } = useTranslation();
-  const [viewMode, setViewMode] = useState<ViewMode>('request');
-  const [distributionMode, setDistributionMode] = useState<DistributionMode>('model');
-  const requestKey = `${timeRange}\0${apiFilter}\0${viewMode}\0${distributionMode}`;
+  const [activeTab, setActiveTab] = useState<DistributionTab>('channel-token');
+  const distributionMode = activeTab.startsWith('channel') ? 'channel' : 'model';
+  const metric: MonitorDistributionMetric = activeTab.endsWith('cost') ? 'cost' : 'token';
+  const requestKey = `${timeRange}\0${apiFilter}\0${activeTab}`;
   const otherLabel = t('monitor.distribution.other');
   const [distributionState, setDistributionState] = useState<{
     requestKey: string;
@@ -55,27 +68,28 @@ export function ModelDistributionChart({ timeRange, apiFilter, isDark, providerM
     const timeParams = buildMonitorTimeRangeParams(timeRange);
 
     const loadDistribution = async () => {
-      if (distributionMode === 'channel') {
-        const data = await monitorApi.getChannelStats({
-          limit: 100,
-          ...timeParams,
-          ...(apiFilter ? { api_filter: apiFilter } : {}),
-        });
-        return buildMonitorChannelDistributionItems(data.items || [], providerMap, viewMode, 10, otherLabel);
-      }
-
-      const data = await monitorApi.getModelDistribution({
-        sort: viewMode === 'request' ? 'requests' as const : 'tokens' as const,
-        limit: 10,
+      const data = await monitorApi.getChannelStats({
+        limit: DISTRIBUTION_SOURCE_LIMIT,
         ...timeParams,
         ...(apiFilter ? { api_filter: apiFilter } : {}),
       });
 
-      return (data.items || []).map((item: MonitorModelDistributionItem) => ({
-        label: item.model,
-        requests: item.requests,
-        tokens: item.tokens,
-      }));
+      if (distributionMode === 'channel') {
+        return buildMonitorChannelDistributionItems(
+          data.items || [],
+          providerMap,
+          metric,
+          DISTRIBUTION_TOP_LIMIT,
+          otherLabel
+        );
+      }
+
+      return buildMonitorModelDistributionItems(
+        data.items || [],
+        metric,
+        DISTRIBUTION_TOP_LIMIT,
+        otherLabel
+      );
     };
 
     loadDistribution()
@@ -92,7 +106,7 @@ export function ModelDistributionChart({ timeRange, apiFilter, isDark, providerM
       });
 
     return () => { cancelled = true; };
-  }, [timeRange, apiFilter, viewMode, distributionMode, providerMap, otherLabel, requestKey]);
+  }, [timeRange, apiFilter, activeTab, distributionMode, metric, providerMap, otherLabel, requestKey]);
 
   const timeRangeLabel = (() => {
     if (timeRange === 'yesterday') return t('monitor.yesterday');
@@ -104,9 +118,9 @@ export function ModelDistributionChart({ timeRange, apiFilter, isDark, providerM
   // 计算总数
   const total = useMemo(() => {
     return distributionItems.reduce((sum, item) => {
-      return sum + (viewMode === 'request' ? item.requests : item.tokens);
+      return sum + (metric === 'cost' ? item.cost : item.tokens);
     }, 0);
-  }, [distributionItems, viewMode]);
+  }, [distributionItems, metric]);
 
   // 图表数据
   const chartData = useMemo(() => {
@@ -114,16 +128,14 @@ export function ModelDistributionChart({ timeRange, apiFilter, isDark, providerM
       labels: distributionItems.map((item) => item.label),
       datasets: [
         {
-          data: distributionItems.map((item) =>
-            viewMode === 'request' ? item.requests : item.tokens
-          ),
+          data: distributionItems.map((item) => metric === 'cost' ? item.cost : item.tokens),
           backgroundColor: COLORS.slice(0, distributionItems.length),
           borderColor: isDark ? '#1f2937' : '#ffffff',
           borderWidth: 2,
         },
       ],
     };
-  }, [distributionItems, viewMode, isDark]);
+  }, [distributionItems, metric, isDark]);
 
   // 图表配置
   const chartOptions = useMemo(() => ({
@@ -145,18 +157,18 @@ export function ModelDistributionChart({ timeRange, apiFilter, isDark, providerM
           label: (context: TooltipItem<'doughnut'>) => {
             const value = Number(context.raw || 0);
             const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
-            if (viewMode === 'request') {
-              return `${value.toLocaleString()} ${t('monitor.requests')} (${percentage}%)`;
+            if (metric === 'cost') {
+              return `${formatMonitorCost(value)} (${percentage}%)`;
             }
-            return `${value.toLocaleString()} tokens (${percentage}%)`;
+            return `${value.toLocaleString()} ${t('monitor.distribution.tokens')} (${percentage}%)`;
           },
         },
       },
     },
-  }), [isDark, total, viewMode, t]);
+  }), [isDark, total, metric, t]);
 
   // 格式化数值
-  const formatValue = (value: number) => {
+  const formatTokenValue = (value: number) => {
     if (value >= 1000000) {
       return (value / 1000000).toFixed(1) + 'M';
     }
@@ -166,21 +178,28 @@ export function ModelDistributionChart({ timeRange, apiFilter, isDark, providerM
     return value.toString();
   };
 
+  const formatDistributionValue = (value: number) =>
+    metric === 'cost' ? formatMonitorCost(value) : formatTokenValue(value);
+
   const titleKey = distributionMode === 'channel'
     ? 'monitor.distribution.channel_title'
     : 'monitor.distribution.title';
   const dimensionLabel = distributionMode === 'channel'
     ? t('monitor.distribution.channels')
     : t('monitor.distribution.models');
+  const metricLabel = metric === 'cost'
+    ? t('monitor.distribution.by_cost')
+    : t('monitor.distribution.by_tokens');
   const shareLabel = (() => {
-    if (distributionMode === 'channel') {
-      return viewMode === 'request'
-        ? t('monitor.distribution.channel_request_share')
-        : t('monitor.distribution.channel_token_share');
+    if (distributionMode === 'channel' && metric === 'cost') {
+      return t('monitor.distribution.channel_cost_share');
     }
-    return viewMode === 'request'
-      ? t('monitor.distribution.request_share')
-      : t('monitor.distribution.token_share');
+    if (distributionMode === 'channel') {
+      return t('monitor.distribution.channel_token_share');
+    }
+    return metric === 'cost'
+      ? t('monitor.distribution.model_cost_share')
+      : t('monitor.distribution.model_token_share');
   })();
 
   return (
@@ -189,38 +208,27 @@ export function ModelDistributionChart({ timeRange, apiFilter, isDark, providerM
         <div>
           <h3 className={styles.chartTitle}>{t(titleKey)}</h3>
           <p className={styles.chartSubtitle}>
-            {timeRangeLabel} · {dimensionLabel} · {viewMode === 'request' ? t('monitor.distribution.by_requests') : t('monitor.distribution.by_tokens')}
-            {' · Top 10'}
+            {timeRangeLabel} · {dimensionLabel} · {metricLabel} · Top {DISTRIBUTION_TOP_LIMIT}
           </p>
         </div>
         <div className={styles.chartControlGroups}>
-          <div className={styles.chartControls}>
-            <button
-              className={`${styles.chartControlBtn} ${distributionMode === 'model' ? styles.active : ''}`}
-              onClick={() => setDistributionMode('model')}
-            >
-              {t('monitor.distribution.models')}
-            </button>
-            <button
-              className={`${styles.chartControlBtn} ${distributionMode === 'channel' ? styles.active : ''}`}
-              onClick={() => setDistributionMode('channel')}
-            >
-              {t('monitor.distribution.channels')}
-            </button>
-          </div>
-          <div className={styles.chartControls}>
-            <button
-              className={`${styles.chartControlBtn} ${viewMode === 'request' ? styles.active : ''}`}
-              onClick={() => setViewMode('request')}
-            >
-              {t('monitor.distribution.requests')}
-            </button>
-            <button
-              className={`${styles.chartControlBtn} ${viewMode === 'token' ? styles.active : ''}`}
-              onClick={() => setViewMode('token')}
-            >
-              {t('monitor.distribution.tokens')}
-            </button>
+          <div
+            className={`${styles.chartControls} ${styles.distributionTabs}`}
+            role="tablist"
+            aria-label={t('monitor.distribution.tabs_label')}
+          >
+            {DISTRIBUTION_TABS.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === tab.id}
+                className={`${styles.chartControlBtn} ${styles.distributionTabButton} ${activeTab === tab.id ? styles.active : ''}`}
+                onClick={() => setActiveTab(tab.id)}
+              >
+                {t(tab.labelKey)}
+              </button>
+            ))}
           </div>
         </div>
       </div>
@@ -243,7 +251,7 @@ export function ModelDistributionChart({ timeRange, apiFilter, isDark, providerM
           </div>
           <div className={styles.legendList}>
             {distributionItems.map((item, index) => {
-              const value = viewMode === 'request' ? item.requests : item.tokens;
+              const value = metric === 'cost' ? item.cost : item.tokens;
               const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0';
               return (
                 <div key={`${item.label}-${index}`} className={styles.legendItem}>
@@ -255,7 +263,7 @@ export function ModelDistributionChart({ timeRange, apiFilter, isDark, providerM
                     {item.label}
                   </span>
                   <span className={styles.legendValue}>
-                    {formatValue(value)} ({percentage}%)
+                    {formatDistributionValue(value)} ({percentage}%)
                   </span>
                 </div>
               );

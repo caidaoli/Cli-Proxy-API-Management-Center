@@ -10,6 +10,7 @@ import type {
   MonitorKpiData,
   MonitorTimeRangeQuery,
 } from '@/services/api/monitor';
+import { calculateModelCost } from './costCalculator.ts';
 
 /**
  * 日期范围接口
@@ -111,18 +112,19 @@ export function mergeMonitorFilterOptions<TChannel, TModel>(
 
 export interface MonitorDistributionListItem {
   label: string;
-  requests: number;
   tokens: number;
+  cost: number;
 }
 
-export function buildMonitorChannelDistributionItems(
-  items: MonitorChannelStatsItem[],
-  providerMap: Record<string, string>,
-  sortBy: 'request' | 'token',
-  limit = 10,
-  otherLabel = '其他'
+export type MonitorDistributionMetric = 'token' | 'cost';
+
+function buildTopMonitorDistributionItems(
+  items: MonitorDistributionListItem[],
+  metric: MonitorDistributionMetric,
+  limit: number,
+  otherLabel: string
 ): MonitorDistributionListItem[] {
-  const metric = sortBy === 'request' ? 'requests' : 'tokens';
+  const metricKey = metric === 'cost' ? 'cost' : 'tokens';
   const maxItems = Math.max(0, Math.floor(limit));
 
   if (maxItems === 0) {
@@ -130,18 +132,8 @@ export function buildMonitorChannelDistributionItems(
   }
 
   const sorted = items
-    .map((item) => {
-      const source = item.source || 'unknown';
-      const { provider, masked } = getProviderDisplayParts(source, providerMap);
-
-      return {
-        label: provider ? `${provider} (${masked})` : masked,
-        requests: toSafeMonitorNumber(item.total_requests),
-        tokens: toSafeMonitorNumber(item.input_tokens) + toSafeMonitorNumber(item.output_tokens),
-      };
-    })
-    .filter((item) => item[metric] > 0)
-    .sort((a, b) => b[metric] - a[metric]);
+    .filter((item) => item[metricKey] > 0)
+    .sort((a, b) => b[metricKey] - a[metricKey]);
 
   if (sorted.length <= maxItems) {
     return sorted;
@@ -157,13 +149,67 @@ export function buildMonitorChannelDistributionItems(
   const other = rest.reduce<MonitorDistributionListItem>(
     (sum, item) => ({
       label: otherLabel,
-      requests: sum.requests + item.requests,
       tokens: sum.tokens + item.tokens,
+      cost: sum.cost + item.cost,
     }),
-    { label: otherLabel, requests: 0, tokens: 0 }
+    { label: otherLabel, tokens: 0, cost: 0 }
   );
 
   return [...visible, other];
+}
+
+function calculateMonitorModelStatsCost(model: { model: string; input_tokens: number; output_tokens: number; cached_tokens: number }): number {
+  return calculateMonitorRequestCost(
+    model.model,
+    toSafeMonitorNumber(model.input_tokens),
+    toSafeMonitorNumber(model.output_tokens),
+    toSafeMonitorNumber(model.cached_tokens)
+  );
+}
+
+export function buildMonitorChannelDistributionItems(
+  items: MonitorChannelStatsItem[],
+  providerMap: Record<string, string>,
+  sortBy: MonitorDistributionMetric,
+  limit = 10,
+  otherLabel = '其他'
+): MonitorDistributionListItem[] {
+  const distributionItems = items.map((item) => {
+    const source = item.source || 'unknown';
+    const { provider, masked } = getProviderDisplayParts(source, providerMap);
+
+    return {
+      label: provider ? `${provider} (${masked})` : masked,
+      tokens: toSafeMonitorNumber(item.input_tokens) + toSafeMonitorNumber(item.output_tokens),
+      cost: (item.models || []).reduce(
+        (sum, model) => sum + calculateMonitorModelStatsCost(model),
+        0
+      ),
+    };
+  });
+
+  return buildTopMonitorDistributionItems(distributionItems, sortBy, limit, otherLabel);
+}
+
+export function buildMonitorModelDistributionItems(
+  items: MonitorChannelStatsItem[],
+  sortBy: MonitorDistributionMetric,
+  limit = 10,
+  otherLabel = '其他'
+): MonitorDistributionListItem[] {
+  const models = new Map<string, MonitorDistributionListItem>();
+
+  items.forEach((item) => {
+    (item.models || []).forEach((model) => {
+      const label = model.model || 'unknown';
+      const previous = models.get(label) ?? { label, tokens: 0, cost: 0 };
+      previous.tokens += toSafeMonitorNumber(model.input_tokens) + toSafeMonitorNumber(model.output_tokens);
+      previous.cost += calculateMonitorModelStatsCost(model);
+      models.set(label, previous);
+    });
+  });
+
+  return buildTopMonitorDistributionItems(Array.from(models.values()), sortBy, limit, otherLabel);
 }
 
 export function formatMonitorNumber(value: unknown): string {
@@ -543,6 +589,25 @@ export function computeUncachedInputTokens(
   const input = toSafeMonitorNumber(inputTokens);
   const cached = toSafeMonitorNumber(cachedTokens);
   return Math.max(input - cached, 0);
+}
+
+export function calculateMonitorRequestCost(
+  model: string,
+  inputTokens: number,
+  outputTokens: number,
+  cachedTokens: number
+): number {
+  return calculateModelCost(
+    model,
+    computeUncachedInputTokens(inputTokens, cachedTokens),
+    toSafeMonitorNumber(outputTokens),
+    toSafeMonitorNumber(cachedTokens)
+  );
+}
+
+export function formatMonitorCost(cost: number): string {
+  const value = toSafeMonitorNumber(cost);
+  return value > 0 ? `$${value.toFixed(4)}` : '-';
 }
 
 const MIN_STREAM_OUTPUT_DURATION_MS = 1000;

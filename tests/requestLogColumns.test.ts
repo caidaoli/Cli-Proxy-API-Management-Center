@@ -11,7 +11,6 @@ import { formatCacheTokenRatio } from '../src/utils/monitor.ts';
 
 test('监控请求日志表格不展示请求 API、请求类型和成功率列', () => {
   assert.deepEqual(REQUEST_LOG_TABLE_COLUMN_KEYS, [
-    'auth',
     'model',
     'source',
     'status',
@@ -22,9 +21,11 @@ test('监控请求日志表格不展示请求 API、请求类型和成功率列'
     'output',
     'cache',
     'cacheRate',
+    'cost',
     'time',
   ]);
 
+  assert.equal(REQUEST_LOG_TABLE_COLUMN_KEYS.includes('auth'), false);
   assert.equal(REQUEST_LOG_TABLE_COLUMN_KEYS.includes('api'), false);
   assert.equal(REQUEST_LOG_TABLE_COLUMN_KEYS.includes('requestType'), false);
   assert.equal(REQUEST_LOG_TABLE_COLUMN_KEYS.includes('count'), false);
@@ -45,6 +46,7 @@ test('监控请求日志表格列宽与列定义保持同步', () => {
   assert.equal(REQUEST_LOG_TABLE_COLUMN_WIDTHS.output, 88);
   assert.equal(REQUEST_LOG_TABLE_COLUMN_WIDTHS.cache, 88);
   assert.equal(REQUEST_LOG_TABLE_COLUMN_WIDTHS.cacheRate, 88);
+  assert.equal(REQUEST_LOG_TABLE_COLUMN_WIDTHS.cost, 88);
   assert.equal(REQUEST_LOG_TABLE_COLUMN_WIDTHS.time, 180);
   assert.ok(REQUEST_LOG_TABLE_COLUMN_WIDTHS.time > REQUEST_LOG_TABLE_COLUMN_WIDTHS.output);
 });

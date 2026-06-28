@@ -13,6 +13,8 @@ import {
   getProviderDisplayParts,
   buildMonitorTimeRangeParams,
   computeUncachedInputTokens,
+  calculateMonitorRequestCost,
+  formatMonitorCost,
   applyMonitorChannelStatsModelFilter,
   mergeMonitorFilterOptions,
   type DateRange,
@@ -34,6 +36,7 @@ interface ModelStat {
   totalInputTokens: number;
   outputTokens: number;
   cachedTokens: number;
+  cost: number;
   successRate: number;
   recentRequests: { failed: boolean; timestamp: number }[];
   lastTimestamp: number;
@@ -51,6 +54,7 @@ interface ChannelStat {
   totalInputTokens: number;
   outputTokens: number;
   cachedTokens: number;
+  cost: number;
   successRate: number;
   lastRequestTime: number;
   recentRequests: { failed: boolean; timestamp: number }[];
@@ -105,14 +109,16 @@ export function ChannelStats({ refreshKey, loading, providerMap, providerModels 
     (item.models || []).forEach((model) => {
       const totalInputTokens = model.input_tokens || 0;
       const cachedTokens = model.cached_tokens || 0;
+      const outputTokens = model.output_tokens || 0;
       models[model.model] = {
         requests: model.requests || 0,
         success: model.success || 0,
         failed: model.failed || 0,
         inputTokens: computeUncachedInputTokens(totalInputTokens, cachedTokens),
         totalInputTokens,
-        outputTokens: model.output_tokens || 0,
+        outputTokens,
         cachedTokens,
+        cost: calculateMonitorRequestCost(model.model, totalInputTokens, outputTokens, cachedTokens),
         successRate: model.success_rate || 0,
         recentRequests: (model.recent_requests || []).map((req) => ({
           failed: !!req.failed,
@@ -136,6 +142,7 @@ export function ChannelStats({ refreshKey, loading, providerMap, providerModels 
       totalInputTokens,
       outputTokens: item.output_tokens || 0,
       cachedTokens,
+      cost: Object.values(models).reduce((sum, model) => sum + model.cost, 0),
       successRate: item.success_rate || 0,
       lastRequestTime: item.last_request_at ? new Date(item.last_request_at).getTime() : 0,
       recentRequests: (item.recent_requests || []).map((req) => ({
@@ -242,6 +249,12 @@ export function ChannelStats({ refreshKey, loading, providerMap, providerModels 
     );
   };
 
+  const renderCostCell = (cost: number) => (
+    <td className={`${styles.tokenCell} ${styles.numberCell}`} title={formatMonitorCost(cost)}>
+      {formatMonitorCost(cost)}
+    </td>
+  );
+
   return (
     <>
       <Card
@@ -302,6 +315,7 @@ export function ChannelStats({ refreshKey, loading, providerMap, providerModels 
                   <th className={styles.numberCell}>{t('monitor.logs.header_output')}</th>
                   <th className={styles.numberCell}>{t('monitor.logs.header_cache')}</th>
                   <th className={styles.numberCell}>{t('monitor.logs.header_cache_ratio')}</th>
+                  <th className={styles.numberCell}>{t('monitor.logs.header_cost')}</th>
                   <th className={styles.numberCell}>{t('monitor.channel.header_rate')}</th>
                   <th>{t('monitor.channel.header_recent')}</th>
                   <th>{t('monitor.channel.header_time')}</th>
@@ -329,6 +343,7 @@ export function ChannelStats({ refreshKey, loading, providerMap, providerModels 
                       {renderTokenCell(stat.outputTokens)}
                       {renderCacheCell(stat.cachedTokens)}
                       {renderCacheRatioCell(stat.cachedTokens, stat.totalInputTokens)}
+                      {renderCostCell(stat.cost)}
                       <td className={`${getRateClassName(stat.successRate, styles)} ${styles.numberCell}`}>
                         {stat.successRate.toFixed(1)}%
                       </td>
@@ -346,7 +361,7 @@ export function ChannelStats({ refreshKey, loading, providerMap, providerModels 
                     </tr>
                     {expandedChannel === stat.source && (
                       <tr key={`${stat.source}-detail`}>
-                        <td colSpan={9} className={styles.expandDetail}>
+                        <td colSpan={10} className={styles.expandDetail}>
                           <div className={styles.expandTableWrapper}>
                             <table className={`${styles.table} ${styles.channelModelStatsTable}`}>
                               <thead>
@@ -357,6 +372,7 @@ export function ChannelStats({ refreshKey, loading, providerMap, providerModels 
                                   <th className={styles.numberCell}>{t('monitor.logs.header_output')}</th>
                                   <th className={styles.numberCell}>{t('monitor.logs.header_cache')}</th>
                                   <th className={styles.numberCell}>{t('monitor.logs.header_cache_ratio')}</th>
+                                  <th className={styles.numberCell}>{t('monitor.logs.header_cost')}</th>
                                   <th className={styles.numberCell}>{t('monitor.channel.header_rate')}</th>
                                   <th className={styles.numberCell}>{t('monitor.channel.success')}/{t('monitor.channel.failed')}</th>
                                   <th>{t('monitor.channel.header_recent')}</th>
@@ -384,6 +400,7 @@ export function ChannelStats({ refreshKey, loading, providerMap, providerModels 
                                         {renderTokenCell(modelStat.outputTokens)}
                                         {renderCacheCell(modelStat.cachedTokens)}
                                         {renderCacheRatioCell(modelStat.cachedTokens, modelStat.totalInputTokens)}
+                                        {renderCostCell(modelStat.cost)}
                                         <td className={`${getRateClassName(modelStat.successRate, styles)} ${styles.numberCell}`}>
                                           {modelStat.successRate.toFixed(1)}%
                                         </td>

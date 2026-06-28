@@ -20,6 +20,8 @@ import {
   formatCacheTokenRatio,
   computeUncachedInputTokens,
   formatOutputTokensPerSecond,
+  calculateMonitorRequestCost,
+  formatMonitorCost,
   type DateRange,
 } from '@/utils/monitor';
 import styles from '@/pages/MonitorPage.module.scss';
@@ -29,7 +31,6 @@ interface RequestLogsProps {
   loading: boolean;
   providerMap: Record<string, string>;
   apiFilter: string;
-  authIndexMap: Record<string, string>;
 }
 
 interface LogEntry {
@@ -45,10 +46,10 @@ interface LogEntry {
   totalInputTokens: number;
   outputTokens: number;
   cachedTokens: number;
+  cost: number;
   latencyMs: number;
   ttftMs: number;
   recentRequests: { failed: boolean; timestamp: number }[];
-  authIndex: string;
 }
 
 const REQUEST_LOG_NUMERIC_COLUMN_KEYS = new Set<RequestLogTableColumnKey>([
@@ -57,6 +58,7 @@ const REQUEST_LOG_NUMERIC_COLUMN_KEYS = new Set<RequestLogTableColumnKey>([
   'output',
   'cache',
   'cacheRate',
+  'cost',
 ]);
 
 export function RequestLogs({
@@ -64,7 +66,6 @@ export function RequestLogs({
   loading,
   providerMap,
   apiFilter,
-  authIndexMap,
 }: RequestLogsProps) {
   const { t } = useTranslation();
   const [filterModel, setFilterModel] = useState('');
@@ -105,6 +106,7 @@ export function RequestLogs({
       const timestampMs = item.timestamp ? new Date(item.timestamp).getTime() : 0;
       const totalInputTokens = item.input_tokens || 0;
       const cachedTokens = item.cached_tokens || 0;
+      const outputTokens = item.output_tokens || 0;
       return {
         id: `${item.timestamp}-${item.api_key}-${item.model}-${index}`,
         timestamp: item.timestamp,
@@ -116,15 +118,15 @@ export function RequestLogs({
         failed: item.failed,
         inputTokens: computeUncachedInputTokens(totalInputTokens, cachedTokens),
         totalInputTokens,
-        outputTokens: item.output_tokens || 0,
+        outputTokens,
         cachedTokens,
+        cost: calculateMonitorRequestCost(item.model, totalInputTokens, outputTokens, cachedTokens),
         latencyMs: item.latency_ms || 0,
         ttftMs: item.ttft_ms || 0,
         recentRequests: (item.recent_requests || []).map((req) => ({
           failed: !!req.failed,
           timestamp: req.timestamp ? new Date(req.timestamp).getTime() : 0,
         })),
-        authIndex: item.auth_index || '',
       };
     },
     [providerMap]
@@ -241,15 +243,7 @@ export function RequestLogs({
   };
 
   const renderCell = (entry: LogEntry, column: RequestLogTableColumnKey) => {
-    const authDisplayName = entry.authIndex
-      ? authIndexMap[entry.authIndex] || entry.authIndex
-      : '-';
-
     switch (column) {
-      case 'auth':
-        return (
-          <td title={authDisplayName}>{authDisplayName}</td>
-        );
       case 'model':
         return <td title={entry.model}>{entry.model}</td>;
       case 'source':
@@ -337,6 +331,12 @@ export function RequestLogs({
           </td>
         );
       }
+      case 'cost':
+        return (
+          <td className={`${styles.tokenCell} ${styles.numberCell}`} title={formatMonitorCost(entry.cost)}>
+            {formatMonitorCost(entry.cost)}
+          </td>
+        );
       case 'time':
         return <td>{formatTimestamp(entry.timestamp)}</td>;
     }

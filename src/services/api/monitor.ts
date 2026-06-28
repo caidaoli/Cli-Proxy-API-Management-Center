@@ -157,12 +157,6 @@ export interface MonitorKpiData {
   avg_rpd: number;
 }
 
-export interface MonitorModelDistributionItem {
-  model: string;
-  requests: number;
-  tokens: number;
-}
-
 export interface MonitorDailyTrendItem {
   date: string;
   requests: number;
@@ -276,9 +270,6 @@ export const monitorApi = {
     });
     return normalizeMonitorKpiData(data);
   },
-
-  getModelDistribution: (params: MonitorTimeRangeQuery & { sort?: 'requests' | 'tokens'; limit?: number } = {}) =>
-    apiClient.get<{ items: MonitorModelDistributionItem[] }>('/custom/monitor/model-distribution', { params, timeout: MONITOR_TIMEOUT_MS }),
 
   getDailyTrend: (params: MonitorTimeRangeQuery = {}) =>
     apiClient.get<{ items: MonitorDailyTrendItem[] }>('/custom/monitor/daily-trend', { params, timeout: MONITOR_TIMEOUT_MS }),
