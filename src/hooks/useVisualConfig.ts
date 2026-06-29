@@ -1174,6 +1174,7 @@ export function useVisualConfig() {
           doc.contents = doc.createNode({}) as unknown as typeof doc.contents;
         }
         const values = visualValues;
+        const shouldWritePluginStoreAuth = dirtyFields.has('pluginStoreAuth');
 
         setStringInDoc(doc, ['host'], values.host);
         setIntFromStringInDoc(doc, ['port'], values.port);
@@ -1255,7 +1256,7 @@ export function useVisualConfig() {
           docHas(doc, ['plugins']) ||
           values.pluginsEnabled ||
           values.pluginStoreSources.length > 0 ||
-          dirtyFields.has('pluginStoreAuth') ||
+          shouldWritePluginStoreAuth ||
           shouldWriteManagedField(doc, ['plugins', 'enabled'], dirtyFields, 'pluginsEnabled') ||
           shouldWriteManagedField(
             doc,
@@ -1265,7 +1266,6 @@ export function useVisualConfig() {
           ) ||
           shouldWriteManagedField(doc, ['plugins', 'store-auth'], dirtyFields, 'pluginStoreAuth')
         ) {
-          const shouldWritePluginStoreAuth = dirtyFields.has('pluginStoreAuth');
           ensureMapInDoc(doc, ['plugins']);
           setBooleanInDoc(doc, ['plugins', 'enabled'], values.pluginsEnabled);
           if (
