@@ -16,6 +16,7 @@ import {
   ApiKeysCardEditor,
   PayloadFilterRulesEditor,
   PayloadRulesEditor,
+  PluginStoreAuthEditor,
   StringListEditor,
 } from './VisualConfigEditorBlocks';
 
@@ -110,6 +111,10 @@ export function VisualConfigEditor({ values, validationErrors, disabled = false,
   const handleApiKeysTextChange = useCallback((apiKeysText: string) => onChange({ apiKeysText }), [onChange]);
   const handlePluginStoreSourcesChange = useCallback(
     (pluginStoreSources: string[]) => onChange({ pluginStoreSources }),
+    [onChange]
+  );
+  const handlePluginStoreAuthChange = useCallback(
+    (pluginStoreAuth: VisualConfigValues['pluginStoreAuth']) => onChange({ pluginStoreAuth }),
     [onChange]
   );
   const handlePayloadDefaultRulesChange = useCallback(
@@ -312,6 +317,18 @@ export function VisualConfigEditor({ values, validationErrors, disabled = false,
             />
             <div className="hint">
               {t('config_management.visual.sections.system.plugin_store_sources_hint')}
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>{t('config_management.visual.sections.system.store_auth_label')}</label>
+            <PluginStoreAuthEditor
+              value={values.pluginStoreAuth}
+              disabled={disabled}
+              onChange={handlePluginStoreAuthChange}
+            />
+            <div className="hint">
+              {t('config_management.visual.sections.system.store_auth_hint')}
             </div>
           </div>
 

@@ -13,6 +13,9 @@ import type {
   PayloadParamValidationErrorCode,
   PayloadParamValueType,
   PayloadRule,
+  PluginStoreAuthApplyTo,
+  PluginStoreAuthRule,
+  PluginStoreAuthType,
 } from '@/types/visualConfig';
 import { makeClientId } from '@/types/visualConfig';
 import {
@@ -323,6 +326,271 @@ export const StringListEditor = memo(function StringListEditor({
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
         <Button variant="secondary" size="sm" onClick={addItem} disabled={disabled}>
           {t('config_management.visual.common.add')}
+        </Button>
+      </div>
+    </div>
+  );
+});
+
+const PLUGIN_STORE_AUTH_TYPE_OPTIONS: Array<{ value: PluginStoreAuthType; labelKey: string }> = [
+  { value: 'bearer', labelKey: 'config_management.visual.sections.system.store_auth_type_bearer' },
+  {
+    value: 'github-token',
+    labelKey: 'config_management.visual.sections.system.store_auth_type_github_token',
+  },
+  { value: 'basic', labelKey: 'config_management.visual.sections.system.store_auth_type_basic' },
+  { value: 'header', labelKey: 'config_management.visual.sections.system.store_auth_type_header' },
+  { value: 'none', labelKey: 'config_management.visual.sections.system.store_auth_type_none' },
+];
+
+const PLUGIN_STORE_AUTH_APPLY_TO_OPTIONS: Array<{
+  value: PluginStoreAuthApplyTo;
+  labelKey: string;
+}> = [
+  {
+    value: 'registry',
+    labelKey: 'config_management.visual.sections.system.store_auth_apply_registry',
+  },
+  {
+    value: 'metadata',
+    labelKey: 'config_management.visual.sections.system.store_auth_apply_metadata',
+  },
+  {
+    value: 'artifact',
+    labelKey: 'config_management.visual.sections.system.store_auth_apply_artifact',
+  },
+];
+
+const createPluginStoreAuthRule = (): PluginStoreAuthRule => ({
+  id: makeClientId(),
+  match: '',
+  applyTo: [],
+  type: 'bearer',
+  tokenEnv: '',
+  usernameEnv: '',
+  passwordEnv: '',
+  headerName: '',
+  headerValueEnv: '',
+  allowInsecure: false,
+});
+
+export const PluginStoreAuthEditor = memo(function PluginStoreAuthEditor({
+  value,
+  disabled,
+  onChange,
+}: {
+  value: PluginStoreAuthRule[];
+  disabled?: boolean;
+  onChange: (next: PluginStoreAuthRule[]) => void;
+}) {
+  const { t } = useTranslation();
+
+  const updateRule = (id: string, patch: Partial<PluginStoreAuthRule>) => {
+    onChange(value.map((rule) => (rule.id === id ? { ...rule, ...patch } : rule)));
+  };
+  const addRule = () => onChange([...value, createPluginStoreAuthRule()]);
+  const removeRule = (id: string) => onChange(value.filter((rule) => rule.id !== id));
+  const toggleApplyTo = (rule: PluginStoreAuthRule, kind: PluginStoreAuthApplyTo) => {
+    const nextApplyTo = rule.applyTo.includes(kind)
+      ? rule.applyTo.filter((item) => item !== kind)
+      : [...rule.applyTo, kind];
+    updateRule(rule.id, { applyTo: nextApplyTo });
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {value.length === 0 ? (
+        <div
+          style={{
+            border: '1px dashed var(--border-color)',
+            borderRadius: 12,
+            padding: 16,
+            color: 'var(--text-secondary)',
+            textAlign: 'center',
+          }}
+        >
+          {t('config_management.visual.sections.system.store_auth_empty')}
+        </div>
+      ) : null}
+
+      {value.map((rule) => {
+        const usesToken = rule.type === 'bearer' || rule.type === 'github-token';
+        const usesBasic = rule.type === 'basic';
+        const usesHeader = rule.type === 'header';
+        return (
+          <div
+            key={rule.id}
+            style={{
+              border: '1px solid var(--border-color)',
+              borderRadius: 12,
+              padding: 12,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 12,
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+              <strong style={{ color: 'var(--text-primary)' }}>
+                {rule.match || t('config_management.visual.sections.system.store_auth_rule')}
+              </strong>
+              <Button variant="ghost" size="sm" onClick={() => removeRule(rule.id)} disabled={disabled}>
+                {t('config_management.visual.common.delete')}
+              </Button>
+            </div>
+
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                gap: 12,
+              }}
+            >
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label>{t('config_management.visual.sections.system.store_auth_match')}</label>
+                <input
+                  className="input"
+                  value={rule.match}
+                  placeholder="https://api.github.com/repos/owner/repo/releases/"
+                  disabled={disabled}
+                  onChange={(event) => updateRule(rule.id, { match: event.target.value })}
+                />
+              </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label>{t('config_management.visual.sections.system.store_auth_type')}</label>
+                <Select
+                  value={rule.type}
+                  options={PLUGIN_STORE_AUTH_TYPE_OPTIONS.map((option) => ({
+                    value: option.value,
+                    label: t(option.labelKey),
+                  }))}
+                  disabled={disabled}
+                  ariaLabel={t('config_management.visual.sections.system.store_auth_type')}
+                  onChange={(type) => updateRule(rule.id, { type: type as PluginStoreAuthType })}
+                />
+              </div>
+            </div>
+
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label>{t('config_management.visual.sections.system.store_auth_apply_to')}</label>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                {PLUGIN_STORE_AUTH_APPLY_TO_OPTIONS.map((option) => (
+                  <label
+                    key={option.value}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={rule.applyTo.includes(option.value)}
+                      disabled={disabled}
+                      onChange={() => toggleApplyTo(rule, option.value)}
+                    />
+                    <span>{t(option.labelKey)}</span>
+                  </label>
+                ))}
+              </div>
+              <div className="hint">
+                {t('config_management.visual.sections.system.store_auth_apply_to_hint')}
+              </div>
+            </div>
+
+            {usesToken ? (
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label>{t('config_management.visual.sections.system.store_auth_token_env')}</label>
+                <input
+                  className="input"
+                  value={rule.tokenEnv}
+                  placeholder="CLIPROXY_PLUGIN_STORE_TOKEN"
+                  disabled={disabled}
+                  onChange={(event) => updateRule(rule.id, { tokenEnv: event.target.value })}
+                />
+              </div>
+            ) : null}
+
+            {usesBasic ? (
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                  gap: 12,
+                }}
+              >
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label>
+                    {t('config_management.visual.sections.system.store_auth_username_env')}
+                  </label>
+                  <input
+                    className="input"
+                    value={rule.usernameEnv}
+                    disabled={disabled}
+                    onChange={(event) => updateRule(rule.id, { usernameEnv: event.target.value })}
+                  />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label>
+                    {t('config_management.visual.sections.system.store_auth_password_env')}
+                  </label>
+                  <input
+                    className="input"
+                    value={rule.passwordEnv}
+                    disabled={disabled}
+                    onChange={(event) => updateRule(rule.id, { passwordEnv: event.target.value })}
+                  />
+                </div>
+              </div>
+            ) : null}
+
+            {usesHeader ? (
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                  gap: 12,
+                }}
+              >
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label>
+                    {t('config_management.visual.sections.system.store_auth_header_name')}
+                  </label>
+                  <input
+                    className="input"
+                    value={rule.headerName}
+                    placeholder="X-Plugin-Token"
+                    disabled={disabled}
+                    onChange={(event) => updateRule(rule.id, { headerName: event.target.value })}
+                  />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label>
+                    {t('config_management.visual.sections.system.store_auth_header_value_env')}
+                  </label>
+                  <input
+                    className="input"
+                    value={rule.headerValueEnv}
+                    disabled={disabled}
+                    onChange={(event) =>
+                      updateRule(rule.id, { headerValueEnv: event.target.value })
+                    }
+                  />
+                </div>
+              </div>
+            ) : null}
+
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={rule.allowInsecure}
+                disabled={disabled}
+                onChange={(event) => updateRule(rule.id, { allowInsecure: event.target.checked })}
+              />
+              <span>{t('config_management.visual.sections.system.store_auth_allow_insecure')}</span>
+            </label>
+          </div>
+        );
+      })}
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <Button variant="secondary" size="sm" onClick={addRule} disabled={disabled}>
+          {t('config_management.visual.sections.system.store_auth_add')}
         </Button>
       </div>
     </div>

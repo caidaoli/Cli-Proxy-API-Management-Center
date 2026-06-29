@@ -1,6 +1,9 @@
 import { useCallback, useMemo, useReducer } from 'react';
 import { isMap, parse as parseYaml, parseDocument } from 'yaml';
 import type {
+  PluginStoreAuthApplyTo,
+  PluginStoreAuthRule,
+  PluginStoreAuthType,
   PayloadFilterRule,
   PayloadParamEntry,
   PayloadParamValueType,
@@ -54,10 +57,97 @@ function parseStringList(raw: unknown): string[] {
     .filter(Boolean);
 }
 
+const PLUGIN_STORE_AUTH_TYPES: PluginStoreAuthType[] = [
+  'none',
+  'bearer',
+  'basic',
+  'header',
+  'github-token',
+];
+const PLUGIN_STORE_AUTH_APPLY_TO: PluginStoreAuthApplyTo[] = ['registry', 'metadata', 'artifact'];
+
+function parsePluginStoreAuthType(raw: unknown): PluginStoreAuthType {
+  const value = String(raw ?? '')
+    .trim()
+    .toLowerCase();
+  return PLUGIN_STORE_AUTH_TYPES.includes(value as PluginStoreAuthType)
+    ? (value as PluginStoreAuthType)
+    : 'none';
+}
+
+function parsePluginStoreAuthApplyTo(raw: unknown): PluginStoreAuthApplyTo[] {
+  return parseStringList(raw)
+    .map((item) => item.toLowerCase())
+    .filter((item): item is PluginStoreAuthApplyTo =>
+      PLUGIN_STORE_AUTH_APPLY_TO.includes(item as PluginStoreAuthApplyTo)
+    );
+}
+
+function parsePluginStoreAuthRules(raw: unknown): PluginStoreAuthRule[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((item, index): PluginStoreAuthRule | null => {
+      const record = asRecord(item);
+      if (!record) return null;
+      const rule: PluginStoreAuthRule = {
+        id: `plugin-store-auth-${index}`,
+        match: typeof record.match === 'string' ? record.match : '',
+        applyTo: parsePluginStoreAuthApplyTo(record['apply-to'] ?? record.apply_to),
+        type: parsePluginStoreAuthType(record.type),
+        tokenEnv: typeof record['token-env'] === 'string' ? record['token-env'] : '',
+        usernameEnv: typeof record['username-env'] === 'string' ? record['username-env'] : '',
+        passwordEnv: typeof record['password-env'] === 'string' ? record['password-env'] : '',
+        headerName: typeof record['header-name'] === 'string' ? record['header-name'] : '',
+        headerValueEnv:
+          typeof record['header-value-env'] === 'string' ? record['header-value-env'] : '',
+        allowInsecure: Boolean(record['allow-insecure'] ?? record.allow_insecure),
+      };
+      return rule.match.trim() ||
+        rule.type !== 'none' ||
+        rule.applyTo.length > 0 ||
+        rule.tokenEnv.trim() ||
+        rule.usernameEnv.trim() ||
+        rule.passwordEnv.trim() ||
+        rule.headerName.trim() ||
+        rule.headerValueEnv.trim() ||
+        rule.allowInsecure
+        ? rule
+        : null;
+    })
+    .filter((rule): rule is PluginStoreAuthRule => Boolean(rule));
+}
+
 function areStringArraysEqual(left: string[], right: string[]): boolean {
   if (left === right) return true;
   if (left.length !== right.length) return false;
   return left.every((item, index) => item === right[index]);
+}
+
+function arePluginStoreAuthRulesEqual(
+  left: PluginStoreAuthRule[],
+  right: PluginStoreAuthRule[]
+): boolean {
+  if (left === right) return true;
+  if (left.length !== right.length) return false;
+  for (let i = 0; i < left.length; i += 1) {
+    const a = left[i];
+    const b = right[i];
+    if (!a || !b) return false;
+    if (
+      a.match !== b.match ||
+      a.type !== b.type ||
+      a.tokenEnv !== b.tokenEnv ||
+      a.usernameEnv !== b.usernameEnv ||
+      a.passwordEnv !== b.passwordEnv ||
+      a.headerName !== b.headerName ||
+      a.headerValueEnv !== b.headerValueEnv ||
+      a.allowInsecure !== b.allowInsecure
+    ) {
+      return false;
+    }
+    if (!areStringArraysEqual(a.applyTo, b.applyTo)) return false;
+  }
+  return true;
 }
 
 type ApiKeysStorageMode = 'legacy' | 'auth-provider';
@@ -605,6 +695,34 @@ function serializeRawPayloadRulesForYaml(rules: PayloadRule[]): Array<Record<str
     .filter((rule) => rule.models.length > 0);
 }
 
+function serializeStringListForYaml(items: string[]): string[] {
+  return items.map((item) => item.trim()).filter(Boolean);
+}
+
+function serializePluginStoreAuthForYaml(
+  rules: PluginStoreAuthRule[]
+): Array<Record<string, unknown>> {
+  return rules
+    .map((rule) => {
+      const match = rule.match.trim();
+      if (!match) return null;
+      const item: Record<string, unknown> = {
+        match,
+        type: rule.type,
+      };
+      const applyTo = serializeStringListForYaml(rule.applyTo);
+      if (applyTo.length > 0) item['apply-to'] = applyTo;
+      if (rule.tokenEnv.trim()) item['token-env'] = rule.tokenEnv.trim();
+      if (rule.usernameEnv.trim()) item['username-env'] = rule.usernameEnv.trim();
+      if (rule.passwordEnv.trim()) item['password-env'] = rule.passwordEnv.trim();
+      if (rule.headerName.trim()) item['header-name'] = rule.headerName.trim();
+      if (rule.headerValueEnv.trim()) item['header-value-env'] = rule.headerValueEnv.trim();
+      if (rule.allowInsecure) item['allow-insecure'] = true;
+      return item;
+    })
+    .filter((rule): rule is Record<string, unknown> => Boolean(rule));
+}
+
 type VisualConfigState = {
   visualValues: VisualConfigValues;
   baselineValues: VisualConfigValues;
@@ -708,6 +826,12 @@ function getNextDirtyFields(
     updateDirty(
       'pluginStoreSources',
       areStringArraysEqual(nextValues.pluginStoreSources, baselineValues.pluginStoreSources)
+    );
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, 'pluginStoreAuth')) {
+    updateDirty(
+      'pluginStoreAuth',
+      arePluginStoreAuthRulesEqual(nextValues.pluginStoreAuth, baselineValues.pluginStoreAuth)
     );
   }
   if (Object.prototype.hasOwnProperty.call(patch, 'debug')) {
@@ -970,6 +1094,7 @@ export function useVisualConfig() {
         apiKeysText: apiKeysStorage.text,
         pluginsEnabled: Boolean(plugins?.enabled),
         pluginStoreSources: parseStringList(plugins?.['store-sources']),
+        pluginStoreAuth: parsePluginStoreAuthRules(plugins?.['store-auth']),
 
         debug: Boolean(parsed.debug),
         commercialMode: Boolean(parsed['commercial-mode']),
@@ -1130,14 +1255,17 @@ export function useVisualConfig() {
           docHas(doc, ['plugins']) ||
           values.pluginsEnabled ||
           values.pluginStoreSources.length > 0 ||
+          dirtyFields.has('pluginStoreAuth') ||
           shouldWriteManagedField(doc, ['plugins', 'enabled'], dirtyFields, 'pluginsEnabled') ||
           shouldWriteManagedField(
             doc,
             ['plugins', 'store-sources'],
             dirtyFields,
             'pluginStoreSources'
-          )
+          ) ||
+          shouldWriteManagedField(doc, ['plugins', 'store-auth'], dirtyFields, 'pluginStoreAuth')
         ) {
+          const shouldWritePluginStoreAuth = dirtyFields.has('pluginStoreAuth');
           ensureMapInDoc(doc, ['plugins']);
           setBooleanInDoc(doc, ['plugins', 'enabled'], values.pluginsEnabled);
           if (
@@ -1150,6 +1278,14 @@ export function useVisualConfig() {
             )
           ) {
             setStringListInDoc(doc, ['plugins', 'store-sources'], values.pluginStoreSources);
+          }
+          if (shouldWritePluginStoreAuth) {
+            const storeAuth = serializePluginStoreAuthForYaml(values.pluginStoreAuth);
+            if (storeAuth.length > 0) {
+              doc.setIn(['plugins', 'store-auth'], storeAuth);
+            } else if (docHas(doc, ['plugins', 'store-auth'])) {
+              doc.deleteIn(['plugins', 'store-auth']);
+            }
           }
           deleteIfMapEmpty(doc, ['plugins']);
         }
