@@ -226,11 +226,11 @@ SKIP_HASHES=(
   2ec1a71   # feat: AuthFiles status filter modes — 计划跳过，依赖 c37b026 引入的 AuthFilesStatusFilterCard
   213671b   # refactor: AuthFilesStatusFilterCard styling — 计划跳过，依赖 c37b026 引入的 AuthFilesStatusFilterCard
   acf432b   # feat: trackWrapper thumb positioning — 计划跳过，依赖 c37b026/213671b AuthFilesStatusFilterCard
-  # === 2026-06-30 上游同步评估：采纳小修，跳过插件商店认证大功能 ===
+  # === 2026-06-30 上游同步评估：采纳小修并合入插件商店认证调整 ===
   3dc365f   # feat(antigravity): client user-agent builder — 本地 e61da67a cherry-pick 已应用
   07a9c82   # feat(auth-files): websocket fields for xAI — 本地已应用 provider-aware AuthFiles websockets 移植
-  e5fd4af   # feat: plugin store authentication configuration — 计划跳过，1000+ 行插件商店认证/YAML/UI/i18n 功能需单独分支
-  e9817a8   # feat: improve plugin store authentication handling — 计划跳过，依赖 e5fd4af 的 pluginStoreAuth 结构
+  e5fd4af   # feat: plugin store authentication configuration — 本地 0ff11eb cherry-pick 已应用
+  e9817a8   # feat: improve plugin store authentication handling — 本地 db0174d cherry-pick 已应用
   # === 2026-06-17 上游同步评估：本地等价或手工应用的小修复 ===
   868c015   # Update OAuthPage.tsx — 本地已应用 normalizeGeminiCliProjectId/projectId 规范化
   f506d33   # refactor(gemini-cli): simplify project id normalization — 本地已应用 polling 时禁用 project id 输入
