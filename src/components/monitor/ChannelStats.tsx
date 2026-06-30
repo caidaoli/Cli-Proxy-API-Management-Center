@@ -13,7 +13,7 @@ import {
   getProviderDisplayParts,
   buildMonitorTimeRangeParams,
   computeUncachedInputTokens,
-  calculateMonitorRequestCost,
+  calculateMonitorAggregateCost,
   formatMonitorCost,
   applyMonitorChannelStatsModelFilter,
   mergeMonitorFilterOptions,
@@ -118,7 +118,7 @@ export function ChannelStats({ refreshKey, loading, providerMap, providerModels 
         totalInputTokens,
         outputTokens,
         cachedTokens,
-        cost: calculateMonitorRequestCost(model.model, totalInputTokens, outputTokens, cachedTokens),
+        cost: calculateMonitorAggregateCost(model.model, totalInputTokens, outputTokens, cachedTokens),
         successRate: model.success_rate || 0,
         recentRequests: (model.recent_requests || []).map((req) => ({
           failed: !!req.failed,

@@ -159,7 +159,7 @@ function buildTopMonitorDistributionItems(
 }
 
 function calculateMonitorModelStatsCost(model: { model: string; input_tokens: number; output_tokens: number; cached_tokens: number }): number {
-  return calculateMonitorRequestCost(
+  return calculateMonitorAggregateCost(
     model.model,
     toSafeMonitorNumber(model.input_tokens),
     toSafeMonitorNumber(model.output_tokens),
@@ -601,7 +601,23 @@ export function calculateMonitorRequestCost(
     model,
     computeUncachedInputTokens(inputTokens, cachedTokens),
     toSafeMonitorNumber(outputTokens),
-    toSafeMonitorNumber(cachedTokens)
+    toSafeMonitorNumber(cachedTokens),
+    { applyLongContextTier: true }
+  );
+}
+
+export function calculateMonitorAggregateCost(
+  model: string,
+  inputTokens: number,
+  outputTokens: number,
+  cachedTokens: number
+): number {
+  return calculateModelCost(
+    model,
+    computeUncachedInputTokens(inputTokens, cachedTokens),
+    toSafeMonitorNumber(outputTokens),
+    toSafeMonitorNumber(cachedTokens),
+    { applyLongContextTier: false }
   );
 }
 

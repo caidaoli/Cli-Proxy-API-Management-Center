@@ -5,6 +5,7 @@ import {
   applyMonitorFailureAnalysisModelFilter,
   buildMonitorChannelDistributionItems,
   buildMonitorModelDistributionItems,
+  calculateMonitorAggregateCost,
   calculateMonitorRequestCost,
   computeUncachedInputTokens,
   formatMonitorCost,
@@ -72,6 +73,11 @@ test('监控费用按模型价格和缓存 token 计算', () => {
   assert.equal(calculateMonitorRequestCost('gemini-3.1-pro', 300_000, 100_000, 50_000), 2.82);
   assert.equal(calculateMonitorRequestCost('claude-sonnet-4-5-20250929', 2_000_000, 1_000_000, 1_000_000), 29.1);
   assert.equal(calculateMonitorRequestCost('unknown-model', 1_000_000, 1_000_000, 0), 0);
+});
+
+test('监控聚合费用不按累计 token 触发长上下文阶梯价', () => {
+  assert.equal(calculateMonitorRequestCost('gpt-5.5', 3_715_000, 15_000, 3_200_000), 9.025);
+  assert.equal(calculateMonitorAggregateCost('gpt-5.5', 3_715_000, 15_000, 3_200_000), 4.625);
 });
 
 test('监控费用格式化固定使用美元短格式', () => {
@@ -355,7 +361,7 @@ test('渠道用量分布按 Token 或费用生成 Top 项并格式化渠道名',
   assert.deepEqual(
     buildMonitorChannelDistributionItems(items, { 'sk-alpha1234': 'OpenAI' }, 'token', 2),
     [
-      { label: 'OpenAI (sk-a***1234)', tokens: 1_500_000, cost: 32.49964 },
+      { label: 'OpenAI (sk-a***1234)', tokens: 1_500_000, cost: 19.99982 },
       { label: 'plai***nnel', tokens: 410_000, cost: 0.1199325 },
     ]
   );
@@ -363,7 +369,7 @@ test('渠道用量分布按 Token 或费用生成 Top 项并格式化渠道名',
   assert.deepEqual(
     buildMonitorChannelDistributionItems(items, { 'sk-alpha1234': 'OpenAI' }, 'cost', 1),
     [
-      { label: 'OpenAI (sk-a***1234)', tokens: 1_500_000, cost: 32.49964 },
+      { label: 'OpenAI (sk-a***1234)', tokens: 1_500_000, cost: 19.99982 },
     ]
   );
 });
@@ -464,7 +470,7 @@ test('模型用量分布从渠道模型明细聚合 Token 和费用', () => {
   ];
 
   assert.deepEqual(buildMonitorModelDistributionItems(items, 'cost', 2), [
-    { label: 'gpt-5.5', tokens: 2_100_000, cost: 42 },
+    { label: 'gpt-5.5', tokens: 2_100_000, cost: 25.5 },
     { label: 'gpt-5-mini', tokens: 800_000, cost: 0.36375 },
   ]);
 });

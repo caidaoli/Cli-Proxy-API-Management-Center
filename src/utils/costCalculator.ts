@@ -7,6 +7,10 @@ export interface ModelPricing {
   outputPriceHigh?: number;
 }
 
+export interface CostCalculationOptions {
+  applyLongContextTier?: boolean;
+}
+
 const TOKENS_PER_MILLION = 1_000_000;
 const CLAUDE_CACHE_READ_MULTIPLIER = 0.1;
 const GEMINI_LONG_CONTEXT_THRESHOLD = 200_000;
@@ -313,7 +317,8 @@ export function calculateModelCost(
   model: string,
   inputTokens: number,
   outputTokens: number,
-  cacheReadTokens = 0
+  cacheReadTokens = 0,
+  options: CostCalculationOptions = {}
 ): number {
   const resolved = resolveModelPricing(model);
   if (!resolved) {
@@ -324,7 +329,9 @@ export function calculateModelCost(
   const output = toSafeTokenCount(outputTokens);
   const cacheRead = toSafeTokenCount(cacheReadTokens);
   const pricing = resolved.pricing;
+  const applyLongContextTier = options.applyLongContextTier ?? true;
   const useHighPricing =
+    applyLongContextTier &&
     pricing.inputPriceHigh !== undefined &&
     pricing.outputPriceHigh !== undefined &&
     input > getTierThreshold(resolved.key);
