@@ -1,11 +1,28 @@
 ---
 name: cherry-pick-upstream
-description: 从上游仓库 cherry-pick 指定提交到本地分支。本 fork 与上游差异过大，禁止直接 merge，只能逐提交摘取。
+description: Use when syncing this fork with router-for-me/Cli-Proxy-API-Management-Center by cherry-picking specific upstream commits; forbid git merge, protect local monitor/OAuth/provider/i18n customizations, and maintain SKIP_HASHES.
 ---
 
 # Cherry-Pick 上游代码
 
 本项目与上游仓库结构差异较大，**禁止使用 `git merge`**，只能通过 `git cherry-pick` 逐个摘取需要的提交。
+
+## 客户端入口
+
+Claude 和 Codex 必须使用同一个物理 skill 目录，避免 cherry-pick 后 `SKIP_HASHES` 或脚本逻辑不同步。
+
+| 客户端 | 入口 | 说明 |
+|--------|------|------|
+| Claude | `.claude/skills/cherry-pick-upstream/` | 物理目录，维护 `SKILL.md` 与 `cherry-pick-batch.sh` |
+| Codex | `.agents/skills/cherry-pick-upstream` | symlink，必须指向同一个 `.claude` 目录 |
+
+批处理脚本只维护这一份：
+
+```bash
+bash .claude/skills/cherry-pick-upstream/cherry-pick-batch.sh [hash-list-file]
+```
+
+不要在 `.agents` 下复制 `SKILL.md` 或 `cherry-pick-batch.sh`。
 
 ## Remote 说明
 

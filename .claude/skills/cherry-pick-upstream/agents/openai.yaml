@@ -1,0 +1,4 @@
+interface:
+  display_name: "Cherry Pick Upstream"
+  short_description: "Safely cherry-pick upstream commits for this fork"
+  default_prompt: "Use $cherry-pick-upstream to evaluate and cherry-pick upstream commits into this fork."

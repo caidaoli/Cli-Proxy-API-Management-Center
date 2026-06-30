@@ -104,7 +104,7 @@ Usage 页面已删除，但以下文件仍保留，因为提供商页（`useProv
 ### 合并策略
 
 - **禁止直接 merge `original-upstream`**：该仓库不含监控中心，全量合并会删除本 fork 核心功能。
-- 只能用 `git cherry-pick` 逐提交摘取，详见 `.claude/skills/cherry-pick-upstream/`。
+- 只能用 `git cherry-pick` 逐提交摘取，详见仓库级 `cherry-pick-upstream` skill：Claude 从 `.claude/skills/cherry-pick-upstream/` 加载，Codex 从 `.agents/skills/cherry-pick-upstream` symlink 加载，二者必须指向同一物理目录。
 
 ### 本地独有文件（cherry-pick 时必须保留）
 
