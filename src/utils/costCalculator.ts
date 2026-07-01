@@ -17,6 +17,7 @@ const GEMINI_LONG_CONTEXT_THRESHOLD = 200_000;
 const GPT_5_4_TIER_THRESHOLD = 272_000;
 
 const modelPricing: Record<string, ModelPricing> = {
+  'claude-sonnet-5': { inputPrice: 3, outputPrice: 15 },
   'claude-sonnet-4-6': { inputPrice: 3, outputPrice: 15 },
   'claude-sonnet-4-5': {
     inputPrice: 3,
@@ -208,6 +209,7 @@ const modelAliases: Record<string, string> = {
 };
 
 const fuzzyPrefixes = [
+  'claude-sonnet-5',
   'claude-sonnet-4-6',
   'claude-sonnet-4-5',
   'claude-haiku-4-5',
