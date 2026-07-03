@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
   AmpcodeSection,
   ClaudeSection,
-  Code0Section,
   CodexSection,
   GeminiSection,
   OpenAISection,
@@ -16,13 +15,6 @@ import {
   withDisableAllModelsRule,
   withoutDisableAllModelsRule,
 } from '@/components/providers/utils';
-import {
-  isCode0ClaudeConfig,
-  isCode0CodexConfig,
-  isCode0GeminiConfig,
-  isCode0OpenAIProvider,
-  type Code0Protocol,
-} from '@/components/providers/code0';
 import { usePageTransitionLayer } from '@/components/common/PageTransitionLayer';
 import { useHeaderRefresh } from '@/hooks/useHeaderRefresh';
 import { ampcodeApi, providersApi } from '@/services/api';
@@ -151,91 +143,10 @@ export function AiProvidersPage() {
   useHeaderRefresh(refreshKeyStats, isCurrentLayer);
 
   const openEditor = useCallback(
-    (path: string, state: Record<string, unknown> = {}) => {
-      navigate(path, { state: { fromAiProviders: true, ...state } });
+    (path: string) => {
+      navigate(path, { state: { fromAiProviders: true } });
     },
     [navigate]
-  );
-
-  const indexedGeminiKeys = useMemo(
-    () => geminiKeys.map((config, index) => ({ config, index })),
-    [geminiKeys]
-  );
-  const indexedCodexConfigs = useMemo(
-    () => codexConfigs.map((config, index) => ({ config, index })),
-    [codexConfigs]
-  );
-  const indexedClaudeConfigs = useMemo(
-    () => claudeConfigs.map((config, index) => ({ config, index })),
-    [claudeConfigs]
-  );
-  const indexedOpenaiProviders = useMemo(
-    () => openaiProviders.map((config, index) => ({ config, index })),
-    [openaiProviders]
-  );
-
-  const code0GeminiConfigs = useMemo(
-    () => indexedGeminiKeys.filter((item) => isCode0GeminiConfig(item.config)),
-    [indexedGeminiKeys]
-  );
-  const code0CodexConfigs = useMemo(
-    () => indexedCodexConfigs.filter((item) => isCode0CodexConfig(item.config)),
-    [indexedCodexConfigs]
-  );
-  const code0ClaudeConfigs = useMemo(
-    () => indexedClaudeConfigs.filter((item) => isCode0ClaudeConfig(item.config)),
-    [indexedClaudeConfigs]
-  );
-  const code0OpenaiProviders = useMemo(
-    () => indexedOpenaiProviders.filter((item) => isCode0OpenAIProvider(item.config)),
-    [indexedOpenaiProviders]
-  );
-
-  const visibleGeminiKeys = useMemo(
-    () => indexedGeminiKeys.filter((item) => !isCode0GeminiConfig(item.config)),
-    [indexedGeminiKeys]
-  );
-  const visibleCodexConfigs = useMemo(
-    () => indexedCodexConfigs.filter((item) => !isCode0CodexConfig(item.config)),
-    [indexedCodexConfigs]
-  );
-  const visibleClaudeConfigs = useMemo(
-    () => indexedClaudeConfigs.filter((item) => !isCode0ClaudeConfig(item.config)),
-    [indexedClaudeConfigs]
-  );
-  const visibleOpenaiProviders = useMemo(
-    () => indexedOpenaiProviders.filter((item) => !isCode0OpenAIProvider(item.config)),
-    [indexedOpenaiProviders]
-  );
-
-  const addCode0Provider = useCallback(
-    (protocol: Code0Protocol) => {
-      const path =
-        protocol === 'openai'
-          ? '/ai-providers/openai/new'
-          : protocol === 'claude'
-            ? '/ai-providers/claude/new'
-            : protocol === 'gemini'
-              ? '/ai-providers/gemini/new'
-              : '/ai-providers/codex/new';
-      openEditor(path, { providerPreset: 'code0' });
-    },
-    [openEditor]
-  );
-
-  const editCode0Provider = useCallback(
-    (protocol: Code0Protocol, index: number) => {
-      const path =
-        protocol === 'openai'
-          ? `/ai-providers/openai/${index}`
-          : protocol === 'claude'
-            ? `/ai-providers/claude/${index}`
-            : protocol === 'gemini'
-              ? `/ai-providers/gemini/${index}`
-              : `/ai-providers/codex/${index}`;
-      openEditor(path);
-    },
-    [openEditor]
   );
 
   const deleteGemini = async (index: number) => {
@@ -451,18 +362,6 @@ export function AiProvidersPage() {
     });
   };
 
-  const deleteCode0Provider = (protocol: Code0Protocol, index: number) => {
-    if (protocol === 'openai') {
-      void deleteOpenai(index);
-    } else if (protocol === 'gemini') {
-      void deleteGemini(index);
-    } else if (protocol === 'claude') {
-      void deleteProviderEntry('claude', index);
-    } else {
-      void deleteProviderEntry('codex', index);
-    }
-  };
-
   return (
     <div className={styles.container}>
       <h1 className={styles.pageTitle}>{t('ai_providers.title')}</h1>
@@ -471,73 +370,46 @@ export function AiProvidersPage() {
 
         <div id="provider-gemini">
           <GeminiSection
-            configs={visibleGeminiKeys.map((item) => item.config)}
+            configs={geminiKeys}
             keyStats={keyStats}
             statusBarBySource={statusBarBySource}
             loading={loading}
             disableControls={disableControls}
             isSwitching={isSwitching}
             onAdd={() => openEditor('/ai-providers/gemini/new')}
-            onEdit={(index) => {
-              const item = visibleGeminiKeys[index];
-              if (item) openEditor(`/ai-providers/gemini/${item.index}`);
-            }}
-            onDelete={(index) => {
-              const item = visibleGeminiKeys[index];
-              if (item) void deleteGemini(item.index);
-            }}
-            onToggle={(index, enabled) => {
-              const item = visibleGeminiKeys[index];
-              if (item) void setConfigEnabled('gemini', item.index, enabled);
-            }}
+            onEdit={(index) => openEditor(`/ai-providers/gemini/${index}`)}
+            onDelete={deleteGemini}
+            onToggle={(index, enabled) => void setConfigEnabled('gemini', index, enabled)}
           />
         </div>
 
         <div id="provider-codex">
           <CodexSection
-            configs={visibleCodexConfigs.map((item) => item.config)}
+            configs={codexConfigs}
             keyStats={keyStats}
             statusBarBySource={statusBarBySource}
             loading={loading}
             disableControls={disableControls}
             isSwitching={isSwitching}
             onAdd={() => openEditor('/ai-providers/codex/new')}
-            onEdit={(index) => {
-              const item = visibleCodexConfigs[index];
-              if (item) openEditor(`/ai-providers/codex/${item.index}`);
-            }}
-            onDelete={(index) => {
-              const item = visibleCodexConfigs[index];
-              if (item) void deleteProviderEntry('codex', item.index);
-            }}
-            onToggle={(index, enabled) => {
-              const item = visibleCodexConfigs[index];
-              if (item) void setConfigEnabled('codex', item.index, enabled);
-            }}
+            onEdit={(index) => openEditor(`/ai-providers/codex/${index}`)}
+            onDelete={(index) => void deleteProviderEntry('codex', index)}
+            onToggle={(index, enabled) => void setConfigEnabled('codex', index, enabled)}
           />
         </div>
 
         <div id="provider-claude">
           <ClaudeSection
-            configs={visibleClaudeConfigs.map((item) => item.config)}
+            configs={claudeConfigs}
             keyStats={keyStats}
             statusBarBySource={statusBarBySource}
             loading={loading}
             disableControls={disableControls}
             isSwitching={isSwitching}
             onAdd={() => openEditor('/ai-providers/claude/new')}
-            onEdit={(index) => {
-              const item = visibleClaudeConfigs[index];
-              if (item) openEditor(`/ai-providers/claude/${item.index}`);
-            }}
-            onDelete={(index) => {
-              const item = visibleClaudeConfigs[index];
-              if (item) void deleteProviderEntry('claude', item.index);
-            }}
-            onToggle={(index, enabled) => {
-              const item = visibleClaudeConfigs[index];
-              if (item) void setConfigEnabled('claude', item.index, enabled);
-            }}
+            onEdit={(index) => openEditor(`/ai-providers/claude/${index}`)}
+            onDelete={(index) => void deleteProviderEntry('claude', index)}
+            onToggle={(index, enabled) => void setConfigEnabled('claude', index, enabled)}
           />
         </div>
 
@@ -566,26 +438,9 @@ export function AiProvidersPage() {
           />
         </div>
 
-        <div id="provider-code0">
-          <Code0Section
-            openaiProviders={code0OpenaiProviders}
-            claudeConfigs={code0ClaudeConfigs}
-            geminiConfigs={code0GeminiConfigs}
-            codexConfigs={code0CodexConfigs}
-            keyStats={keyStats}
-            statusBarBySource={statusBarBySource}
-            loading={loading}
-            disableControls={disableControls}
-            isSwitching={isSwitching}
-            onAdd={addCode0Provider}
-            onEdit={editCode0Provider}
-            onDelete={deleteCode0Provider}
-          />
-        </div>
-
         <div id="provider-openai">
           <OpenAISection
-            configs={visibleOpenaiProviders.map((item) => item.config)}
+            configs={openaiProviders}
             keyStats={keyStats}
             statusBarBySource={statusBarBySource}
             loading={loading}
@@ -593,14 +448,8 @@ export function AiProvidersPage() {
             isSwitching={isSwitching}
             resolvedTheme={resolvedTheme}
             onAdd={() => openEditor('/ai-providers/openai/new')}
-            onEdit={(index) => {
-              const item = visibleOpenaiProviders[index];
-              if (item) openEditor(`/ai-providers/openai/${item.index}`);
-            }}
-            onDelete={(index) => {
-              const item = visibleOpenaiProviders[index];
-              if (item) void deleteOpenai(item.index);
-            }}
+            onEdit={(index) => openEditor(`/ai-providers/openai/${index}`)}
+            onDelete={deleteOpenai}
           />
         </div>
       </div>

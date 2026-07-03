@@ -26,12 +26,11 @@ import {
   buildProviderModelDiscoveryRequest,
   type ProviderConnectivityFailureReason,
 } from '@/components/providers/providerRequests';
-import { CODE0_GEMINI_BASE_URL } from '@/components/providers/code0';
 import type { GeminiFormState } from '@/components/providers';
 import layoutStyles from './AiProvidersEditLayout.module.scss';
 import styles from './AiProvidersPage.module.scss';
 
-type LocationState = { fromAiProviders?: boolean; providerPreset?: 'code0' } | null;
+type LocationState = { fromAiProviders?: boolean } | null;
 
 const getErrorMessage = (err: unknown) => {
   if (err instanceof Error) return err.message;
@@ -39,11 +38,11 @@ const getErrorMessage = (err: unknown) => {
   return '';
 };
 
-const buildEmptyForm = (preset?: 'code0'): GeminiFormState => ({
+const buildEmptyForm = (): GeminiFormState => ({
   apiKey: '',
   priority: undefined,
   prefix: '',
-  baseUrl: preset === 'code0' ? CODE0_GEMINI_BASE_URL : '',
+  baseUrl: '',
   proxyUrl: '',
   headers: [],
   modelEntries: [{ name: '', alias: '' }],
@@ -99,8 +98,6 @@ export function AiProvidersGeminiEditPage() {
   const params = useParams<{ index?: string }>();
 
   const { showNotification } = useNotificationStore();
-  const locationState = location.state as LocationState;
-  const providerPreset = locationState?.providerPreset === 'code0' ? 'code0' : undefined;
   const connectionStatus = useAuthStore((state) => state.connectionStatus);
   const disableControls = connectionStatus !== 'connected';
 
@@ -147,12 +144,13 @@ export function AiProvidersGeminiEditPage() {
       : t('ai_providers.gemini_add_modal_title');
 
   const handleBack = useCallback(() => {
-    if (locationState?.fromAiProviders) {
+    const state = location.state as LocationState;
+    if (state?.fromAiProviders) {
       navigate(-1);
       return;
     }
     navigate('/ai-providers', { replace: true });
-  }, [locationState?.fromAiProviders, navigate]);
+  }, [location.state, navigate]);
 
   const swipeRef = useEdgeSwipeBack({ onBack: handleBack });
 
@@ -209,10 +207,10 @@ export function AiProvidersGeminiEditPage() {
       setBaseline(buildGeminiBaseline(nextForm));
       return;
     }
-    const nextForm = buildEmptyForm(providerPreset);
+    const nextForm = buildEmptyForm();
     setForm(nextForm);
     setBaseline(buildGeminiBaseline(nextForm));
-  }, [initialData, loading, providerPreset]);
+  }, [initialData, loading]);
 
   const canSave = !disableControls && !saving && !loading && !invalidIndexParam && !invalidIndex;
 

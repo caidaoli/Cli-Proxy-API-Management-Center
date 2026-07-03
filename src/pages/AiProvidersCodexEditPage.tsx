@@ -26,19 +26,18 @@ import {
   buildProviderModelDiscoveryRequest,
   type ProviderConnectivityFailureReason,
 } from '@/components/providers/providerRequests';
-import { CODE0_CODEX_BASE_URL } from '@/components/providers/code0';
 import type { ProviderFormState } from '@/components/providers';
 import type { ModelInfo } from '@/utils/models';
 import layoutStyles from './AiProvidersEditLayout.module.scss';
 import styles from './AiProvidersPage.module.scss';
 
-type LocationState = { fromAiProviders?: boolean; providerPreset?: 'code0' } | null;
+type LocationState = { fromAiProviders?: boolean } | null;
 
-const buildEmptyForm = (preset?: 'code0'): ProviderFormState => ({
+const buildEmptyForm = (): ProviderFormState => ({
   apiKey: '',
   priority: undefined,
   prefix: '',
-  baseUrl: preset === 'code0' ? CODE0_CODEX_BASE_URL : '',
+  baseUrl: '',
   websockets: false,
   proxyUrl: '',
   headers: [],
@@ -98,8 +97,6 @@ export function AiProvidersCodexEditPage() {
   const params = useParams<{ index?: string }>();
 
   const { showNotification } = useNotificationStore();
-  const locationState = location.state as LocationState;
-  const providerPreset = locationState?.providerPreset === 'code0' ? 'code0' : undefined;
   const connectionStatus = useAuthStore((state) => state.connectionStatus);
   const disableControls = connectionStatus !== 'connected';
 
@@ -146,12 +143,13 @@ export function AiProvidersCodexEditPage() {
       : t('ai_providers.codex_add_modal_title');
 
   const handleBack = useCallback(() => {
-    if (locationState?.fromAiProviders) {
+    const state = location.state as LocationState;
+    if (state?.fromAiProviders) {
       navigate(-1);
       return;
     }
     navigate('/ai-providers', { replace: true });
-  }, [locationState?.fromAiProviders, navigate]);
+  }, [location.state, navigate]);
 
   const swipeRef = useEdgeSwipeBack({ onBack: handleBack });
 
@@ -205,10 +203,10 @@ export function AiProvidersCodexEditPage() {
       setBaseline(buildCodexBaseline(nextForm));
       return;
     }
-    const nextForm = buildEmptyForm(providerPreset);
+    const nextForm = buildEmptyForm();
     setForm(nextForm);
     setBaseline(buildCodexBaseline(nextForm));
-  }, [initialData, loading, providerPreset]);
+  }, [initialData, loading]);
 
   const normalizedHeaders = useMemo(() => normalizeHeaderEntries(form.headers), [form.headers]);
   const normalizedModels = useMemo(

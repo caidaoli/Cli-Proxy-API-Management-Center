@@ -1,6 +1,5 @@
 export { AmpcodeSection } from './AmpcodeSection';
 export { ClaudeSection } from './ClaudeSection';
-export { Code0Section } from './Code0Section';
 export { CodexSection } from './CodexSection';
 export { GeminiSection } from './GeminiSection';
 export { OpenAISection } from './OpenAISection';

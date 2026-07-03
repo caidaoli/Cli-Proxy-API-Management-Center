@@ -201,10 +201,10 @@ SKIP_HASHES=(
   657e5a8   # feat(provider-sheet): add mutationDisabled prop — 计划跳过，依赖 ProviderSheet
   b1b1f96   # feat: remove quota amount display when limit is not greater than zero — 本地 4e99a7f，冲突解决后 patch-id 漂移
   232b8e7   # feat: add support for ClaudeAPI provider and related configurations — 计划跳过，依赖已跳过的 Provider Workbench/src/features/providers 架构
-  d2d1cf8   # feat: add support for Gemini API in sponsor provider — 本地已应用 Code0 quick configuration，手工适配现有 provider 页面
+  d2d1cf8   # feat: add support for Gemini API in sponsor provider — 计划跳过，商业站 sponsor provider 功能且依赖 Provider Workbench
   7bad64e   # feat: update hidden provider brands and filter logic in ProvidersWorkbenchPage — 计划跳过，依赖 Provider Workbench，且会被 ca25c652 反向修正
-  81e9edf   # feat: add 'code0' to the provider brand order list — 本地已应用 Code0 quick configuration，导航顺序已适配
-  ca25c65   # fix(providers): keep Code0 and ClaudeAPI groups visible — 本地已应用 Code0 quick configuration，Code0 聚合卡片独立可见
+  81e9edf   # feat: add sponsor provider to brand order list — 计划跳过，商业站 provider brand 功能且依赖 Provider Workbench
+  ca25c65   # fix(providers): keep sponsor provider groups visible — 计划跳过，商业站 provider brand 功能且依赖 Provider Workbench
   # === 2026-06-28 上游同步评估：只采纳当前 fork 架构可闭合的小修，跳过 ProviderWorkbench/APIKEY.FUN 大重构链 ===
   ed4124f   # refactor: remove Gemini CLI references — 计划跳过，本地仍保留 Gemini CLI 配额/OAuth/认证文件能力
   b566884   # feat(quota): show Codex reset credit expiries — 本地 ffc93ae，保留本地重置配额文案并合并过期时间详情
