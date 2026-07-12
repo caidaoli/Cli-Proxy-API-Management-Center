@@ -28,6 +28,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Update OpenAI pricing
+        run: npm run pricing:update:openai
+
       - name: Build all-in-one HTML
         run: npm run build
         env:
