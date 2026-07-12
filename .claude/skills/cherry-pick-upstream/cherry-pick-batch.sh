@@ -352,6 +352,26 @@ SKIP_HASHES=(
   1a8e059   # fix(config): jump request handling + Collapsible state — #321 配套
   # === 2026-07-04 上游同步评估：小修已摘取，patch-id 漂移需跳过 ===
   88d60bf   # add xai pay-as-you-go quota progress — 本地 45015f94，cherry-pick 已应用但 git cherry 仍显示未应用
+  # === 2026-07-12 上游同步评估：跳过 Provider Workbench/清理/Bun-CI 分叉链 ===
+  0c565c8   # feat(providers): collapse api key and model entries — 计划跳过，依赖本地未采纳的 Provider Workbench 表单架构
+  e43df69   # chore: remove unused components and utility functions — 计划跳过，上游 dead-code 判定不覆盖本地 monitor/OAuth 使用方
+  9d3e82e   # feat(providers): add quick fill section — 计划跳过，依赖本地未采纳的 Provider Workbench
+  066d25f   # chore: remove orphan files and build config — 计划跳过，会删除本地仍保留的 tsconfig.app.json 等构建文件
+  e36de50   # chore(api): remove dead endpoints and normalizers — 计划跳过，本地 authFiles/client/provider API 已分叉
+  3ee7fce   # chore(stores): remove unused state/actions — 计划跳过，上游使用关系不包含本地功能链
+  3785d75   # chore(types): remove dead exports — 计划跳过，本地 OAuth/provider/quota 类型依赖已分叉
+  3c91d57   # chore(ui): remove dead props/render chains — 计划跳过，依赖 Provider Workbench 且触及本地 OAuth/Quota 页面
+  c21d4ae   # style: remove dead global styles/tokens — 计划跳过，本地 monitor 与主题样式依赖已分叉
+  82bb41c   # refactor(icons): alias duplicate sidebar icons — 计划跳过，本地图标集包含 monitor 扩展
+  d8f74ae   # chore(i18n): remove orphan locale keys — 计划跳过，上游无法识别本地路由与功能键
+  12bfeab   # style: status bar grid layout — 计划跳过，主体依赖本地不存在的 Provider Workbench 状态栏
+  328bead   # feat: FennoAI and Qiniu Cloud providers — 计划跳过，依赖本地未采纳的 Provider Workbench 全链路
+  022634b   # fix(providers): preserve concurrent updates — 计划跳过，目标 useProviderWorkbench 本地不存在
+  ab6b0b3   # fix(providers): guard sponsor aggregation — 计划跳过，依赖本地未采纳的 sponsor Provider Workbench
+  6d54016   # fix(providers): recover partial sponsor updates — 计划跳过，依赖本地未采纳的 sponsor Provider Workbench
+  a4f7bb2   # chore: update dependencies — 计划跳过，包含 bun.lock 且本地继续使用 npm/Vite 7/TypeScript 5
+  2201fe1   # fix: ESLint async loading and provider sorting — 计划跳过，混合 Provider Workbench 分叉与低价值重排
+  4af4cf4   # ci: add Bun test verification — 计划跳过，本地使用 npm 且仓库 AGENTS/README 已分叉
 )
 
 is_skip() {
