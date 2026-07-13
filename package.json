@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,scss}\"",
-    "pricing:update:openai": "node scripts/update-openai-pricing.mjs",
+    "pricing:update": "node scripts/update-model-pricing.mjs",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
