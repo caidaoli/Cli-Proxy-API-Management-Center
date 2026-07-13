@@ -53,7 +53,7 @@ export type AuthFileCardProps = {
   onOpenPrefixProxyEditor: (file: AuthFileItem) => void;
   onDelete: (name: string) => void;
   onToggleStatus: (file: AuthFileItem, enabled: boolean) => void;
-  onToggleSelect: (name: string) => void;
+  onToggleSelect: (file: AuthFileItem) => void;
   onRefreshStats: (authIndex: unknown) => Promise<void>;
 };
 
@@ -128,8 +128,7 @@ export function AuthFileCard(props: AuthFileCardProps) {
                 ? styles.xaiCard
                 : '';
 
-  const statusData =
-    (authIndexKey && statusBarCache.get(authIndexKey)) || EMPTY_STATUS_BAR;
+  const statusData = (authIndexKey && statusBarCache.get(authIndexKey)) || EMPTY_STATUS_BAR;
   const rawStatusMessage = getAuthFileStatusMessage(file);
   const hasStatusWarning =
     Boolean(rawStatusMessage) && !HEALTHY_STATUS_MESSAGES.has(rawStatusMessage.toLowerCase());
@@ -147,7 +146,7 @@ export function AuthFileCard(props: AuthFileCardProps) {
             {!isRuntimeOnly && (
               <SelectionCheckbox
                 checked={selected}
-                onChange={() => onToggleSelect(file.name)}
+                onChange={() => onToggleSelect(file)}
                 aria-label={
                   selected ? t('auth_files.batch_deselect') : t('auth_files.batch_select_all')
                 }

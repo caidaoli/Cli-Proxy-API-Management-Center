@@ -19,6 +19,12 @@ type StatusError = { status?: number };
 type AuthFileStatusResponse = { status: string; disabled: boolean };
 type DownloadedAuthFile = { blob: Blob; filename: string };
 type AuthFilesUploadOptions = { onProgress?: AuthFilesUploadProgressHandler };
+export type AuthFilesDeleteResult = {
+  status?: string;
+  deleted?: number;
+  files?: string[];
+  failed?: Array<{ name?: string; error?: string }>;
+};
 export type AuthFileFieldsPatch = {
   prefix?: string;
   proxy_url?: string;
@@ -247,11 +253,12 @@ export const authFilesApi = {
 
   deleteFile: (name: string) => apiClient.delete(`/auth-files?name=${encodeURIComponent(name)}`),
 
-  deleteAll: () => apiClient.delete('/auth-files', { params: { all: true } }),
+  deleteAll: () =>
+    apiClient.delete<AuthFilesDeleteResult>('/auth-files', { params: { all: true } }),
 
   deleteFiltered: (query: AuthFilesListQuery) => {
     const { type, problem_only, disabled_only, enabled_only } = buildAuthFilesListParams(query);
-    return apiClient.delete('/auth-files', {
+    return apiClient.delete<AuthFilesDeleteResult>('/auth-files', {
       params: {
         all: true,
         ...(type ? { type } : {}),

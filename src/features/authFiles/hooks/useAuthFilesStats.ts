@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { monitorApi, type MonitorKeyStatsResponse } from '@/services/api/monitor';
+import type { AuthFileItem } from '@/types';
 import {
   blocksToStatusBarData,
   normalizeAuthIndex,
@@ -35,11 +36,20 @@ function processKeyStatsResponse(response: MonitorKeyStatsResponse) {
   };
 }
 
+const getAuthIndexes = (files: AuthFileItem[]): string[] => {
+  const indexes = new Set<string>();
+  files.forEach((file) => {
+    const authIndex = normalizeAuthIndex(file['auth_index'] ?? file.authIndex);
+    if (authIndex) indexes.add(authIndex);
+  });
+  return Array.from(indexes);
+};
+
 export type UseAuthFilesStatsResult = {
   keyStats: KeyStats;
   statusBarByAuthIndex: Map<string, StatusBarData>;
-  loadKeyStats: () => Promise<void>;
-  refreshKeyStats: () => Promise<void>;
+  loadKeyStatsForFiles: (files: AuthFileItem[]) => Promise<void>;
+  refreshKeyStatsForFiles: (files: AuthFileItem[]) => Promise<void>;
   refreshKeyStatsForAuthIndex: (authIndex: unknown) => Promise<void>;
 };
 
@@ -48,34 +58,53 @@ export function useAuthFilesStats(): UseAuthFilesStatsResult {
   const [statusBarByAuthIndex, setStatusBarByAuthIndex] = useState<Map<string, StatusBarData>>(
     () => new Map()
   );
-  const lastRefreshedAt = useRef<number | null>(null);
+  const lastRequestRef = useRef<{ signature: string; refreshedAt: number } | null>(null);
+  const batchRequestIdRef = useRef(0);
 
-  const loadKeyStats = useCallback(async () => {
-    if (lastRefreshedAt.current && Date.now() - lastRefreshedAt.current < STALE_TIME_MS) {
+  const requestKeyStatsForFiles = useCallback(async (files: AuthFileItem[], force: boolean) => {
+    const authIndexes = getAuthIndexes(files);
+    const signature = authIndexes.join('\u0000');
+    const lastRequest = lastRequestRef.current;
+    if (
+      !force &&
+      lastRequest?.signature === signature &&
+      Date.now() - lastRequest.refreshedAt < STALE_TIME_MS
+    ) {
       return;
     }
+
+    const requestId = ++batchRequestIdRef.current;
+    if (lastRequest?.signature !== signature) {
+      setKeyStats(EMPTY_KEY_STATS);
+      setStatusBarByAuthIndex(new Map());
+    }
+
+    if (authIndexes.length === 0) {
+      lastRequestRef.current = { signature, refreshedAt: Date.now() };
+      return;
+    }
+
     try {
-      const response = await monitorApi.getKeyStats();
+      const response = await monitorApi.getKeyStats(authIndexes);
+      if (requestId !== batchRequestIdRef.current) return;
       const result = processKeyStatsResponse(response);
       setKeyStats(result.keyStats);
       setStatusBarByAuthIndex(result.statusBarByAuthIndex);
-      lastRefreshedAt.current = Date.now();
+      lastRequestRef.current = { signature, refreshedAt: Date.now() };
     } catch {
-      // silent
+      // Statistics are non-blocking for the file list.
     }
   }, []);
 
-  const refreshKeyStats = useCallback(async () => {
-    try {
-      const response = await monitorApi.getKeyStats();
-      const result = processKeyStatsResponse(response);
-      setKeyStats(result.keyStats);
-      setStatusBarByAuthIndex(result.statusBarByAuthIndex);
-      lastRefreshedAt.current = Date.now();
-    } catch {
-      // silent
-    }
-  }, []);
+  const loadKeyStatsForFiles = useCallback(
+    (files: AuthFileItem[]) => requestKeyStatsForFiles(files, false),
+    [requestKeyStatsForFiles]
+  );
+
+  const refreshKeyStatsForFiles = useCallback(
+    (files: AuthFileItem[]) => requestKeyStatsForFiles(files, true),
+    [requestKeyStatsForFiles]
+  );
 
   const refreshKeyStatsForAuthIndex = useCallback(async (authIndex: unknown) => {
     const normalizedAuthIndex = normalizeAuthIndex(authIndex);
@@ -110,15 +139,15 @@ export function useAuthFilesStats(): UseAuthFilesStatsResult {
         return next;
       });
     } catch {
-      // silent
+      // Statistics are non-blocking for the file list.
     }
   }, []);
 
   return {
     keyStats,
     statusBarByAuthIndex,
-    loadKeyStats,
-    refreshKeyStats,
+    loadKeyStatsForFiles,
+    refreshKeyStatsForFiles,
     refreshKeyStatsForAuthIndex,
   };
 }
