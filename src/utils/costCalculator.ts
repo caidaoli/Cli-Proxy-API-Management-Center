@@ -1,48 +1,29 @@
-import { openAIModelPricing } from '../data/openaiPricing.generated.ts';
+import {
+  claudeModelPricing,
+  geminiModelPricing,
+  openAIModelPricing,
+  xAIModelPricing,
+  type ModelPricing,
+} from '../data/modelPricing.generated.ts';
 
-export interface ModelPricing {
-  inputPrice: number;
-  outputPrice: number;
-  cacheReadPrice?: number;
-  cacheWritePrice?: number;
-  cacheReadPriceHigh?: number;
-  cacheWritePriceHigh?: number;
-  inputPriceHigh?: number;
-  outputPriceHigh?: number;
-  tierThreshold?: number;
-}
+export type { ModelPricing } from '../data/modelPricing.generated.ts';
 
 export interface CostCalculationOptions {
   applyLongContextTier?: boolean;
 }
 
 const TOKENS_PER_MILLION = 1_000_000;
-const CLAUDE_CACHE_READ_MULTIPLIER = 0.1;
-const GEMINI_LONG_CONTEXT_THRESHOLD = 200_000;
+const DEFAULT_CACHE_READ_MULTIPLIER = 0.1;
+const DEFAULT_LONG_CONTEXT_THRESHOLD = 200_000;
 
-const modelPricing: Record<string, ModelPricing> = {
-  'claude-sonnet-5': { inputPrice: 3, outputPrice: 15 },
-  'claude-sonnet-4-6': { inputPrice: 3, outputPrice: 15 },
-  'claude-sonnet-4-5': {
-    inputPrice: 3,
-    outputPrice: 15,
-    inputPriceHigh: 6,
-    outputPriceHigh: 22.5,
-  },
+const legacyModelPricing: Record<string, ModelPricing> = {
   'claude-sonnet-4-0': {
     inputPrice: 3,
     outputPrice: 15,
     inputPriceHigh: 6,
     outputPriceHigh: 22.5,
   },
-  'claude-haiku-4-5': { inputPrice: 1, outputPrice: 5 },
-  'claude-opus-4-1': { inputPrice: 15, outputPrice: 75 },
   'claude-opus-4-0': { inputPrice: 15, outputPrice: 75 },
-  'claude-opus-4-6': { inputPrice: 5, outputPrice: 25 },
-  'claude-opus-4-7': { inputPrice: 5, outputPrice: 25 },
-  'claude-opus-4-8': { inputPrice: 5, outputPrice: 25 },
-  'claude-fable-5': { inputPrice: 10, outputPrice: 50 },
-  'claude-opus-4-5': { inputPrice: 5, outputPrice: 25 },
   'claude-3-7-sonnet': { inputPrice: 3, outputPrice: 15 },
   'claude-3-5-sonnet': { inputPrice: 3, outputPrice: 15 },
   'claude-3-5-haiku': { inputPrice: 0.8, outputPrice: 4 },
@@ -52,47 +33,16 @@ const modelPricing: Record<string, ModelPricing> = {
   'claude-opus': { inputPrice: 5, outputPrice: 25 },
   'claude-sonnet': { inputPrice: 3, outputPrice: 15 },
   'claude-haiku': { inputPrice: 1, outputPrice: 5 },
-
-  ...openAIModelPricing,
-
-  'gemini-3.5-flash': {
-    inputPrice: 1.5,
-    outputPrice: 9,
-    cacheReadPrice: 0.15,
-  },
-  'gemini-3-5-flash': {
-    inputPrice: 1.5,
-    outputPrice: 9,
-    cacheReadPrice: 0.15,
-  },
-  'gemini-3.1-pro': {
-    inputPrice: 2,
-    outputPrice: 12,
-    cacheReadPrice: 0.2,
-    inputPriceHigh: 4,
-    outputPriceHigh: 18,
-    cacheReadPriceHigh: 0.4,
-  },
-  'gemini-3-pro': {
-    inputPrice: 2,
-    outputPrice: 12,
-    inputPriceHigh: 4,
-    outputPriceHigh: 18,
-  },
-  'gemini-3-flash': { inputPrice: 0.5, outputPrice: 3 },
-  'gemini-3.1-flash-lite': { inputPrice: 0.25, outputPrice: 1.5 },
-  'gemini-2.5-pro': {
-    inputPrice: 1.25,
-    outputPrice: 10,
-    inputPriceHigh: 2.5,
-    outputPriceHigh: 15,
-  },
-  'gemini-2.5-flash': { inputPrice: 0.3, outputPrice: 2.5 },
-  'gemini-2.5-flash-lite': { inputPrice: 0.1, outputPrice: 0.4 },
-  'gemini-2.0-flash': { inputPrice: 0.1, outputPrice: 0.4 },
-  'gemini-2.0-flash-lite': { inputPrice: 0.075, outputPrice: 0.3 },
   'gemini-1.5-pro': { inputPrice: 1.25, outputPrice: 5 },
   'gemini-1.5-flash': { inputPrice: 0.2, outputPrice: 0.6 },
+};
+
+const modelPricing: Record<string, ModelPricing> = {
+  ...legacyModelPricing,
+  ...geminiModelPricing,
+  ...openAIModelPricing,
+  ...claudeModelPricing,
+  ...xAIModelPricing,
 };
 
 const modelAliases: Record<string, string> = {
@@ -130,46 +80,19 @@ const modelAliases: Record<string, string> = {
   'gpt-3.5-0301': 'gpt-3.5-turbo',
   'gpt-3.5-turbo-instruct': 'gpt-3.5-turbo',
   'gpt-3.5-turbo-16k-0613': 'gpt-3.5-turbo',
+  'gemini-3-5-flash': 'gemini-3.5-flash',
+  'gemini-3.1-pro': 'gemini-3.1-pro-preview',
+  'gemini-3-pro': 'gemini-3-pro-preview',
+  'gemini-3-flash': 'gemini-3-flash-preview',
   'gemini-claude-opus-4-6-thinking': 'claude-opus-4-6',
   'gemini-claude-opus-4-5-thinking': 'claude-opus-4-5',
   'gemini-claude-sonnet-4-5-thinking': 'claude-sonnet-4-5',
   'gemini-claude-sonnet-4-5': 'claude-sonnet-4-5',
 };
 
-const fuzzyPrefixes = [
-  'claude-sonnet-5',
-  'claude-sonnet-4-6',
-  'claude-sonnet-4-5',
-  'claude-haiku-4-5',
-  'claude-opus-4-6',
-  'claude-opus-4-5',
-  'claude-opus-4-1',
-  'claude-sonnet-4-0',
-  'claude-opus-4-0',
-  'claude-3-7-sonnet',
-  'claude-3-5-sonnet',
-  'claude-3-5-haiku',
-  'claude-3-opus',
-  'claude-3-sonnet',
-  'claude-3-haiku',
-  'claude-opus',
-  'claude-sonnet',
-  'claude-haiku',
-  'gemini-3.5-flash',
-  'gemini-3-5-flash',
-  'gemini-3.1-pro',
-  'gemini-3.1-flash-lite',
-  'gemini-3-pro',
-  'gemini-3-flash',
-  'gemini-2.5-flash-lite',
-  'gemini-2.5-flash',
-  'gemini-2.5-pro',
-  'gemini-2.0-flash-lite',
-  'gemini-2.0-flash',
-  'gemini-1.5-pro',
-  'gemini-1.5-flash',
-  ...Object.keys(openAIModelPricing),
-].sort((left, right) => right.length - left.length);
+const fuzzyPrefixes = Object.keys(modelPricing).sort(
+  (left, right) => right.length - left.length
+);
 
 function toSafeTokenCount(value: number): number {
   return Number.isFinite(value) && value > 0 ? value : 0;
@@ -236,7 +159,7 @@ export function calculateModelCost(
     applyLongContextTier &&
     pricing.inputPriceHigh !== undefined &&
     pricing.outputPriceHigh !== undefined &&
-    input > (pricing.tierThreshold ?? GEMINI_LONG_CONTEXT_THRESHOLD);
+    input > (pricing.tierThreshold ?? DEFAULT_LONG_CONTEXT_THRESHOLD);
   const inputPrice = useHighPricing
     ? (pricing.inputPriceHigh ?? pricing.inputPrice)
     : pricing.inputPrice;
@@ -251,7 +174,7 @@ export function calculateModelCost(
     explicitCacheReadPrice ??
     (resolved.key.startsWith('gpt-')
       ? inputPrice * getOpenAICacheMultiplier(resolved.key)
-      : inputPrice * CLAUDE_CACHE_READ_MULTIPLIER);
+      : inputPrice * DEFAULT_CACHE_READ_MULTIPLIER);
   const explicitCacheWritePrice =
     useHighPricing && pricing.cacheWritePriceHigh !== undefined
       ? pricing.cacheWritePriceHigh

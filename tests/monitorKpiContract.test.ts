@@ -17,6 +17,13 @@ import {
   normalizeMonitorKpiData,
 } from '../src/utils/monitor.ts';
 import { calculateModelCost } from '../src/utils/costCalculator.ts';
+import {
+  claudeModelPricing,
+  geminiModelPricing,
+  openAIModelPricing,
+  xAIModelPricing,
+  type ModelPricing,
+} from '../src/data/modelPricing.generated.ts';
 
 test('监控 KPI 响应缺少数字字段时归一化为 0', () => {
   const normalized = normalizeMonitorKpiData({
@@ -76,7 +83,7 @@ test('监控费用按模型价格和缓存 token 计算', () => {
   assert.equal(calculateMonitorRequestCost('gemini-3.1-pro', 300_000, 100_000, 50_000), 2.82);
   assert.equal(
     calculateMonitorRequestCost('claude-sonnet-4-5-20250929', 2_000_000, 1_000_000, 1_000_000),
-    29.1
+    18.3
   );
   assert.equal(calculateMonitorRequestCost('unknown-model', 1_000_000, 1_000_000, 0), 0);
 });
@@ -95,6 +102,59 @@ test('models.dev OpenAI 快照包含 o-series、embedding 和精确 Codex 价格
   assert.equal(calculateModelCost('o3', 1_000_000, 1_000_000), 10);
   assert.equal(calculateModelCost('text-embedding-3-large', 1_000_000, 0), 0.13);
   assert.equal(calculateModelCost('gpt-5.2-codex', 1_000_000, 1_000_000), 15.75);
+});
+
+test('models.dev 四家价格快照中的每个模型都参与费用计算', () => {
+  const tables: Array<[string, Record<string, ModelPricing>]> = [
+    ['Gemini', geminiModelPricing],
+    ['OpenAI', openAIModelPricing],
+    ['Claude', claudeModelPricing],
+    ['xAI', xAIModelPricing],
+  ];
+
+  for (const [provider, table] of tables) {
+    assert.ok(Object.keys(table).length > 0, `${provider} price table must not be empty`);
+    for (const [model, pricing] of Object.entries(table)) {
+      const actual = calculateModelCost(model, 1_000_000, 1_000_000, 0, 0, {
+        applyLongContextTier: false,
+      });
+      const expected = pricing.inputPrice + pricing.outputPrice;
+      assert.ok(Math.abs(actual - expected) < 1e-10, `${provider}:${model}`);
+    }
+  }
+});
+
+test('xAI context tier 使用生成快照中的阈值和高阶价格', () => {
+  const tierEntry = Object.entries(xAIModelPricing).find(
+    ([, pricing]) =>
+      pricing.tierThreshold !== undefined && pricing.inputPriceHigh !== undefined
+  );
+  assert.ok(tierEntry, 'xAI snapshot must include a context-tier model');
+
+  const [model, pricing] = tierEntry;
+  const inputTokens = pricing.tierThreshold + 1;
+  const expected = (inputTokens * pricing.inputPriceHigh) / 1_000_000;
+  assert.equal(calculateModelCost(model, inputTokens, 0), expected);
+});
+
+test('已下架模型继续使用明确的历史价格 fallback', () => {
+  assert.equal(calculateModelCost('claude-3-haiku', 1_000_000, 1_000_000), 1.5);
+  assert.equal(calculateModelCost('gemini-1.5-flash', 1_000_000, 1_000_000), 0.8);
+});
+
+test('观测到的 Gemini 名称映射到 canonical preview 定价', () => {
+  const aliasCost = calculateModelCost('gemini-3.1-pro', 1_000_000, 1_000_000, 0, 0, {
+    applyLongContextTier: false,
+  });
+  const canonicalCost = calculateModelCost(
+    'gemini-3.1-pro-preview',
+    1_000_000,
+    1_000_000,
+    0,
+    0,
+    { applyLongContextTier: false }
+  );
+  assert.equal(aliasCost, canonicalCost);
 });
 
 test('缓存 token 超过输入 token 时普通输入费用归零', () => {
