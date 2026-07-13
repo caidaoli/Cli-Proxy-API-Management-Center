@@ -80,6 +80,7 @@ const modelAliases: Record<string, string> = {
   'gpt-3.5-0301': 'gpt-3.5-turbo',
   'gpt-3.5-turbo-instruct': 'gpt-3.5-turbo',
   'gpt-3.5-turbo-16k-0613': 'gpt-3.5-turbo',
+  'gemini-3-flash-agent': 'gemini-3.5-flash',
   'gemini-3-5-flash': 'gemini-3.5-flash',
   'gemini-3.1-pro': 'gemini-3.1-pro-preview',
   'gemini-3-pro': 'gemini-3-pro-preview',

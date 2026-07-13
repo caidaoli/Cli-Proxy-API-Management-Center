@@ -157,6 +157,13 @@ test('观测到的 Gemini 名称映射到 canonical preview 定价', () => {
   assert.equal(aliasCost, canonicalCost);
 });
 
+test('gemini-3-flash-agent 使用 gemini-3.5-flash 定价', () => {
+  const observedCost = calculateMonitorRequestCost('gemini-3-flash-agent', 1_000_000, 1_000_000, 0);
+  const canonicalCost = calculateMonitorRequestCost('gemini-3.5-flash', 1_000_000, 1_000_000, 0);
+
+  assert.equal(observedCost, canonicalCost);
+});
+
 test('缓存 token 超过输入 token 时普通输入费用归零', () => {
   assert.equal(calculateModelCost('gpt-5.6', 100, 0, 200, 300), 0.001975);
 });
