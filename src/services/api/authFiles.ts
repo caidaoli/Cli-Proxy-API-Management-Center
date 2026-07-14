@@ -147,18 +147,26 @@ export type AuthFileFieldsPatch = {
 };
 
 export type CodexCleanupEvent =
-  | { type: 'start'; total: number }
+  | { type: 'start'; total: number; provider?: string }
   | {
       type: 'progress';
       index: number;
       total: number;
       name: string;
       auth_index: string;
+      provider?: string;
       status_code?: number;
       deleted?: boolean;
       error?: string;
     }
-  | { type: 'done'; total: number; deleted: number };
+  | { type: 'done'; total: number; deleted: number; provider?: string };
+
+/** Providers that support validate-and-delete credential cleanup. */
+export const AUTH_CLEANUP_SUPPORTED_TYPES = ['codex', 'xai'] as const;
+export type AuthCleanupProvider = (typeof AUTH_CLEANUP_SUPPORTED_TYPES)[number];
+
+export const isAuthCleanupProvider = (value: string): value is AuthCleanupProvider =>
+  (AUTH_CLEANUP_SUPPORTED_TYPES as readonly string[]).includes(value);
 
 export const AUTH_FILE_INVALID_JSON_OBJECT_ERROR = 'AUTH_FILE_INVALID_JSON_OBJECT';
 
@@ -481,22 +489,25 @@ export const authFilesApi = {
       : [];
   },
 
-  // Codex 凭证清理（NDJSON 流式）
+  // 按凭证类型清理无效凭证（NDJSON 流式）。provider 默认 codex（兼容旧后端）。
   async codexCleanup(
     onEvent: (event: CodexCleanupEvent) => void,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    provider: string = 'codex'
   ): Promise<void> {
     const { baseUrl, managementKey } = apiClient.getFetchContext();
+    const normalizedProvider = provider.trim().toLowerCase() || 'codex';
     const resp = await fetch(`${baseUrl}/custom/codex-cleanup`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${managementKey}`,
         'Content-Type': 'application/json',
       },
+      body: JSON.stringify({ provider: normalizedProvider }),
       signal,
     });
     if (!resp.ok || !resp.body) {
-      throw new Error(`codex-cleanup failed: ${resp.status}`);
+      throw new Error(`auth-cleanup failed: ${resp.status}`);
     }
     const reader = resp.body.getReader();
     const decoder = new TextDecoder();

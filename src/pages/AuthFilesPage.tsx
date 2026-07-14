@@ -65,7 +65,12 @@ import {
   type AuthFilesSortMode,
 } from '@/features/authFiles/uiState';
 import { useAuthStore, useNotificationStore, useThemeStore } from '@/stores';
-import { authFilesApi, type CodexCleanupEvent } from '@/services/api/authFiles';
+import {
+  AUTH_CLEANUP_SUPPORTED_TYPES,
+  authFilesApi,
+  isAuthCleanupProvider,
+  type CodexCleanupEvent,
+} from '@/services/api/authFiles';
 import styles from './AuthFilesPage.module.scss';
 
 const easePower3Out = (progress: number) => 1 - (1 - progress) ** 4;
@@ -238,6 +243,8 @@ export function AuthFilesPage() {
 
   const disableControls = connectionStatus !== 'connected';
   const [codexCleaning, setCodexCleaning] = useState(false);
+  const [cleanupPickerOpen, setCleanupPickerOpen] = useState(false);
+  const [cleanupProvider, setCleanupProvider] = useState('codex');
   const [cleanupModalOpen, setCleanupModalOpen] = useState(false);
   const [cleanupTotal, setCleanupTotal] = useState(0);
   const [cleanupCurrent, setCleanupCurrent] = useState(0);
@@ -320,61 +327,101 @@ export function AuthFilesPage() {
     await refreshKeyStatsForFiles(latestFiles);
   }, [loadFiles, loadExcluded, loadModelAlias, refreshKeyStatsForFiles]);
 
-  const handleCodexCleanup = useCallback(async () => {
-    setCodexCleaning(true);
-    setCleanupModalOpen(true);
-    setCleanupTotal(0);
-    setCleanupCurrent(0);
-    setCleanupDeleted(0);
-    setCleanupLogs([]);
-    setCleanupDone(false);
+  const cleanableTypes = useMemo(
+    () =>
+      AUTH_CLEANUP_SUPPORTED_TYPES.filter((type) => (enabledTypeCounts[type] ?? 0) > 0),
+    [enabledTypeCounts]
+  );
 
-    const abort = new AbortController();
-    const deletedNames = new Set<string>();
-    cleanupAbortRef.current = abort;
+  const cleanupTypeOptions = useMemo(
+    () =>
+      cleanableTypes.map((type) => ({
+        value: type,
+        label: `${getTypeLabel(t, type)} (${enabledTypeCounts[type] ?? 0})`,
+      })),
+    [cleanableTypes, enabledTypeCounts, t]
+  );
 
-    try {
-      await authFilesApi.codexCleanup((ev: CodexCleanupEvent) => {
-        if (ev.type === 'start') {
-          setCleanupTotal(ev.total);
-          setCleanupLogs((prev) => [
-            ...prev,
-            t('auth_files.codex_cleanup_log_start', { total: ev.total }),
-          ]);
-        } else if (ev.type === 'progress') {
-          setCleanupCurrent(ev.index);
-          const status = ev.deleted
-            ? `\u2717 ${t('auth_files.codex_cleanup_log_deleted')}`
-            : ev.error
-              ? `\u26A0 ${ev.error}`
-              : `\u2713 ${t('auth_files.codex_cleanup_log_valid')}`;
-          setCleanupLogs((prev) => [
-            ...prev,
-            `[${ev.index}/${ev.total}] ${ev.name} \u2014 ${status}`,
-          ]);
-          if (ev.deleted) {
-            deletedNames.add(ev.name);
-            setCleanupDeleted((prev) => prev + 1);
-          }
-        } else if (ev.type === 'done') {
-          setCleanupDone(true);
-          setCleanupLogs((prev) => [
-            ...prev,
-            t('auth_files.codex_cleanup_log_done', { total: ev.total, deleted: ev.deleted }),
-          ]);
+  const openCleanupPicker = useCallback(() => {
+    if (cleanableTypes.length === 0) return;
+    const preferred =
+      isAuthCleanupProvider(normalizedFilter) && cleanableTypes.includes(normalizedFilter)
+        ? normalizedFilter
+        : cleanableTypes[0];
+    setCleanupProvider(preferred);
+    setCleanupPickerOpen(true);
+  }, [cleanableTypes, normalizedFilter]);
+
+  const handleCodexCleanup = useCallback(
+    async (provider: string) => {
+      const target = provider.trim().toLowerCase() || 'codex';
+      const typeLabel = getTypeLabel(t, target);
+      setCleanupPickerOpen(false);
+      setCleanupProvider(target);
+      setCodexCleaning(true);
+      setCleanupModalOpen(true);
+      setCleanupTotal(0);
+      setCleanupCurrent(0);
+      setCleanupDeleted(0);
+      setCleanupLogs([]);
+      setCleanupDone(false);
+
+      const abort = new AbortController();
+      const deletedNames = new Set<string>();
+      cleanupAbortRef.current = abort;
+
+      try {
+        await authFilesApi.codexCleanup(
+          (ev: CodexCleanupEvent) => {
+            if (ev.type === 'start') {
+              setCleanupTotal(ev.total);
+              setCleanupLogs((prev) => [
+                ...prev,
+                t('auth_files.codex_cleanup_log_start', { total: ev.total, type: typeLabel }),
+              ]);
+            } else if (ev.type === 'progress') {
+              setCleanupCurrent(ev.index);
+              const status = ev.deleted
+                ? `\u2717 ${t('auth_files.codex_cleanup_log_deleted')}`
+                : ev.error
+                  ? `\u26A0 ${ev.error}`
+                  : `\u2713 ${t('auth_files.codex_cleanup_log_valid')}`;
+              setCleanupLogs((prev) => [
+                ...prev,
+                `[${ev.index}/${ev.total}] ${ev.name} \u2014 ${status}`,
+              ]);
+              if (ev.deleted) {
+                deletedNames.add(ev.name);
+                setCleanupDeleted((prev) => prev + 1);
+              }
+            } else if (ev.type === 'done') {
+              setCleanupDone(true);
+              setCleanupLogs((prev) => [
+                ...prev,
+                t('auth_files.codex_cleanup_log_done', {
+                  total: ev.total,
+                  deleted: ev.deleted,
+                  type: typeLabel,
+                }),
+              ]);
+            }
+          },
+          abort.signal,
+          target
+        );
+      } catch {
+        if (!abort.signal.aborted) {
+          showNotification(t('auth_files.codex_cleanup_failed', { type: typeLabel }), 'error');
         }
-      }, abort.signal);
-    } catch {
-      if (!abort.signal.aborted) {
-        showNotification(t('auth_files.codex_cleanup_failed'), 'error');
+      } finally {
+        removeFromSelection(deletedNames);
+        await loadFiles();
+        setCodexCleaning(false);
+        cleanupAbortRef.current = null;
       }
-    } finally {
-      removeFromSelection(deletedNames);
-      await loadFiles();
-      setCodexCleaning(false);
-      cleanupAbortRef.current = null;
-    }
-  }, [loadFiles, removeFromSelection, showNotification, t]);
+    },
+    [loadFiles, removeFromSelection, showNotification, t]
+  );
 
   const handleCleanupModalClose = useCallback(() => {
     if (codexCleaning && cleanupAbortRef.current) {
@@ -657,11 +704,11 @@ export function AuthFilesPage() {
         title={titleNode}
         extra={
           <div className={styles.headerActions}>
-            {(enabledTypeCounts.codex ?? 0) > 0 && (
+            {cleanableTypes.length > 0 && (
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={handleCodexCleanup}
+                onClick={openCleanupPicker}
                 disabled={disableControls || codexCleaning}
                 loading={codexCleaning}
               >
@@ -966,8 +1013,44 @@ export function AuthFilesPage() {
       />
 
       <Modal
-        open={cleanupModalOpen}
+        open={cleanupPickerOpen}
         title={t('auth_files.codex_cleanup_button')}
+        onClose={() => setCleanupPickerOpen(false)}
+        width={420}
+        footer={
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <Button variant="secondary" size="sm" onClick={() => setCleanupPickerOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              size="sm"
+              disabled={!cleanupProvider || cleanupTypeOptions.length === 0}
+              onClick={() => void handleCodexCleanup(cleanupProvider)}
+            >
+              {t('auth_files.codex_cleanup_start')}
+            </Button>
+          </div>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+            {t('auth_files.codex_cleanup_select_hint')}
+          </div>
+          <Select
+            value={cleanupProvider}
+            options={cleanupTypeOptions}
+            onChange={setCleanupProvider}
+            ariaLabel={t('auth_files.codex_cleanup_select_label')}
+            fullWidth
+          />
+        </div>
+      </Modal>
+
+      <Modal
+        open={cleanupModalOpen}
+        title={t('auth_files.codex_cleanup_running_title', {
+          type: getTypeLabel(t, cleanupProvider),
+        })}
         onClose={handleCleanupModalClose}
         width={560}
         footer={
@@ -994,10 +1077,12 @@ export function AuthFilesPage() {
                 ? t('auth_files.codex_cleanup_log_done', {
                     total: cleanupTotal,
                     deleted: cleanupDeleted,
+                    type: getTypeLabel(t, cleanupProvider),
                   })
                 : t('auth_files.codex_cleanup_progress', {
                     current: cleanupCurrent,
                     total: cleanupTotal,
+                    type: getTypeLabel(t, cleanupProvider),
                   })}
             </span>
             <span>
