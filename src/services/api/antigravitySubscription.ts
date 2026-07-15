@@ -8,18 +8,15 @@ import {
 } from '@/utils/quota';
 import type { AntigravityQuotaPlan } from '@/types';
 
-export type AntigravitySubscriptionTier = {
-  id: string | null;
-  name: string | null;
-};
-
 export type AntigravitySubscriptionSummary = {
   plan: AntigravityQuotaPlan;
   tierId: string | null;
   tierName: string | null;
-  source: 'paid' | 'current';
-  currentTier: AntigravitySubscriptionTier | null;
-  paidTier: AntigravitySubscriptionTier | null;
+};
+
+type SubscriptionTier = {
+  id: string | null;
+  name: string | null;
 };
 
 type RawTierPayload = {
@@ -39,7 +36,7 @@ const PLAN_BY_TIER_ID = new Map<string, AntigravityQuotaPlan>([
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
-const normalizeTier = (value: unknown): AntigravitySubscriptionTier | null => {
+const normalizeTier = (value: unknown): SubscriptionTier | null => {
   if (!isRecord(value)) return null;
   const rawTier = value as RawTierPayload;
   return {
@@ -59,10 +56,8 @@ export const parseAntigravitySubscriptionSummary = (
   const parsed = parseAntigravityPayload(payload);
   if (!parsed) return null;
 
-  const currentTierPayload = parsed.currentTier ?? parsed.current_tier;
-  const paidTierPayload = parsed.paidTier ?? parsed.paid_tier;
-  const currentTier = normalizeTier(currentTierPayload);
-  const paidTier = normalizeTier(paidTierPayload);
+  const currentTier = normalizeTier(parsed.currentTier ?? parsed.current_tier);
+  const paidTier = normalizeTier(parsed.paidTier ?? parsed.paid_tier);
   const effectiveTier = paidTier?.id ? paidTier : currentTier;
   if (!effectiveTier?.id && !effectiveTier?.name) return null;
 
@@ -70,9 +65,6 @@ export const parseAntigravitySubscriptionSummary = (
     plan: resolvePlan(effectiveTier.id),
     tierId: effectiveTier.id,
     tierName: effectiveTier.name,
-    source: paidTier?.id ? 'paid' : 'current',
-    currentTier,
-    paidTier,
   };
 };
 
