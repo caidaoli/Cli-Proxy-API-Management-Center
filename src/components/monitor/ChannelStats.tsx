@@ -24,6 +24,7 @@ import styles from '@/pages/MonitorPage.module.scss';
 interface ChannelStatsProps {
   refreshKey: number;
   loading: boolean;
+  enabled?: boolean;
   providerMap: Record<string, string>;
   providerModels: Record<string, Set<string>>;
 }
@@ -71,6 +72,7 @@ interface ChannelFilterOption {
 export function ChannelStats({
   refreshKey,
   loading,
+  enabled = true,
   providerMap,
   providerModels,
 }: ChannelStatsProps) {
@@ -193,11 +195,10 @@ export function ChannelStats({
       const mapped = applyMonitorChannelStatsModelFilter(rawItems, filterModel).map(mapChannelStat);
       setChannelStats(mapped);
 
-      const sourceSet = new Set<string>(
-        response.filters?.sources && response.filters.sources.length > 0
-          ? response.filters.sources
-          : mapped.map((stat) => stat.source)
-      );
+      // 后端可能返回数万条 source 候选。原生 select 渲染这些 option 会长时间阻塞主线程；
+      // 渠道统计只展示当前 Top 列表，因此筛选项也只保留当前可见渠道和已选渠道。
+      const sourceSet = new Set<string>(mapped.map((stat) => stat.source));
+      if (filterChannel) sourceSet.add(filterChannel);
       const channels = Array.from(sourceSet)
         .filter((source) => !!source)
         .map((source) => ({ source, label: formatChannelLabel(source) }))
@@ -236,9 +237,9 @@ export function ChannelStats({
 
   useEffect(() => {
     // refreshKey=0 表示 provider map 尚未就绪；跳过首屏空跑，避免与 loadData 完成后再打一次形成双请求。
-    if (refreshKey === 0) return;
+    if (!enabled || refreshKey === 0) return;
     loadChannelStats();
-  }, [loadChannelStats, refreshKey]);
+  }, [enabled, loadChannelStats, refreshKey]);
 
   const filteredStats = useMemo(() => {
     return channelStats.filter((stat) => {

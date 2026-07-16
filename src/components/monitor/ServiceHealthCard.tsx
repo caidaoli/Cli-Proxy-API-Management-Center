@@ -80,39 +80,37 @@ function buildBlockDetails(data: MonitorServiceHealthData): BlockDetail[] {
 
 interface ServiceHealthCardProps {
   preloaded?: MonitorServiceHealthData | null;
-  preloadedReady?: boolean;
+  preloadedOwned?: boolean;
 }
 
-export function ServiceHealthCard({ preloaded, preloadedReady = false }: ServiceHealthCardProps = {}) {
+export function ServiceHealthCard({ preloaded, preloadedOwned = false }: ServiceHealthCardProps = {}) {
   const { t } = useTranslation();
-  const [data, setData] = useState<MonitorServiceHealthData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const [fetchedData, setFetchedData] = useState<MonitorServiceHealthData | null>(null);
+  const [fetchLoading, setFetchLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
   const [activeTooltip, setActiveTooltip] = useState<ActiveTooltipState | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (preloadedReady) {
-      setData(preloaded ?? null);
-      setError(!preloaded);
-      setLoading(false);
-      return;
-    }
+    if (preloadedOwned) return;
     let cancelled = false;
-    setLoading(true);
     monitorApi
       .getServiceHealth()
       .then((res) => {
-        if (!cancelled) setData(res);
+        if (!cancelled) setFetchedData(res);
       })
       .catch(() => {
-        if (!cancelled) setError(true);
+        if (!cancelled) setFetchError(true);
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setFetchLoading(false);
       });
     return () => { cancelled = true; };
-  }, [preloaded, preloadedReady]);
+  }, [preloadedOwned]);
+
+  const data = preloadedOwned ? (preloaded ?? null) : fetchedData;
+  const loading = preloadedOwned ? preloaded === undefined : fetchLoading;
+  const error = preloadedOwned ? preloaded === null : fetchError;
 
   useEffect(() => {
     if (activeTooltip === null) return;

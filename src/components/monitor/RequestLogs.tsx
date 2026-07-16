@@ -29,6 +29,7 @@ import styles from '@/pages/MonitorPage.module.scss';
 interface RequestLogsProps {
   refreshKey: number;
   loading: boolean;
+  enabled?: boolean;
   providerMap: Record<string, string>;
   apiFilter: string;
 }
@@ -62,7 +63,13 @@ const REQUEST_LOG_NUMERIC_COLUMN_KEYS = new Set<RequestLogTableColumnKey>([
   'cost',
 ]);
 
-export function RequestLogs({ refreshKey, loading, providerMap, apiFilter }: RequestLogsProps) {
+export function RequestLogs({
+  refreshKey,
+  loading,
+  enabled = true,
+  providerMap,
+  apiFilter,
+}: RequestLogsProps) {
   const { t } = useTranslation();
   const [filterModel, setFilterModel] = useState('');
   const [filterSource, setFilterSource] = useState('');
@@ -138,6 +145,8 @@ export function RequestLogs({ refreshKey, loading, providerMap, apiFilter }: Req
 
   // 独立获取日志数据
   const fetchLogData = useCallback(async () => {
+    if (!enabled) return;
+
     setLogLoading(true);
     try {
       const params = {
@@ -152,12 +161,16 @@ export function RequestLogs({ refreshKey, loading, providerMap, apiFilter }: Req
 
       const response = await monitorApi.getRequestLogs(params);
       const items = (response.items || []).map(toLogEntry);
+      const visibleSources = Array.from(
+        new Set(items.map((item) => item.source).filter(Boolean))
+      ).sort();
       setLogEntries(items);
       setTotal(response.total || 0);
       setTotalPages(response.total_pages || 0);
       setFilterOptions((prev) => ({
         models: filterModel ? prev.models : response.filters?.models || [],
-        sources: filterSource ? prev.sources : response.filters?.sources || [],
+        // source 候选可能有数万条；只渲染当前页实际出现的渠道，避免巨量 option 卡死页面。
+        sources: filterSource ? prev.sources : visibleSources,
       }));
 
       const safePage = response.page || page;
@@ -175,6 +188,7 @@ export function RequestLogs({ refreshKey, loading, providerMap, apiFilter }: Req
   }, [
     page,
     pageSize,
+    enabled,
     apiFilter,
     filterModel,
     filterSource,
@@ -221,9 +235,9 @@ export function RequestLogs({ refreshKey, loading, providerMap, apiFilter }: Req
 
   useEffect(() => {
     // 首屏等 refreshKey 就绪，避免与 provider 加载结束时的二次刷新叠打 request-logs。
-    if (refreshKey === 0) return;
+    if (!enabled || refreshKey === 0) return;
     fetchLogData();
-  }, [fetchLogData, refreshKey]);
+  }, [enabled, fetchLogData, refreshKey]);
 
   const showLoading = (logLoading || loading) && logEntries.length === 0;
 

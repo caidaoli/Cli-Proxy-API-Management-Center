@@ -87,6 +87,7 @@ export interface MonitorRequestLogsResponse {
 
 export interface MonitorStatsQuery extends MonitorTimeRangeQuery {
   limit?: number;
+  summary?: boolean;
   api?: string;
   api_key?: string;
   api_filter?: string;
@@ -267,63 +268,16 @@ export interface MonitorRequestDetailsQuery {
   limit?: number;
 }
 
-export interface MonitorDashboardQuery extends MonitorTimeRangeQuery {
-  hours?: number;
-  hourly_model_limit?: number;
-  channel_limit?: number;
-}
-
-export interface MonitorDashboardResponse {
-  kpi: MonitorKpiData | null;
-  daily_trend: { items: MonitorDailyTrendItem[] };
-  hourly_models: MonitorHourlyModelsData;
-  hourly_tokens: MonitorHourlyTokensData;
-  channel_stats: MonitorChannelStatsResponse;
-  service_health: MonitorServiceHealthData;
-  time_range?: {
-    start_time?: string;
-    end_time?: string;
-  };
-}
-
-
 export interface MonitorProviderMapResponse {
   providers: Record<string, string>;
   models: Record<string, string[]>;
 }
 
 export const monitorApi = {
-  getDashboard: async (params: MonitorDashboardQuery = {}): Promise<MonitorDashboardResponse> => {
-    const data = await gatedGet<Record<string, unknown>>('/custom/monitor/dashboard', params);
-    return {
-      kpi: normalizeMonitorKpiData(data.kpi),
-      daily_trend: {
-        items: Array.isArray((data.daily_trend as { items?: MonitorDailyTrendItem[] } | undefined)?.items)
-          ? ((data.daily_trend as { items: MonitorDailyTrendItem[] }).items || [])
-          : [],
-      },
-      hourly_models: normalizeMonitorHourlyModelsData(data.hourly_models),
-      hourly_tokens: normalizeMonitorHourlyTokensData(data.hourly_tokens),
-      channel_stats: (data.channel_stats as MonitorChannelStatsResponse) || {
-        items: [],
-        total: 0,
-        limit: 0,
-      },
-      service_health: (data.service_health as MonitorServiceHealthData) || {
-        rows: 0,
-        cols: 0,
-        block_duration_ms: 0,
-        blocks: [],
-        total_success: 0,
-        total_failure: 0,
-        success_rate: 0,
-      },
-      time_range: data.time_range as MonitorDashboardResponse['time_range'],
-    };
-  },
-
   getProviderMap: async (): Promise<MonitorProviderMapResponse> => {
-    const data = await gatedGet<Partial<MonitorProviderMapResponse>>('/custom/monitor/provider-map');
+    const data = await gatedGet<Partial<MonitorProviderMapResponse>>(
+      '/custom/monitor/provider-map'
+    );
     return {
       providers:
         data.providers && typeof data.providers === 'object' && !Array.isArray(data.providers)

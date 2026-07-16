@@ -19,6 +19,7 @@ import styles from '@/pages/MonitorPage.module.scss';
 interface FailureAnalysisProps {
   refreshKey: number;
   loading: boolean;
+  enabled?: boolean;
   providerMap: Record<string, string>;
   providerModels: Record<string, Set<string>>;
 }
@@ -47,7 +48,7 @@ interface ChannelFilterOption {
   label: string;
 }
 
-export function FailureAnalysis({ refreshKey, loading, providerMap, providerModels }: FailureAnalysisProps) {
+export function FailureAnalysis({ refreshKey, loading, enabled = true, providerMap, providerModels }: FailureAnalysisProps) {
   const { t } = useTranslation();
   const [expandedChannel, setExpandedChannel] = useState<string | null>(null);
   const [filterChannel, setFilterChannel] = useState('');
@@ -125,11 +126,8 @@ export function FailureAnalysis({ refreshKey, loading, providerMap, providerMode
       const mapped = applyMonitorFailureAnalysisModelFilter(rawItems, filterModel).map(mapFailureStat);
       setFailureStats(mapped);
 
-      const sourceSet = new Set<string>(
-        (response.filters?.sources && response.filters.sources.length > 0)
-          ? response.filters.sources
-          : mapped.map((stat) => stat.source)
-      );
+      const sourceSet = new Set<string>(mapped.map((stat) => stat.source));
+      if (filterChannel) sourceSet.add(filterChannel);
       const channels = Array.from(sourceSet)
         .filter((source) => !!source)
         .map((source) => ({ source, label: formatChannelLabel(source) }))
@@ -156,9 +154,9 @@ export function FailureAnalysis({ refreshKey, loading, providerMap, providerMode
 
   useEffect(() => {
     // 与 ChannelStats 一致：等 MonitorPage 完成 provider 加载（refreshKey>=1）再请求。
-    if (refreshKey === 0) return;
+    if (!enabled || refreshKey === 0) return;
     loadFailureAnalysis();
-  }, [loadFailureAnalysis, refreshKey]);
+  }, [enabled, loadFailureAnalysis, refreshKey]);
 
   const filteredStats = useMemo(() => {
     return failureStats.filter((stat) => {

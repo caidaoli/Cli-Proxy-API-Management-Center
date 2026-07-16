@@ -76,7 +76,7 @@ export function ModelDistributionChart({ timeRange, apiFilter, isDark, providerM
     const loadDistribution = async () => {
       let items: import('@/services/api/monitor').MonitorChannelStatsItem[];
       if (parentOwned) {
-        // 父组件接管：等 dashboard.channel_stats，禁止再打独立 channel-stats。
+        // 父组件接管：等待首屏渠道摘要，禁止再打独立 channel-stats。
         if (preloadedChannelStats === undefined) {
           return null;
         }
@@ -84,6 +84,7 @@ export function ModelDistributionChart({ timeRange, apiFilter, isDark, providerM
       } else {
         const data = await monitorApi.getChannelStats({
           limit: DISTRIBUTION_SOURCE_LIMIT,
+          summary: true,
           ...timeParams,
           ...(apiFilter ? { api_filter: apiFilter } : {}),
         });
