@@ -20,6 +20,7 @@ export {
   MIN_AUTH_FILES_PAGE_SIZE as MIN_CARD_PAGE_SIZE,
   normalizeAuthFilesPageSize as clampCardPageSize,
 } from './uiState.ts';
+export type OAuthConfigLoadError = 'loading' | 'unsupported' | 'load' | null;
 
 export const AUTH_FILE_REFRESH_WARNING_MS = 24 * 60 * 60 * 1000;
 
