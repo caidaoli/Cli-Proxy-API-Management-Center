@@ -18,7 +18,6 @@ import type {
   AuthFilesUploadResult,
 } from '@/services/api/authFilesUpload';
 import { formatFileSize } from '@/utils/format';
-import { MAX_AUTH_FILE_SIZE } from '@/utils/constants';
 import { downloadBlob } from '@/utils/download';
 import { getTypeLabel, isRuntimeOnlyAuthFile } from '@/features/authFiles/constants';
 import type { AuthFilesListQuery } from '@/features/authFiles/listQuery';
@@ -28,6 +27,10 @@ import {
   toggleAuthFileSelection,
   type AuthFileSelection,
 } from '@/features/authFiles/selection';
+import {
+  isAuthUploadAllowedFile,
+  maxAuthUploadFileSize,
+} from '@/features/authFiles/uploadValidation';
 
 type DeleteAllOptions = {
   filter: string;
@@ -227,11 +230,12 @@ export function useAuthFilesData(options: UseAuthFilesDataOptions): UseAuthFiles
       const oversizedFiles: string[] = [];
 
       filesToUpload.forEach((file) => {
-        if (!file.name.endsWith('.json')) {
+        if (!isAuthUploadAllowedFile(file.name)) {
           invalidFiles.push(file.name);
           return;
         }
-        if (file.size > MAX_AUTH_FILE_SIZE) {
+        const maxSize = maxAuthUploadFileSize(file.name);
+        if (file.size > maxSize) {
           oversizedFiles.push(file.name);
           return;
         }
@@ -242,8 +246,10 @@ export function useAuthFilesData(options: UseAuthFilesDataOptions): UseAuthFiles
         showNotification(t('auth_files.upload_error_json'), 'error');
       }
       if (oversizedFiles.length > 0) {
+        // Report the largest applicable limit when mixed files fail size checks.
+        const maxSize = Math.max(...oversizedFiles.map((name) => maxAuthUploadFileSize(name)));
         showNotification(
-          t('auth_files.upload_error_size', { maxSize: formatFileSize(MAX_AUTH_FILE_SIZE) }),
+          t('auth_files.upload_error_size', { maxSize: formatFileSize(maxSize) }),
           'error'
         );
       }

@@ -541,7 +541,7 @@
     "delete_problem_filtered_confirm": "Are you sure you want to delete all problematic {{type}} auth files? This operation cannot be undone!",
     "delete_filtered_result_button": "Delete filtered results",
     "delete_filtered_result_confirm": "Are you sure you want to delete auth files in the current filtered results? This operation cannot be undone!",
-    "upload_error_json": "Only JSON files are allowed",
+    "upload_error_json": "Only JSON, ZIP, TAR, or TAR.GZ files are allowed",
     "upload_error_size": "File size cannot exceed {{maxSize}}",
     "upload_success": "File uploaded successfully",
     "download_success": "File downloaded successfully",
@@ -710,8 +710,7 @@
     "duration_minute": "{{minutes}}m",
     "duration_less_than_minute": "<1m",
     "refresh_button": "Refresh Quota",
-    "fetch_all": "Fetch All",
-    "plan_label": "Plan"
+    "fetch_all": "Fetch All"
   },
   "antigravity_subscription": {
     "plan_free": "Free",
@@ -1316,7 +1315,6 @@
           "max_retry_credentials": "Max Retry Credentials",
           "max_retry_credentials_hint": "Leave empty to keep it unset. Set to 0 to preserve legacy behavior and try all available credentials.",
           "max_retry_interval": "Max Retry Interval (seconds)",
-
           "routing_strategy": "Routing Strategy",
           "routing_strategy_hint": "Select credential selection strategy",
           "strategy_round_robin": "Round Robin",

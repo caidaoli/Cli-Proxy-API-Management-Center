@@ -38,6 +38,7 @@ import {
   type ResolvedTheme,
 } from '@/features/authFiles/constants';
 import type { AuthFilesListQuery } from '@/features/authFiles/listQuery';
+import { AUTH_UPLOAD_ACCEPT } from '@/features/authFiles/uploadValidation';
 import { AuthFileCard } from '@/features/authFiles/components/AuthFileCard';
 import { AuthFileModelsModal } from '@/features/authFiles/components/AuthFileModelsModal';
 import { AuthFilesPrefixProxyEditorModal } from '@/features/authFiles/components/AuthFilesPrefixProxyEditorModal';
@@ -758,7 +759,7 @@ export function AuthFilesPage() {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".json,application/json"
+              accept={AUTH_UPLOAD_ACCEPT}
               multiple
               style={{ display: 'none' }}
               onChange={handleFileChange}

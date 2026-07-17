@@ -541,7 +541,7 @@
     "delete_problem_filtered_confirm": "确定要删除筛选出的有问题的 {{type}} 认证文件吗？此操作不可恢复！",
     "delete_filtered_result_button": "删除筛选结果",
     "delete_filtered_result_confirm": "确定要删除当前筛选结果中的认证文件吗？此操作不可恢复！",
-    "upload_error_json": "只能上传JSON文件",
+    "upload_error_json": "只能上传 JSON / ZIP / TAR / TAR.GZ 文件",
     "upload_error_size": "文件大小不能超过 {{maxSize}}",
     "upload_success": "文件上传成功",
     "download_success": "文件下载成功",
@@ -710,8 +710,7 @@
     "duration_minute": "{{minutes}} 分钟",
     "duration_less_than_minute": "小于 1 分钟",
     "refresh_button": "刷新额度",
-    "fetch_all": "获取全部",
-    "plan_label": "订阅计划"
+    "fetch_all": "获取全部"
   },
   "antigravity_subscription": {
     "plan_free": "免费版",
@@ -1316,7 +1315,6 @@
           "max_retry_credentials": "最大重试凭据数",
           "max_retry_credentials_hint": "留空表示不设置；设为 0 表示保留 legacy 行为，并尝试所有可用凭据。",
           "max_retry_interval": "最大重试间隔 (秒)",
-
           "routing_strategy": "路由策略",
           "routing_strategy_hint": "选择凭据选择策略",
           "strategy_round_robin": "轮询 (Round Robin)",

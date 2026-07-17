@@ -44,6 +44,8 @@ export const DEFAULT_AUTH_FILES_PAGE_SIZE = 20;
 export const MIN_AUTH_FILES_PAGE_SIZE = 10;
 export const MAX_AUTH_FILES_PAGE_SIZE = 100;
 export const MAX_AUTH_FILE_SIZE = 10 * 1024 * 1024;
+// Matches backend maxAuthArchiveUncompressedTotal (512 MiB) for zip/tar/tar.gz bulk import.
+export const MAX_AUTH_ARCHIVE_SIZE = 512 * 1024 * 1024;
 
 // 本地存储键名
 export const STORAGE_KEY_AUTH = 'cli-proxy-auth';
