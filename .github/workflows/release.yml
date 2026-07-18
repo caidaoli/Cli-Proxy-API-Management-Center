@@ -45,7 +45,6 @@ jobs:
           VERSION: ${{ github.ref_name }}
 
       - name: Prepare release assets
-        id: assets
         run: |
           set -euo pipefail
           cd dist
@@ -62,7 +61,6 @@ jobs:
           };
           writeFileSync('panel-manifest.json', JSON.stringify(manifest, null, 2) + '\n');
           NODE
-          echo "sha256=$sha256" >> "$GITHUB_OUTPUT"
           ls -lh management.html management.html.sha256 panel-manifest.json
 
       - name: Generate release notes
@@ -91,28 +89,3 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Check backend dispatch token
-        id: dispatch-token
-        env:
-          DISPATCH_TOKEN: ${{ secrets.CLIPROXYAPI_REPOSITORY_DISPATCH_TOKEN }}
-        run: |
-          if [ -n "$DISPATCH_TOKEN" ]; then
-            echo "available=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "available=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Request embedded panel update
-        if: ${{ steps.dispatch-token.outputs.available == 'true' }}
-        uses: peter-evans/repository-dispatch@v3
-        with:
-          token: ${{ secrets.CLIPROXYAPI_REPOSITORY_DISPATCH_TOKEN }}
-          repository: caidaoli/CLIProxyAPI
-          event-type: management-panel-released
-          client-payload: >-
-            {"tag":"${{ github.ref_name }}","sha256":"${{ steps.assets.outputs.sha256 }}"}
-
-      - name: Report manual embed sync requirement
-        if: ${{ steps.dispatch-token.outputs.available != 'true' }}
-        run: echo "::notice::Set CLIPROXYAPI_REPOSITORY_DISPATCH_TOKEN to open an automatic CLI panel update PR."
