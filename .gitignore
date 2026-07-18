@@ -37,3 +37,8 @@ example
 .playwright-mcp/page-2026-05-23T08-44-10-975Z.yml
 .codegraph
 .worktrees/
+
+# Superpowers local planning/docs (do not track)
+docs/superpowers/
+superpowers/
+.superpowers/
