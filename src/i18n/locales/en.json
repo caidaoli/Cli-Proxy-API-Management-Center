@@ -611,6 +611,8 @@
     "batch_fields_all_failed": "Batch update failed ({{failed}})",
     "batch_fields_all_skipped": "None of the selected fields apply to these files",
     "batch_fields_unchanged": "Leave unchanged",
+    "batch_fields_disable_cooling_true": "True",
+    "batch_fields_disable_cooling_false": "False",
     "batch_fields_priority_invalid": "Priority must be an integer",
     "batch_fields_headers_clear_hint": "Batch mode can set/overwrite headers only; clear fully via single-file edit.",
     "codex_cleanup_button": "Credential Cleanup",

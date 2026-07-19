@@ -611,6 +611,8 @@
     "batch_fields_all_failed": "批量更新失败（{{failed}} 个）",
     "batch_fields_all_skipped": "所选字段对这些文件均不适用，未做修改",
     "batch_fields_unchanged": "不修改",
+    "batch_fields_disable_cooling_true": "是（true）",
+    "batch_fields_disable_cooling_false": "否（false）",
     "batch_fields_priority_invalid": "优先级必须是整数",
     "batch_fields_headers_clear_hint": "批量模式仅支持设置/覆盖 headers；完整清空请用单文件编辑。",
     "codex_cleanup_button": "凭证清理",

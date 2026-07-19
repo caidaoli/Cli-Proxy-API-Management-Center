@@ -595,6 +595,8 @@
     "batch_fields_all_failed": "批量更新失敗（{{failed}} 個）",
     "batch_fields_all_skipped": "所選欄位對這些檔案均不適用，未做修改",
     "batch_fields_unchanged": "不修改",
+    "batch_fields_disable_cooling_true": "是（true）",
+    "batch_fields_disable_cooling_false": "否（false）",
     "batch_fields_priority_invalid": "優先順序必須是整數",
     "batch_fields_headers_clear_hint": "批量模式僅支援設定/覆蓋 headers；完整清空請用單檔案編輯。",
     "prefix_proxy_button": "驗證檔案詳情 / 編輯",

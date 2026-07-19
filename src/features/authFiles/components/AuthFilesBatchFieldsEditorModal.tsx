@@ -4,7 +4,10 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
-import type { BatchFieldsFormState, DisableCoolingChoice } from '@/features/authFiles/batchFieldsPatch';
+import type {
+  BatchFieldsFormState,
+  DisableCoolingChoice,
+} from '@/features/authFiles/batchFieldsPatch';
 import styles from '@/pages/AuthFilesPage.module.scss';
 
 export type AuthFilesBatchFieldsEditorModalProps = {
@@ -20,10 +23,7 @@ export type AuthFilesBatchFieldsEditorModalProps = {
   canApply: boolean;
   onClose: () => void;
   onApply: () => void;
-  onChange: <K extends keyof BatchFieldsFormState>(
-    key: K,
-    value: BatchFieldsFormState[K]
-  ) => void;
+  onChange: <K extends keyof BatchFieldsFormState>(key: K, value: BatchFieldsFormState[K]) => void;
 };
 
 export function AuthFilesBatchFieldsEditorModal(props: AuthFilesBatchFieldsEditorModalProps) {
@@ -45,9 +45,12 @@ export function AuthFilesBatchFieldsEditorModal(props: AuthFilesBatchFieldsEdito
   } = props;
 
   const disableCoolingOptions = [
-    { value: 'unchanged', label: t('auth_files.batch_fields_disable_cooling_unchanged', 'Unchanged') },
-    { value: 'true', label: t('auth_files.batch_fields_disable_cooling_true', 'True') },
-    { value: 'false', label: t('auth_files.batch_fields_disable_cooling_false', 'False') },
+    {
+      value: 'unchanged',
+      label: t('auth_files.batch_fields_unchanged'),
+    },
+    { value: 'true', label: t('auth_files.batch_fields_disable_cooling_true') },
+    { value: 'false', label: t('auth_files.batch_fields_disable_cooling_false') },
   ];
 
   return (
@@ -56,7 +59,7 @@ export function AuthFilesBatchFieldsEditorModal(props: AuthFilesBatchFieldsEdito
       onClose={onClose}
       closeDisabled={saving}
       width={720}
-      title={t('auth_files.batch_fields_title', 'Batch Edit Fields')}
+      title={t('auth_files.batch_fields_title', { count: selectedCount })}
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={saving}>
@@ -73,7 +76,15 @@ export function AuthFilesBatchFieldsEditorModal(props: AuthFilesBatchFieldsEdito
       }
     >
       <div className={styles.prefixProxyEditor}>
-        <div className="hint" style={{ textAlign: 'left', fontStyle: 'normal', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+        <div
+          className="hint"
+          style={{
+            textAlign: 'left',
+            fontStyle: 'normal',
+            color: 'var(--text-secondary)',
+            marginBottom: '8px',
+          }}
+        >
           {t('auth_files.batch_fields_hint', { count: selectedCount })}
         </div>
         <div className={styles.prefixProxyFields}>
@@ -126,9 +137,7 @@ export function AuthFilesBatchFieldsEditorModal(props: AuthFilesBatchFieldsEdito
               disabled={disableControls || saving}
               onChange={(e) => onChange('headersText', e.target.value)}
             />
-            {headersError && (
-              <div className="error-box">{headersError}</div>
-            )}
+            {headersError && <div className="error-box">{headersError}</div>}
             <div className="hint">{t('auth_files.batch_fields_headers_clear_hint')}</div>
           </div>
 

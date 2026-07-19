@@ -614,6 +614,8 @@
     "batch_fields_all_failed": "Ошибка пакетного обновления ({{failed}})",
     "batch_fields_all_skipped": "Ни одно из выбранных полей не применимо к этим файлам",
     "batch_fields_unchanged": "Не изменять",
+    "batch_fields_disable_cooling_true": "Да (true)",
+    "batch_fields_disable_cooling_false": "Нет (false)",
     "batch_fields_priority_invalid": "Приоритет должен быть целым числом",
     "batch_fields_headers_clear_hint": "В пакетном режиме можно только установить или перезаписать заголовки; для полной очистки используйте редактирование одного файла.",
     "codex_cleanup_button": "Очистка учётных данных",
