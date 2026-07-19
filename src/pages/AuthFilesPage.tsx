@@ -26,7 +26,6 @@ import { Modal } from '@/components/ui/Modal';
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
 import { copyToClipboard } from '@/utils/clipboard';
 import {
-  MAX_CARD_PAGE_SIZE,
   MIN_CARD_PAGE_SIZE,
   QUOTA_PROVIDER_TYPES,
   clampCardPageSize,
@@ -310,7 +309,7 @@ export function AuthFilesPage() {
     if (!Number.isFinite(parsed)) return;
 
     const rounded = Math.round(parsed);
-    if (rounded < MIN_CARD_PAGE_SIZE || rounded > MAX_CARD_PAGE_SIZE) return;
+    if (rounded < MIN_CARD_PAGE_SIZE) return;
 
     setPageSize(rounded);
     setPage(1);
@@ -834,7 +833,6 @@ export function AuthFilesPage() {
                 className={styles.pageSizeSelect}
                 type="number"
                 min={MIN_CARD_PAGE_SIZE}
-                max={MAX_CARD_PAGE_SIZE}
                 step={1}
                 value={pageSizeInput}
                 onChange={handlePageSizeChange}

@@ -24,12 +24,12 @@ export const HOME_BUILD_DATE_HEADER_KEYS = ['x-cpa-home-build-date'];
 export const VERSION_HEADER_KEYS = [
   ...HOME_VERSION_HEADER_KEYS,
   ...CPA_VERSION_HEADER_KEYS,
-  'x-server-version'
+  'x-server-version',
 ];
 export const BUILD_DATE_HEADER_KEYS = [
   ...HOME_BUILD_DATE_HEADER_KEYS,
   ...CPA_BUILD_DATE_HEADER_KEYS,
-  'x-server-build-date'
+  'x-server-build-date',
 ];
 export const STATUS_UPDATE_INTERVAL_MS = 1000;
 export const LOG_REFRESH_DELAY_MS = 500;
@@ -39,10 +39,6 @@ export const MAX_LOG_LINES = 2000;
 export const LOG_FETCH_LIMIT = 2500;
 export const LOGS_TIMEOUT_MS = 60 * 1000;
 
-// 认证文件分页
-export const DEFAULT_AUTH_FILES_PAGE_SIZE = 20;
-export const MIN_AUTH_FILES_PAGE_SIZE = 10;
-export const MAX_AUTH_FILES_PAGE_SIZE = 100;
 export const MAX_AUTH_FILE_SIZE = 10 * 1024 * 1024;
 // Matches backend maxAuthArchiveUncompressedTotal (512 MiB) for zip/tar/tar.gz bulk import.
 export const MAX_AUTH_ARCHIVE_SIZE = 512 * 1024 * 1024;
@@ -60,7 +56,7 @@ export const LANGUAGE_LABEL_KEYS: Record<Language, string> = {
   'zh-CN': 'language.chinese',
   'zh-TW': 'language.chinese_tw',
   en: 'language.english',
-  ru: 'language.russian'
+  ru: 'language.russian',
 };
 export const SUPPORTED_LANGUAGES = LANGUAGE_ORDER;
 
@@ -74,7 +70,7 @@ export const OAUTH_CARD_IDS = [
   'antigravity-oauth-card',
   'gemini-cli-oauth-card',
   'kimi-oauth-card',
-  'xai-oauth-card'
+  'xai-oauth-card',
 ];
 export const OAUTH_PROVIDERS = {
   CODEX: 'codex',
@@ -82,7 +78,7 @@ export const OAUTH_PROVIDERS = {
   ANTIGRAVITY: 'antigravity',
   GEMINI_CLI: 'gemini-cli',
   KIMI: 'kimi',
-  XAI: 'xai'
+  XAI: 'xai',
 } as const;
 
 // API 端点
@@ -93,5 +89,5 @@ export const API_ENDPOINTS = {
   PROVIDERS: '/providers',
   AUTH_FILES: '/auth-files',
   OAUTH: '/oauth',
-  LOGS: '/logs'
+  LOGS: '/logs',
 } as const;

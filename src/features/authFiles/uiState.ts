@@ -3,7 +3,6 @@ export const AUTH_FILES_SORT_MODES = ['default', 'az', 'priority'] as const;
 export type AuthFilesSortMode = (typeof AUTH_FILES_SORT_MODES)[number];
 
 export const MIN_AUTH_FILES_PAGE_SIZE = 3;
-export const MAX_AUTH_FILES_PAGE_SIZE = 40;
 
 export type AuthFilesUiState = {
   filter?: string;
@@ -30,7 +29,7 @@ export const normalizeAuthFilesPageSize = (value: unknown): number => {
         ? Number.parseInt(value, 10)
         : Number.NaN;
   if (!Number.isFinite(parsed)) return 12;
-  return Math.min(MAX_AUTH_FILES_PAGE_SIZE, Math.max(MIN_AUTH_FILES_PAGE_SIZE, Math.round(parsed)));
+  return Math.max(MIN_AUTH_FILES_PAGE_SIZE, Math.round(parsed));
 };
 
 const normalizeAuthFilesUiState = (state: AuthFilesUiState): AuthFilesUiState => {

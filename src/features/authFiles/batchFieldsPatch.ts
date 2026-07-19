@@ -1,4 +1,4 @@
-import type { AuthFileFieldsPatch } from '@/services/api/authFiles';
+import type { AuthFileFieldsBatchUpdate, AuthFileFieldsPatch } from '@/services/api/authFiles';
 import type { AuthFileItem } from '@/types';
 import {
   parseExcludedModelsText,
@@ -143,8 +143,12 @@ export const buildBatchAuthFileFieldsPatch = (
 export const resolveAuthFileProviderKey = (
   file: Pick<AuthFileItem, 'type' | 'provider'>
 ): string => {
-  const typeStr = String(file.type ?? '').trim().toLowerCase();
-  const providerStr = String(file.provider ?? '').trim().toLowerCase();
+  const typeStr = String(file.type ?? '')
+    .trim()
+    .toLowerCase();
+  const providerStr = String(file.provider ?? '')
+    .trim()
+    .toLowerCase();
 
   // Prefer type if it supports specialty fields
   if (supportsAuthFileWebsockets(typeStr) || supportsAuthFileUsingApi(typeStr)) {
@@ -160,8 +164,7 @@ export const resolveAuthFileProviderKey = (
   return typeStr;
 };
 
-export const hasPatchKeys = (patch: AuthFileFieldsPatch): boolean =>
-  Object.keys(patch).length > 0;
+export const hasPatchKeys = (patch: AuthFileFieldsPatch): boolean => Object.keys(patch).length > 0;
 
 export const filterPatchForFile = (
   patch: AuthFileFieldsPatch,
@@ -189,25 +192,25 @@ export const filterPatchForFile = (
   return result;
 };
 
-export const mapWithConcurrency = async <T, R>(
-  items: T[],
-  limit: number,
-  worker: (item: T, index: number) => Promise<R>
-): Promise<R[]> => {
-  if (items.length === 0) return [];
-  const concurrency = Math.max(1, Math.min(limit, items.length));
-  const results = new Array<R>(items.length);
-  let nextIndex = 0;
+export const buildBatchAuthFileFieldsUpdates = (
+  files: Array<Pick<AuthFileItem, 'name' | 'type' | 'provider'>>,
+  patch: AuthFileFieldsPatch
+): { updates: AuthFileFieldsBatchUpdate[]; skippedCount: number } => {
+  const updates: AuthFileFieldsBatchUpdate[] = [];
+  let skippedCount = 0;
 
-  const run = async () => {
-    while (nextIndex < items.length) {
-      const current = nextIndex++;
-      results[current] = await worker(items[current], current);
+  for (const file of files) {
+    const providerKey = resolveAuthFileProviderKey(file);
+    const fields = filterPatchForFile(patch, providerKey);
+    if (!hasPatchKeys(fields)) {
+      skippedCount++;
+      continue;
     }
-  };
 
-  await Promise.all(Array.from({ length: concurrency }, () => run()));
-  return results;
+    updates.push({ name: file.name, fields });
+  }
+
+  return { updates, skippedCount };
 };
 
 // Re-export for hook convenience

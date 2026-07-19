@@ -40,21 +40,21 @@ afterEach(() => {
   Reflect.deleteProperty(globalThis, 'window');
 });
 
-test('认证文件管理页面单页数量写入浏览器存储后可恢复', () => {
+test('认证文件管理页面单页数量超过 40 时仍可恢复', () => {
   installBrowserStorage();
 
-  writeAuthFilesUiState({ pageSize: 40 });
+  writeAuthFilesUiState({ pageSize: 500 });
 
-  assert.equal(readAuthFilesUiState()?.pageSize, 40);
-  assert.equal(normalizeAuthFilesPageSize(41), 40);
+  assert.equal(readAuthFilesUiState()?.pageSize, 500);
+  assert.equal(normalizeAuthFilesPageSize(501), 501);
 });
 
-test('认证文件管理页面单页数量超过上限时按 40 写入浏览器存储', () => {
+test('认证文件管理页面单页数量仍保留最小值 3', () => {
   installBrowserStorage();
 
-  writeAuthFilesUiState({ pageSize: 41 });
+  writeAuthFilesUiState({ pageSize: 2 });
 
-  assert.equal(readAuthFilesUiState()?.pageSize, 40);
+  assert.equal(readAuthFilesUiState()?.pageSize, 3);
 });
 
 test('配额管理页面单页数量写入浏览器存储后可恢复', () => {

@@ -1,17 +1,15 @@
 import { describe, expect, test } from 'bun:test';
 import type { AuthFileFieldsPatch } from '@/services/api/authFiles';
 import {
+  buildBatchAuthFileFieldsUpdates,
   buildBatchAuthFileFieldsPatch,
   createEmptyBatchFieldsForm,
   filterPatchForFile,
-  mapWithConcurrency,
   resolveAuthFileProviderKey,
   type BatchFieldsFormState,
 } from '@/features/authFiles/batchFieldsPatch';
 
-const touch = (
-  partial: Partial<BatchFieldsFormState>
-): BatchFieldsFormState => ({
+const touch = (partial: Partial<BatchFieldsFormState>): BatchFieldsFormState => ({
   ...createEmptyBatchFieldsForm(),
   ...partial,
 });
@@ -50,7 +48,10 @@ describe('buildBatchAuthFileFieldsPatch', () => {
     expect(patch).toEqual({});
   });
 
-  test('writes valid priority integers only when touched and non-empty', () => {
+  test('writes valid priority integers including zero only when touched and non-empty', () => {
+    expect(
+      buildBatchAuthFileFieldsPatch(touch({ priority: '0', priorityTouched: true })).patch
+    ).toEqual({ priority: 0 });
     expect(
       buildBatchAuthFileFieldsPatch(touch({ priority: '99', priorityTouched: true })).patch
     ).toEqual({ priority: 99 });
@@ -82,9 +83,7 @@ describe('buildBatchAuthFileFieldsPatch', () => {
     expect(ok.errorKey).toBeNull();
     expect(ok.patch.headers).toEqual({ 'X-A': '1' });
 
-    const bad = buildBatchAuthFileFieldsPatch(
-      touch({ headersText: '{', headersTouched: true })
-    );
+    const bad = buildBatchAuthFileFieldsPatch(touch({ headersText: '{', headersTouched: true }));
     expect(bad.errorKey).toBe('auth_files.headers_invalid_json');
 
     const emptyTouched = buildBatchAuthFileFieldsPatch(
@@ -95,29 +94,21 @@ describe('buildBatchAuthFileFieldsPatch', () => {
   });
 
   test('disableCooling and toggles only write when applied/touched', () => {
+    expect(buildBatchAuthFileFieldsPatch(touch({ disableCooling: 'unchanged' })).patch).toEqual({});
+    expect(buildBatchAuthFileFieldsPatch(touch({ disableCooling: 'true' })).patch).toEqual({
+      disable_cooling: true,
+    });
+    expect(buildBatchAuthFileFieldsPatch(touch({ disableCooling: 'false' })).patch).toEqual({
+      disable_cooling: false,
+    });
     expect(
-      buildBatchAuthFileFieldsPatch(touch({ disableCooling: 'unchanged' })).patch
+      buildBatchAuthFileFieldsPatch(touch({ websockets: true, websocketsTouched: false })).patch
     ).toEqual({});
     expect(
-      buildBatchAuthFileFieldsPatch(touch({ disableCooling: 'true' })).patch
-    ).toEqual({ disable_cooling: true });
-    expect(
-      buildBatchAuthFileFieldsPatch(touch({ disableCooling: 'false' })).patch
-    ).toEqual({ disable_cooling: false });
-    expect(
-      buildBatchAuthFileFieldsPatch(
-        touch({ websockets: true, websocketsTouched: false })
-      ).patch
-    ).toEqual({});
-    expect(
-      buildBatchAuthFileFieldsPatch(
-        touch({ websockets: true, websocketsTouched: true })
-      ).patch
+      buildBatchAuthFileFieldsPatch(touch({ websockets: true, websocketsTouched: true })).patch
     ).toEqual({ websockets: true });
     expect(
-      buildBatchAuthFileFieldsPatch(
-        touch({ usingApi: true, usingApiTouched: true })
-      ).patch
+      buildBatchAuthFileFieldsPatch(touch({ usingApi: true, usingApiTouched: true })).patch
     ).toEqual({ using_api: true });
   });
 });
@@ -145,42 +136,23 @@ describe('filterPatchForFile / resolveAuthFileProviderKey', () => {
     });
     expect(filterPatchForFile(base, 'claude')).toEqual({ prefix: 'p' });
   });
-});
 
-describe('mapWithConcurrency', () => {
-  test('preserves order and respects concurrency', async () => {
-    let inflight = 0;
-    let maxInflight = 0;
-    const results = await mapWithConcurrency([1, 2, 3, 4, 5], 2, async (n) => {
-      inflight++;
-      maxInflight = Math.max(maxInflight, inflight);
-      await Bun.sleep(5);
-      inflight--;
-      return n * 10;
-    });
-    expect(results).toEqual([10, 20, 30, 40, 50]);
-    expect(maxInflight).toBeLessThanOrEqual(2);
-  });
+  test('builds provider-specific batch updates and counts local skips', () => {
+    const result = buildBatchAuthFileFieldsUpdates(
+      [
+        { name: 'codex.json', type: 'codex' },
+        { name: 'xai.json', type: 'xai' },
+        { name: 'claude.json', type: 'claude' },
+      ],
+      { websockets: true, using_api: true }
+    );
 
-  test('enforces concurrency limit with staggered durations', async () => {
-    let inflight = 0;
-    let maxInflight = 0;
-    const durations = [10, 20, 15, 25, 5, 30, 8];
-    const results = await mapWithConcurrency(durations, 2, async (duration, index) => {
-      inflight++;
-      maxInflight = Math.max(maxInflight, inflight);
-      await Bun.sleep(duration);
-      inflight--;
-      return index * 100;
+    expect(result).toEqual({
+      updates: [
+        { name: 'codex.json', fields: { websockets: true } },
+        { name: 'xai.json', fields: { websockets: true, using_api: true } },
+      ],
+      skippedCount: 1,
     });
-    expect(results).toEqual([0, 100, 200, 300, 400, 500, 600]);
-    expect(maxInflight).toBeLessThanOrEqual(2);
-  });
-
-  test('supports worker with single parameter (backward compatibility)', async () => {
-    const results = await mapWithConcurrency([1, 2, 3], 2, async (n) => {
-      return n * 5;
-    });
-    expect(results).toEqual([5, 10, 15]);
   });
 });

@@ -8,10 +8,9 @@ import {
   createEmptyBatchFieldsForm,
   parseBatchHeadersText,
   buildBatchAuthFileFieldsPatch,
+  buildBatchAuthFileFieldsUpdates,
   resolveAuthFileProviderKey,
   hasPatchKeys,
-  filterPatchForFile,
-  mapWithConcurrency,
   supportsAuthFileWebsockets,
   supportsAuthFileUsingApi,
 } from '@/features/authFiles/batchFieldsPatch';
@@ -68,9 +67,7 @@ export function useAuthFilesBatchFieldsEditor(
   }, [selectedItems]);
 
   const showUsingApi = useMemo(() => {
-    return selectedItems.some((item) =>
-      supportsAuthFileUsingApi(resolveAuthFileProviderKey(item))
-    );
+    return selectedItems.some((item) => supportsAuthFileUsingApi(resolveAuthFileProviderKey(item)));
   }, [selectedItems]);
 
   const headersError = useMemo(() => {
@@ -100,32 +97,32 @@ export function useAuthFilesBatchFieldsEditor(
     setOpen(false);
   }, [saving]);
 
-  const setField = useCallback(<K extends keyof BatchFieldsFormState>(
-    key: K,
-    value: BatchFieldsFormState[K]
-  ) => {
-    setForm((prev) => {
-      const next = { ...prev, [key]: value };
-      if (key === 'prefix') {
-        next.prefixTouched = true;
-      } else if (key === 'proxyUrl') {
-        next.proxyUrlTouched = true;
-      } else if (key === 'note') {
-        next.noteTouched = true;
-      } else if (key === 'priority') {
-        next.priorityTouched = true;
-      } else if (key === 'excludedModelsText') {
-        next.excludedModelsTouched = true;
-      } else if (key === 'headersText') {
-        next.headersTouched = true;
-      } else if (key === 'websockets') {
-        next.websocketsTouched = true;
-      } else if (key === 'usingApi') {
-        next.usingApiTouched = true;
-      }
-      return next;
-    });
-  }, []);
+  const setField = useCallback(
+    <K extends keyof BatchFieldsFormState>(key: K, value: BatchFieldsFormState[K]) => {
+      setForm((prev) => {
+        const next = { ...prev, [key]: value };
+        if (key === 'prefix') {
+          next.prefixTouched = true;
+        } else if (key === 'proxyUrl') {
+          next.proxyUrlTouched = true;
+        } else if (key === 'note') {
+          next.noteTouched = true;
+        } else if (key === 'priority') {
+          next.priorityTouched = true;
+        } else if (key === 'excludedModelsText') {
+          next.excludedModelsTouched = true;
+        } else if (key === 'headersText') {
+          next.headersTouched = true;
+        } else if (key === 'websockets') {
+          next.websocketsTouched = true;
+        } else if (key === 'usingApi') {
+          next.usingApiTouched = true;
+        }
+        return next;
+      });
+    },
+    []
+  );
 
   const { patch, errorKey } = useMemo(() => {
     return buildBatchAuthFileFieldsPatch(form);
@@ -134,13 +131,13 @@ export function useAuthFilesBatchFieldsEditor(
   const canApply = useMemo(() => {
     return Boolean(
       !disableControls &&
-        !saving &&
-        open &&
-        selectedNames.length > 0 &&
-        hasPatchKeys(patch) &&
-        !errorKey &&
-        !headersError &&
-        !priorityError
+      !saving &&
+      open &&
+      selectedNames.length > 0 &&
+      hasPatchKeys(patch) &&
+      !errorKey &&
+      !headersError &&
+      !priorityError
     );
   }, [
     disableControls,
@@ -165,44 +162,18 @@ export function useAuthFilesBatchFieldsEditor(
     setSaving(true);
 
     try {
-      const results = await mapWithConcurrency(
-        selectedItems,
-        4,
-        async (item): Promise<'success' | 'failed' | 'skipped'> => {
-          const providerKey = resolveAuthFileProviderKey(item);
-          const filePatch = filterPatchForFile(finalPatch, providerKey);
-
-          if (!hasPatchKeys(filePatch)) {
-            return 'skipped';
-          }
-
-          try {
-            await authFilesApi.patchFields(item.name, filePatch);
-            return 'success';
-          } catch {
-            return 'failed';
-          }
-        }
-      );
-
-      let successCount = 0;
-      let failedCount = 0;
-      let skippedCount = 0;
-
-      for (const res of results) {
-        if (res === 'success') {
-          successCount++;
-        } else if (res === 'failed') {
-          failedCount++;
-        } else if (res === 'skipped') {
-          skippedCount++;
-        }
+      const { updates, skippedCount } = buildBatchAuthFileFieldsUpdates(selectedItems, finalPatch);
+      if (updates.length === 0) {
+        showNotification(t('auth_files.batch_fields_all_skipped'), 'info');
+        return;
       }
+
+      const result = await authFilesApi.patchFieldsBatch(updates);
+      const successCount = result.updated;
+      const failedCount = result.failed.length;
 
       if (successCount === selectedItems.length) {
         showNotification(t('auth_files.batch_fields_success', { count: successCount }), 'success');
-      } else if (skippedCount === selectedItems.length) {
-        showNotification(t('auth_files.batch_fields_all_skipped'), 'info');
       } else if (failedCount === selectedItems.length) {
         showNotification(t('auth_files.batch_fields_all_failed', { failed: failedCount }), 'error');
       } else {

@@ -146,6 +146,16 @@ export type AuthFileFieldsPatch = {
   note?: string;
 };
 
+export type AuthFileFieldsBatchUpdate = {
+  name: string;
+  fields: AuthFileFieldsPatch;
+};
+
+export type AuthFileFieldsBatchResult = {
+  updated: number;
+  failed: Array<{ name: string; error: string }>;
+};
+
 export type CodexCleanupEvent =
   | { type: 'start'; total: number; provider?: string }
   | {
@@ -322,6 +332,9 @@ export const authFilesApi = {
 
   patchFields: (name: string, fields: AuthFileFieldsPatch) =>
     apiClient.patch('/auth-files/fields', { name, ...fields }),
+
+  patchFieldsBatch: (updates: AuthFileFieldsBatchUpdate[]) =>
+    apiClient.patch<AuthFileFieldsBatchResult>('/auth-files/fields/batch', { updates }),
 
   upload: (file: File, options?: AuthFilesUploadOptions): Promise<AuthFilesUploadResult> =>
     authFilesApi.uploadBatch([file], options),
