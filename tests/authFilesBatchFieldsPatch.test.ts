@@ -161,4 +161,26 @@ describe('mapWithConcurrency', () => {
     expect(results).toEqual([10, 20, 30, 40, 50]);
     expect(maxInflight).toBeLessThanOrEqual(2);
   });
+
+  test('enforces concurrency limit with staggered durations', async () => {
+    let inflight = 0;
+    let maxInflight = 0;
+    const durations = [10, 20, 15, 25, 5, 30, 8];
+    const results = await mapWithConcurrency(durations, 2, async (duration, index) => {
+      inflight++;
+      maxInflight = Math.max(maxInflight, inflight);
+      await Bun.sleep(duration);
+      inflight--;
+      return index * 100;
+    });
+    expect(results).toEqual([0, 100, 200, 300, 400, 500, 600]);
+    expect(maxInflight).toBeLessThanOrEqual(2);
+  });
+
+  test('supports worker with single parameter (backward compatibility)', async () => {
+    const results = await mapWithConcurrency([1, 2, 3], 2, async (n) => {
+      return n * 5;
+    });
+    expect(results).toEqual([5, 10, 15]);
+  });
 });

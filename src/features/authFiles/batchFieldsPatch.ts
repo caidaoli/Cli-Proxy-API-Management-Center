@@ -192,36 +192,22 @@ export const filterPatchForFile = (
 export const mapWithConcurrency = async <T, R>(
   items: T[],
   limit: number,
-  worker: (item: T) => Promise<R>
+  worker: (item: T, index: number) => Promise<R>
 ): Promise<R[]> => {
-  const results: (R | undefined)[] = new Array(items.length);
-  const executing: Promise<void>[] = [];
+  if (items.length === 0) return [];
+  const concurrency = Math.max(1, Math.min(limit, items.length));
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
 
-  for (let i = 0; i < items.length; i++) {
-    const index = i;
-    const item = items[index];
-
-    const promise = (async () => {
-      const result = await worker(item);
-      results[index] = result;
-    })();
-
-    executing.push(promise.then(() => undefined));
-
-    if (executing.length >= limit) {
-      await Promise.race(executing);
-      const completedIndex = executing.findIndex((p) => {
-        // Find first completed promise
-        return p.then(() => true).catch(() => false);
-      });
-      if (completedIndex !== -1) {
-        executing.splice(completedIndex, 1);
-      }
+  const run = async () => {
+    while (nextIndex < items.length) {
+      const current = nextIndex++;
+      results[current] = await worker(items[current], current);
     }
-  }
+  };
 
-  await Promise.all(executing);
-  return results as R[];
+  await Promise.all(Array.from({ length: concurrency }, () => run()));
+  return results;
 };
 
 // Re-export for hook convenience
