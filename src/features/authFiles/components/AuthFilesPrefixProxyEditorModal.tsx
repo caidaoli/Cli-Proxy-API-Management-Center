@@ -166,9 +166,7 @@ export function AuthFilesPrefixProxyEditorModal(props: AuthFilesPrefixProxyEdito
                       disabled={disableControls || editor.saving || !editor.json}
                       onChange={(e) => onChange('headersText', e.target.value)}
                     />
-                    {editor.headersError && (
-                      <div className="error-box">{editor.headersError}</div>
-                    )}
+                    {editor.headersError && <div className="error-box">{editor.headersError}</div>}
                     <div className="hint">{t('auth_files.headers_hint')}</div>
                   </div>
                   <Input

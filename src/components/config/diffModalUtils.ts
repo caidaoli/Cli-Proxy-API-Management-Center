@@ -247,10 +247,22 @@ export function buildDiffCards(original: string, modified: string): DiffChunkCar
       (rangesOverlapOrTouch(previous.current.contextRange, card.current.contextRange) ||
         rangesOverlapOrTouch(previous.modified.contextRange, card.modified.contextRange))
     ) {
-      const currentChangedRange = mergeRange(previous.current.changedRange, card.current.changedRange);
-      const modifiedChangedRange = mergeRange(previous.modified.changedRange, card.modified.changedRange);
-      const currentContextRange = mergeRange(previous.current.contextRange, card.current.contextRange);
-      const modifiedContextRange = mergeRange(previous.modified.contextRange, card.modified.contextRange);
+      const currentChangedRange = mergeRange(
+        previous.current.changedRange,
+        card.current.changedRange
+      );
+      const modifiedChangedRange = mergeRange(
+        previous.modified.changedRange,
+        card.modified.changedRange
+      );
+      const currentContextRange = mergeRange(
+        previous.current.contextRange,
+        card.current.contextRange
+      );
+      const modifiedContextRange = mergeRange(
+        previous.modified.contextRange,
+        card.modified.contextRange
+      );
 
       merged[merged.length - 1] = {
         id: `${previous.id}-${card.id}`,

@@ -24,7 +24,11 @@ const PROVIDERS: ProviderNavItem[] = [
   { id: 'codex', label: 'Codex', getIcon: () => iconCodex },
   { id: 'claude', label: 'Claude', getIcon: () => iconClaude },
   { id: 'vertex', label: 'Vertex', getIcon: () => iconVertex },
-  { id: 'openai', label: 'OpenAI', getIcon: (theme) => (theme === 'dark' ? iconOpenaiDark : iconOpenaiLight) },
+  {
+    id: 'openai',
+    label: 'OpenAI',
+    getIcon: (theme) => (theme === 'dark' ? iconOpenaiDark : iconOpenaiLight),
+  },
 ];
 
 const HEADER_OFFSET = 24;

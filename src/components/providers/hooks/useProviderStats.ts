@@ -1,11 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { useInterval } from '@/hooks/useInterval';
 import { monitorApi, type MonitorKeyStatsResponse } from '@/services/api/monitor';
-import {
-  blocksToStatusBarData,
-  type KeyStats,
-  type StatusBarData,
-} from '@/utils/usage';
+import { blocksToStatusBarData, type KeyStats, type StatusBarData } from '@/utils/usage';
 
 const STALE_TIME_MS = 240_000;
 
@@ -81,9 +77,12 @@ export const useProviderStats = (options: UseProviderStatsOptions = {}) => {
     }
   }, []);
 
-  useInterval(() => {
-    void refreshKeyStats().catch(() => {});
-  }, enabled ? 240_000 : null);
+  useInterval(
+    () => {
+      void refreshKeyStats().catch(() => {});
+    },
+    enabled ? 240_000 : null
+  );
 
   return { keyStats, statusBarBySource, loadKeyStats, refreshKeyStats, isLoading };
 };

@@ -137,7 +137,14 @@ export function AiProvidersClaudeModelsPage() {
     autoFetchSignatureRef.current = signature;
 
     void fetchClaudeModelDiscovery();
-  }, [fetchClaudeModelDiscovery, form.apiKey, form.authIndex, form.baseUrl, form.headers, initialLoading]);
+  }, [
+    fetchClaudeModelDiscovery,
+    form.apiKey,
+    form.authIndex,
+    form.baseUrl,
+    form.headers,
+    initialLoading,
+  ]);
 
   useEffect(() => {
     const availableNames = new Set(models.map((model) => model.name));

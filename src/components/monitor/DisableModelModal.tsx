@@ -80,18 +80,10 @@ export function DisableModelModal({
       <div style={{ padding: '16px 0' }}>
         {getWarningContent()}
         <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
-          <Button
-            variant="secondary"
-            onClick={onCancel}
-            disabled={disabling}
-          >
+          <Button variant="secondary" onClick={onCancel} disabled={disabling}>
             {t('common.cancel')}
           </Button>
-          <Button
-            variant="danger"
-            onClick={onConfirm}
-            disabled={disabling}
-          >
+          <Button variant="danger" onClick={onConfirm} disabled={disabling}>
             {disabling ? t('monitor.logs.disabling') : getConfirmButtonText()}
           </Button>
         </div>

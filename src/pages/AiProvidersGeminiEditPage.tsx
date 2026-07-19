@@ -16,7 +16,11 @@ import { apiCallApi, getApiCallErrorMessage, modelsApi, providersApi } from '@/s
 import { useAuthStore, useConfigStore, useNotificationStore } from '@/stores';
 import type { GeminiKeyConfig } from '@/types';
 import { buildHeaderObject, headersToEntries, normalizeHeaderEntries } from '@/utils/headers';
-import { areKeyValueEntriesEqual, areModelEntriesEqual, areStringArraysEqual } from '@/utils/compare';
+import {
+  areKeyValueEntriesEqual,
+  areModelEntriesEqual,
+  areStringArraysEqual,
+} from '@/utils/compare';
 import { parseRouteIndexParam } from '@/utils/routeParams';
 import type { ModelInfo } from '@/utils/models';
 import { entriesToModels, modelsToEntries } from '@/components/ui/modelInputListUtils';
@@ -82,7 +86,9 @@ type GeminiFormBaseline = {
 const buildGeminiBaseline = (form: GeminiFormState): GeminiFormBaseline => ({
   apiKey: String(form.apiKey ?? '').trim(),
   priority:
-    form.priority !== undefined && Number.isFinite(form.priority) ? Math.trunc(form.priority) : null,
+    form.priority !== undefined && Number.isFinite(form.priority)
+      ? Math.trunc(form.priority)
+      : null,
   prefix: String(form.prefix ?? '').trim(),
   baseUrl: String(form.baseUrl ?? '').trim(),
   proxyUrl: String(form.proxyUrl ?? '').trim(),
@@ -359,7 +365,14 @@ export function AiProvidersGeminiEditPage() {
     autoFetchSignatureRef.current = signature;
 
     void fetchGeminiModelDiscovery();
-  }, [fetchGeminiModelDiscovery, form.apiKey, form.authIndex, form.baseUrl, form.headers, modelDiscoveryOpen]);
+  }, [
+    fetchGeminiModelDiscovery,
+    form.apiKey,
+    form.authIndex,
+    form.baseUrl,
+    form.headers,
+    modelDiscoveryOpen,
+  ]);
 
   useEffect(() => {
     const availableNames = new Set(discoveredModels.map((model) => model.name));

@@ -1191,9 +1191,8 @@ const renderCodexItems = (
   const planLabel = getPlanLabel(planType);
   const isPremiumPlan = PREMIUM_CODEX_PLAN_TYPES.has(normalizePlanType(planType) ?? '');
   const expiryLabel = subscriptionActiveUntil ? formatUnixTimestamp(subscriptionActiveUntil) : '';
-  const resetQuotaAction = rateLimitResetCreditsAvailableCount !== null
-    ? (resetQuotaActionHelper ?? null)
-    : null;
+  const resetQuotaAction =
+    rateLimitResetCreditsAvailableCount !== null ? (resetQuotaActionHelper ?? null) : null;
   const nodes: ReactNode[] = [];
 
   if (planLabel || rateLimitResetCreditsAvailableCount !== null || expiryLabel) {
@@ -1688,7 +1687,12 @@ export const ANTIGRAVITY_CONFIG: QuotaConfig<AntigravityQuotaState, AntigravityQ
   fetchQuota: fetchAntigravityQuota,
   storeSelector: (state) => state.antigravityQuota,
   storeSetter: 'setAntigravityQuota',
-  buildLoadingState: () => ({ status: 'loading', groups: [], subscription: null, serverTimeOffsetMs: null }),
+  buildLoadingState: () => ({
+    status: 'loading',
+    groups: [],
+    subscription: null,
+    serverTimeOffsetMs: null,
+  }),
   buildSuccessState: (data) => ({
     status: 'success',
     groups: data.groups,
@@ -1805,10 +1809,7 @@ export const GEMINI_CLI_CONFIG: QuotaConfig<
 
 // Kimi quota functions
 
-const fetchKimiQuota = async (
-  file: AuthFileItem,
-  t: TFunction
-): Promise<KimiQuotaRow[]> => {
+const fetchKimiQuota = async (file: AuthFileItem, t: TFunction): Promise<KimiQuotaRow[]> => {
   const rawAuthIndex = file['auth_index'] ?? file.authIndex;
   const authIndex = normalizeAuthIndex(rawAuthIndex);
   if (!authIndex) {

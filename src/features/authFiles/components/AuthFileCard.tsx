@@ -133,7 +133,7 @@ export function AuthFileCard(props: AuthFileCardProps) {
   const hasStatusWarning =
     Boolean(rawStatusMessage) && !HEALTHY_STATUS_MESSAGES.has(rawStatusMessage.toLowerCase());
 
-  const priorityValue = parsePriorityValue(file.priority ?? file['priority']);
+  const priorityValue = parsePriorityValue(file.priority ?? file['priority']) ?? 0;
   const noteValue = typeof file.note === 'string' ? file.note.trim() : '';
 
   return (
@@ -171,12 +171,10 @@ export function AuthFileCard(props: AuthFileCardProps) {
               <span className={styles.modifiedTime}>
                 {t('auth_files.file_modified')}: {formatModified(file)}
               </span>
-              {priorityValue !== undefined && (
-                <span className={styles.priorityBadge}>
-                  {t('auth_files.priority_display')}:{' '}
-                  <span className={styles.priorityValue}>{priorityValue}</span>
-                </span>
-              )}
+              <span className={styles.priorityBadge}>
+                {t('auth_files.priority_display')}:{' '}
+                <span className={styles.priorityValue}>{priorityValue}</span>
+              </span>
             </div>
           </div>
 

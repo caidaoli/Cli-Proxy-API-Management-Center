@@ -39,18 +39,23 @@ export function KpiCards({ timeRange, apiFilter, preloaded, preloadedKey }: KpiC
       ...(apiFilter ? { api_filter: apiFilter } : {}),
     };
 
-    monitorApi.getKpi(params).then((data) => {
-      if (!cancelled) {
-        setKpiResult({ requestKey, data });
-      }
-    }).catch((err) => {
-      console.error('KPI data load failed:', err);
-      if (!cancelled) {
-        setKpiResult({ requestKey, data: null });
-      }
-    });
+    monitorApi
+      .getKpi(params)
+      .then((data) => {
+        if (!cancelled) {
+          setKpiResult({ requestKey, data });
+        }
+      })
+      .catch((err) => {
+        console.error('KPI data load failed:', err);
+        if (!cancelled) {
+          setKpiResult({ requestKey, data: null });
+        }
+      });
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [timeRange, apiFilter, requestKey, parentOwned]);
 
   const timeRangeLabel = (() => {
@@ -97,8 +102,12 @@ export function KpiCards({ timeRange, apiFilter, preloaded, preloadedKey }: KpiC
           {hasStats ? formatMonitorNumber(stats.total_tokens) : '--'}
         </div>
         <div className={styles.kpiMeta}>
-          <span>{t('monitor.kpi.input')}: {hasStats ? formatMonitorNumber(stats.input_tokens) : '--'}</span>
-          <span>{t('monitor.kpi.output')}: {hasStats ? formatMonitorNumber(stats.output_tokens) : '--'}</span>
+          <span>
+            {t('monitor.kpi.input')}: {hasStats ? formatMonitorNumber(stats.input_tokens) : '--'}
+          </span>
+          <span>
+            {t('monitor.kpi.output')}: {hasStats ? formatMonitorNumber(stats.output_tokens) : '--'}
+          </span>
         </div>
       </div>
 
@@ -122,9 +131,7 @@ export function KpiCards({ timeRange, apiFilter, preloaded, preloadedKey }: KpiC
           <span className={styles.kpiLabel}>{t('monitor.kpi.avg_rpm')}</span>
           <span className={styles.kpiTag}>{timeRangeLabel}</span>
         </div>
-        <div className={styles.kpiValue}>
-          {hasStats ? stats.avg_rpm.toFixed(1) : '--'}
-        </div>
+        <div className={styles.kpiValue}>{hasStats ? stats.avg_rpm.toFixed(1) : '--'}</div>
         <div className={styles.kpiMeta}>
           <span>{t('monitor.kpi.requests_per_minute')}</span>
         </div>

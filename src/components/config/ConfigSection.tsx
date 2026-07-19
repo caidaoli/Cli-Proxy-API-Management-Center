@@ -7,7 +7,12 @@ interface ConfigSectionProps {
   className?: string;
 }
 
-export function ConfigSection({ title, description, className, children }: PropsWithChildren<ConfigSectionProps>) {
+export function ConfigSection({
+  title,
+  description,
+  className,
+  children,
+}: PropsWithChildren<ConfigSectionProps>) {
   return (
     <Card title={title} className={className}>
       {description && (
@@ -19,4 +24,3 @@ export function ConfigSection({ title, description, className, children }: Props
     </Card>
   );
 }
-

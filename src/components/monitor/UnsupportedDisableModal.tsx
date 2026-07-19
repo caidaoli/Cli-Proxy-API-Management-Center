@@ -15,10 +15,7 @@ interface UnsupportedDisableModalProps {
   onClose: () => void;
 }
 
-export function UnsupportedDisableModal({
-  state,
-  onClose,
-}: UnsupportedDisableModalProps) {
+export function UnsupportedDisableModal({ state, onClose }: UnsupportedDisableModalProps) {
   const { t } = useTranslation();
 
   if (!state) return null;
@@ -32,39 +29,51 @@ export function UnsupportedDisableModal({
     >
       <div style={{ padding: '16px 0' }}>
         {/* 提示信息 */}
-        <p style={{
-          marginBottom: 16,
-          lineHeight: 1.6,
-          color: 'var(--warning-color, #f59e0b)',
-          fontWeight: 500,
-        }}>
+        <p
+          style={{
+            marginBottom: 16,
+            lineHeight: 1.6,
+            color: 'var(--warning-color, #f59e0b)',
+            fontWeight: 500,
+          }}
+        >
           ⚠️ {t('monitor.logs.disable_unsupported_desc', { providerType: state.providerType })}
         </p>
 
         {/* 手动操作指南 */}
-        <div style={{
-          padding: '12px 16px',
-          background: 'var(--bg-tertiary)',
-          borderRadius: '8px',
-          marginBottom: 16,
-        }}>
-          <p style={{
-            fontWeight: 600,
-            marginBottom: 8,
-            color: 'var(--text-primary)',
-          }}>
+        <div
+          style={{
+            padding: '12px 16px',
+            background: 'var(--bg-tertiary)',
+            borderRadius: '8px',
+            marginBottom: 16,
+          }}
+        >
+          <p
+            style={{
+              fontWeight: 600,
+              marginBottom: 8,
+              color: 'var(--text-primary)',
+            }}
+          >
             {t('monitor.logs.disable_unsupported_guide_title')}
           </p>
-          <ul style={{
-            margin: 0,
-            padding: 0,
-            listStyle: 'none',
-            fontSize: 13,
-            lineHeight: 1.8,
-            color: 'var(--text-secondary)',
-          }}>
+          <ul
+            style={{
+              margin: 0,
+              padding: 0,
+              listStyle: 'none',
+              fontSize: 13,
+              lineHeight: 1.8,
+              color: 'var(--text-secondary)',
+            }}
+          >
             <li>{t('monitor.logs.disable_unsupported_guide_step1')}</li>
-            <li>{t('monitor.logs.disable_unsupported_guide_step2', { providerType: state.providerType })}</li>
+            <li>
+              {t('monitor.logs.disable_unsupported_guide_step2', {
+                providerType: state.providerType,
+              })}
+            </li>
             <li>{t('monitor.logs.disable_unsupported_guide_step3', { model: state.model })}</li>
             <li>{t('monitor.logs.disable_unsupported_guide_step4')}</li>
           </ul>

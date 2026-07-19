@@ -55,21 +55,24 @@ export function TimeRangeSelector({ value, onChange, customRange }: TimeRangeSel
     return formatDateForInput(new Date());
   });
 
-  const handleTimeClick = useCallback((range: TimeRange) => {
-    if (range === 'custom') {
-      setShowCustom(true);
-      onChange(range);
-    } else if (range === 'yesterday') {
-      setShowCustom(false);
-      onChange(range, getYesterdayRange());
-    } else if (range === 'dayBeforeYesterday') {
-      setShowCustom(false);
-      onChange(range, getDayBeforeYesterdayRange());
-    } else {
-      setShowCustom(false);
-      onChange(range);
-    }
-  }, [onChange]);
+  const handleTimeClick = useCallback(
+    (range: TimeRange) => {
+      if (range === 'custom') {
+        setShowCustom(true);
+        onChange(range);
+      } else if (range === 'yesterday') {
+        setShowCustom(false);
+        onChange(range, getYesterdayRange());
+      } else if (range === 'dayBeforeYesterday') {
+        setShowCustom(false);
+        onChange(range, getDayBeforeYesterdayRange());
+      } else {
+        setShowCustom(false);
+        onChange(range);
+      }
+    },
+    [onChange]
+  );
 
   const handleApplyCustom = useCallback(() => {
     if (startDate && endDate) {
@@ -103,15 +106,17 @@ export function TimeRangeSelector({ value, onChange, customRange }: TimeRangeSel
   return (
     <div className={styles.timeRangeSelector}>
       <div className={styles.timeButtons}>
-        {(['dayBeforeYesterday', 'yesterday', 1, 7, 14, 30, 'custom'] as TimeRange[]).map((range) => (
-          <button
-            key={range}
-            className={`${styles.timeButton} ${value === range ? styles.active : ''}`}
-            onClick={() => handleTimeClick(range)}
-          >
-            {getButtonLabel(range)}
-          </button>
-        ))}
+        {(['dayBeforeYesterday', 'yesterday', 1, 7, 14, 30, 'custom'] as TimeRange[]).map(
+          (range) => (
+            <button
+              key={range}
+              className={`${styles.timeButton} ${value === range ? styles.active : ''}`}
+              onClick={() => handleTimeClick(range)}
+            >
+              {getButtonLabel(range)}
+            </button>
+          )
+        )}
       </div>
       {showCustom && (
         <div className={styles.customDatePicker}>

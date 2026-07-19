@@ -18,16 +18,16 @@ i18n.use(initReactI18next).init({
     'zh-CN': { translation: { ...zhCN, ...zhCNLocal } },
     'zh-TW': { translation: zhTW },
     en: { translation: { ...en, ...enLocal } },
-    ru: { translation: { ...ru, ...ruLocal } }
+    ru: { translation: { ...ru, ...ruLocal } },
   },
   lng: getInitialLanguage(),
   fallbackLng: 'zh-CN',
   interpolation: {
-    escapeValue: false // React 已经转义
+    escapeValue: false, // React 已经转义
   },
   react: {
-    useSuspense: false
-  }
+    useSuspense: false,
+  },
 });
 
 export default i18n;

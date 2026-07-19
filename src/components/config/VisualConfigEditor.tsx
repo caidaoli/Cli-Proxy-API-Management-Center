@@ -83,7 +83,12 @@ function Divider() {
   return <div style={{ height: 1, background: 'var(--border-color)', margin: '16px 0' }} />;
 }
 
-export function VisualConfigEditor({ values, validationErrors, disabled = false, onChange }: VisualConfigEditorProps) {
+export function VisualConfigEditor({
+  values,
+  validationErrors,
+  disabled = false,
+  onChange,
+}: VisualConfigEditorProps) {
   const { t } = useTranslation();
   const routingStrategyLabelId = useId();
   const routingStrategyHintId = `${routingStrategyLabelId}-hint`;
@@ -93,22 +98,30 @@ export function VisualConfigEditor({ values, validationErrors, disabled = false,
   const nonstreamKeepaliveInputId = useId();
   const nonstreamKeepaliveHintId = `${nonstreamKeepaliveInputId}-hint`;
   const nonstreamKeepaliveErrorId = `${nonstreamKeepaliveInputId}-error`;
-  const isKeepaliveDisabled = values.streaming.keepaliveSeconds === '' || values.streaming.keepaliveSeconds === '0';
+  const isKeepaliveDisabled =
+    values.streaming.keepaliveSeconds === '' || values.streaming.keepaliveSeconds === '0';
   const isNonstreamKeepaliveDisabled =
-    values.streaming.nonstreamKeepaliveInterval === '' || values.streaming.nonstreamKeepaliveInterval === '0';
+    values.streaming.nonstreamKeepaliveInterval === '' ||
+    values.streaming.nonstreamKeepaliveInterval === '0';
   const portError = getValidationMessage(t, validationErrors?.port);
   const logsMaxSizeError = getValidationMessage(t, validationErrors?.logsMaxTotalSizeMb);
   const requestRetryError = getValidationMessage(t, validationErrors?.requestRetry);
   const maxRetryCredentialsError = getValidationMessage(t, validationErrors?.maxRetryCredentials);
   const maxRetryIntervalError = getValidationMessage(t, validationErrors?.maxRetryInterval);
   const keepaliveError = getValidationMessage(t, validationErrors?.['streaming.keepaliveSeconds']);
-  const bootstrapRetriesError = getValidationMessage(t, validationErrors?.['streaming.bootstrapRetries']);
+  const bootstrapRetriesError = getValidationMessage(
+    t,
+    validationErrors?.['streaming.bootstrapRetries']
+  );
   const nonstreamKeepaliveError = getValidationMessage(
     t,
     validationErrors?.['streaming.nonstreamKeepaliveInterval']
   );
 
-  const handleApiKeysTextChange = useCallback((apiKeysText: string) => onChange({ apiKeysText }), [onChange]);
+  const handleApiKeysTextChange = useCallback(
+    (apiKeysText: string) => onChange({ apiKeysText }),
+    [onChange]
+  );
   const handlePluginStoreSourcesChange = useCallback(
     (pluginStoreSources: string[]) => onChange({ pluginStoreSources }),
     [onChange]
@@ -154,7 +167,10 @@ export function VisualConfigEditor({ values, validationErrors, disabled = false,
         {t('config_management.visual.notice')}
       </div>
 
-      <ConfigSection title={t('config_management.visual.sections.server.title')} description={t('config_management.visual.sections.server.description')}>
+      <ConfigSection
+        title={t('config_management.visual.sections.server.title')}
+        description={t('config_management.visual.sections.server.description')}
+      >
         <SectionGrid>
           <Input
             label={t('config_management.visual.sections.server.host')}
@@ -175,7 +191,10 @@ export function VisualConfigEditor({ values, validationErrors, disabled = false,
         </SectionGrid>
       </ConfigSection>
 
-      <ConfigSection title={t('config_management.visual.sections.tls.title')} description={t('config_management.visual.sections.tls.description')}>
+      <ConfigSection
+        title={t('config_management.visual.sections.tls.title')}
+        description={t('config_management.visual.sections.tls.description')}
+      >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <ToggleRow
             title={t('config_management.visual.sections.tls.enable')}
@@ -208,7 +227,10 @@ export function VisualConfigEditor({ values, validationErrors, disabled = false,
         </div>
       </ConfigSection>
 
-      <ConfigSection title={t('config_management.visual.sections.remote.title')} description={t('config_management.visual.sections.remote.description')}>
+      <ConfigSection
+        title={t('config_management.visual.sections.remote.title')}
+        description={t('config_management.visual.sections.remote.description')}
+      >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <ToggleRow
             title={t('config_management.visual.sections.remote.allow_remote')}
@@ -244,7 +266,10 @@ export function VisualConfigEditor({ values, validationErrors, disabled = false,
         </div>
       </ConfigSection>
 
-      <ConfigSection title={t('config_management.visual.sections.auth.title')} description={t('config_management.visual.sections.auth.description')}>
+      <ConfigSection
+        title={t('config_management.visual.sections.auth.title')}
+        description={t('config_management.visual.sections.auth.description')}
+      >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <Input
             label={t('config_management.visual.sections.auth.auth_dir')}
@@ -262,7 +287,10 @@ export function VisualConfigEditor({ values, validationErrors, disabled = false,
         </div>
       </ConfigSection>
 
-      <ConfigSection title={t('config_management.visual.sections.system.title')} description={t('config_management.visual.sections.system.description')}>
+      <ConfigSection
+        title={t('config_management.visual.sections.system.title')}
+        description={t('config_management.visual.sections.system.description')}
+      >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <SectionGrid>
             <ToggleRow
@@ -303,7 +331,9 @@ export function VisualConfigEditor({ values, validationErrors, disabled = false,
           </SectionGrid>
 
           <div className="form-group">
-            <label>{t('config_management.visual.sections.system.plugin_store_sources_label')}</label>
+            <label>
+              {t('config_management.visual.sections.system.plugin_store_sources_label')}
+            </label>
             <StringListEditor
               value={values.pluginStoreSources}
               disabled={disabled}
@@ -346,7 +376,10 @@ export function VisualConfigEditor({ values, validationErrors, disabled = false,
         </div>
       </ConfigSection>
 
-      <ConfigSection title={t('config_management.visual.sections.network.title')} description={t('config_management.visual.sections.network.description')}>
+      <ConfigSection
+        title={t('config_management.visual.sections.network.title')}
+        description={t('config_management.visual.sections.network.description')}
+      >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <SectionGrid>
             <Input
@@ -385,13 +418,24 @@ export function VisualConfigEditor({ values, validationErrors, disabled = false,
               error={maxRetryIntervalError}
             />
             <div className="form-group">
-              <label id={routingStrategyLabelId} htmlFor={`${routingStrategyLabelId}-select`}>{t('config_management.visual.sections.network.routing_strategy')}</label>
+              <label id={routingStrategyLabelId} htmlFor={`${routingStrategyLabelId}-select`}>
+                {t('config_management.visual.sections.network.routing_strategy')}
+              </label>
               <Select
                 value={values.routingStrategy}
                 options={[
-                  { value: 'round-robin', label: t('config_management.visual.sections.network.strategy_round_robin') },
-                  { value: 'fill-first', label: t('config_management.visual.sections.network.strategy_fill_first') },
-                  { value: 'sf', label: t('config_management.visual.sections.network.strategy_sf') },
+                  {
+                    value: 'round-robin',
+                    label: t('config_management.visual.sections.network.strategy_round_robin'),
+                  },
+                  {
+                    value: 'fill-first',
+                    label: t('config_management.visual.sections.network.strategy_fill_first'),
+                  },
+                  {
+                    value: 'sf',
+                    label: t('config_management.visual.sections.network.strategy_sf'),
+                  },
                 ]}
                 id={`${routingStrategyLabelId}-select`}
                 disabled={disabled}
@@ -401,7 +445,9 @@ export function VisualConfigEditor({ values, validationErrors, disabled = false,
                   onChange({ routingStrategy: nextValue as VisualConfigValues['routingStrategy'] })
                 }
               />
-              <div id={routingStrategyHintId} className="hint">{t('config_management.visual.sections.network.routing_strategy_hint')}</div>
+              <div id={routingStrategyHintId} className="hint">
+                {t('config_management.visual.sections.network.routing_strategy_hint')}
+              </div>
             </div>
             <Input
               label={t('config_management.visual.sections.network.session_affinity_ttl')}
@@ -450,7 +496,10 @@ export function VisualConfigEditor({ values, validationErrors, disabled = false,
         </div>
       </ConfigSection>
 
-      <ConfigSection title={t('config_management.visual.sections.quota.title')} description={t('config_management.visual.sections.quota.description')}>
+      <ConfigSection
+        title={t('config_management.visual.sections.quota.title')}
+        description={t('config_management.visual.sections.quota.description')}
+      >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <ToggleRow
             title={t('config_management.visual.sections.quota.switch_project')}
@@ -476,11 +525,16 @@ export function VisualConfigEditor({ values, validationErrors, disabled = false,
         </div>
       </ConfigSection>
 
-      <ConfigSection title={t('config_management.visual.sections.streaming.title')} description={t('config_management.visual.sections.streaming.description')}>
+      <ConfigSection
+        title={t('config_management.visual.sections.streaming.title')}
+        description={t('config_management.visual.sections.streaming.description')}
+      >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <SectionGrid>
             <div className="form-group">
-              <label htmlFor={keepaliveInputId}>{t('config_management.visual.sections.streaming.keepalive_seconds')}</label>
+              <label htmlFor={keepaliveInputId}>
+                {t('config_management.visual.sections.streaming.keepalive_seconds')}
+              </label>
               <div style={{ position: 'relative' }}>
                 <input
                   id={keepaliveInputId}
@@ -489,7 +543,9 @@ export function VisualConfigEditor({ values, validationErrors, disabled = false,
                   placeholder="0"
                   value={values.streaming.keepaliveSeconds}
                   onChange={(e) =>
-                    onChange({ streaming: { ...values.streaming, keepaliveSeconds: e.target.value } })
+                    onChange({
+                      streaming: { ...values.streaming, keepaliveSeconds: e.target.value },
+                    })
                   }
                   disabled={disabled}
                 />
@@ -512,15 +568,23 @@ export function VisualConfigEditor({ values, validationErrors, disabled = false,
                   </span>
                 )}
               </div>
-              {keepaliveError && <div id={keepaliveErrorId} className="error-box">{keepaliveError}</div>}
-              <div id={keepaliveHintId} className="hint">{t('config_management.visual.sections.streaming.keepalive_hint')}</div>
+              {keepaliveError && (
+                <div id={keepaliveErrorId} className="error-box">
+                  {keepaliveError}
+                </div>
+              )}
+              <div id={keepaliveHintId} className="hint">
+                {t('config_management.visual.sections.streaming.keepalive_hint')}
+              </div>
             </div>
             <Input
               label={t('config_management.visual.sections.streaming.bootstrap_retries')}
               type="number"
               placeholder="1"
               value={values.streaming.bootstrapRetries}
-              onChange={(e) => onChange({ streaming: { ...values.streaming, bootstrapRetries: e.target.value } })}
+              onChange={(e) =>
+                onChange({ streaming: { ...values.streaming, bootstrapRetries: e.target.value } })
+              }
               disabled={disabled}
               hint={t('config_management.visual.sections.streaming.bootstrap_hint')}
               error={bootstrapRetriesError}
@@ -529,7 +593,9 @@ export function VisualConfigEditor({ values, validationErrors, disabled = false,
 
           <SectionGrid>
             <div className="form-group">
-              <label htmlFor={nonstreamKeepaliveInputId}>{t('config_management.visual.sections.streaming.nonstream_keepalive')}</label>
+              <label htmlFor={nonstreamKeepaliveInputId}>
+                {t('config_management.visual.sections.streaming.nonstream_keepalive')}
+              </label>
               <div style={{ position: 'relative' }}>
                 <input
                   className="input"
@@ -538,7 +604,10 @@ export function VisualConfigEditor({ values, validationErrors, disabled = false,
                   value={values.streaming.nonstreamKeepaliveInterval}
                   onChange={(e) =>
                     onChange({
-                      streaming: { ...values.streaming, nonstreamKeepaliveInterval: e.target.value },
+                      streaming: {
+                        ...values.streaming,
+                        nonstreamKeepaliveInterval: e.target.value,
+                      },
                     })
                   }
                   disabled={disabled}
@@ -562,7 +631,11 @@ export function VisualConfigEditor({ values, validationErrors, disabled = false,
                   </span>
                 )}
               </div>
-              {nonstreamKeepaliveError && <div id={nonstreamKeepaliveErrorId} className="error-box">{nonstreamKeepaliveError}</div>}
+              {nonstreamKeepaliveError && (
+                <div id={nonstreamKeepaliveErrorId} className="error-box">
+                  {nonstreamKeepaliveError}
+                </div>
+              )}
               <div id={nonstreamKeepaliveHintId} className="hint">
                 {t('config_management.visual.sections.streaming.nonstream_keepalive_hint')}
               </div>
@@ -571,10 +644,15 @@ export function VisualConfigEditor({ values, validationErrors, disabled = false,
         </div>
       </ConfigSection>
 
-      <ConfigSection title={t('config_management.visual.sections.payload.title')} description={t('config_management.visual.sections.payload.description')}>
+      <ConfigSection
+        title={t('config_management.visual.sections.payload.title')}
+        description={t('config_management.visual.sections.payload.description')}
+      >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>
-            <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>{t('config_management.visual.sections.payload.default_rules')}</div>
+            <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>
+              {t('config_management.visual.sections.payload.default_rules')}
+            </div>
             <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>
               {t('config_management.visual.sections.payload.default_rules_desc')}
             </div>
@@ -586,7 +664,9 @@ export function VisualConfigEditor({ values, validationErrors, disabled = false,
           </div>
 
           <div>
-            <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>{t('config_management.visual.sections.payload.default_raw_rules')}</div>
+            <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>
+              {t('config_management.visual.sections.payload.default_raw_rules')}
+            </div>
             <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>
               {t('config_management.visual.sections.payload.default_raw_rules_desc')}
             </div>
@@ -599,7 +679,9 @@ export function VisualConfigEditor({ values, validationErrors, disabled = false,
           </div>
 
           <div>
-            <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>{t('config_management.visual.sections.payload.override_rules')}</div>
+            <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>
+              {t('config_management.visual.sections.payload.override_rules')}
+            </div>
             <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>
               {t('config_management.visual.sections.payload.override_rules_desc')}
             </div>
@@ -612,7 +694,9 @@ export function VisualConfigEditor({ values, validationErrors, disabled = false,
           </div>
 
           <div>
-            <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>{t('config_management.visual.sections.payload.override_raw_rules')}</div>
+            <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>
+              {t('config_management.visual.sections.payload.override_raw_rules')}
+            </div>
             <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>
               {t('config_management.visual.sections.payload.override_raw_rules_desc')}
             </div>
@@ -626,7 +710,9 @@ export function VisualConfigEditor({ values, validationErrors, disabled = false,
           </div>
 
           <div>
-            <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>{t('config_management.visual.sections.payload.filter_rules')}</div>
+            <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>
+              {t('config_management.visual.sections.payload.filter_rules')}
+            </div>
             <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>
               {t('config_management.visual.sections.payload.filter_rules_desc')}
             </div>

@@ -7,7 +7,13 @@ interface CardProps {
   className?: string;
 }
 
-export function Card({ title, subtitle, extra, children, className }: PropsWithChildren<CardProps>) {
+export function Card({
+  title,
+  subtitle,
+  extra,
+  children,
+  className,
+}: PropsWithChildren<CardProps>) {
   return (
     <div className={className ? `card ${className}` : 'card'}>
       {(title || extra) && (

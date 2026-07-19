@@ -122,8 +122,12 @@ export function CodexSection({
                 )}
                 {item.websockets !== undefined && (
                   <div className={styles.fieldRow}>
-                    <span className={styles.fieldLabel}>{t('ai_providers.codex_websockets_label')}:</span>
-                    <span className={styles.fieldValue}>{item.websockets ? t('common.yes') : t('common.no')}</span>
+                    <span className={styles.fieldLabel}>
+                      {t('ai_providers.codex_websockets_label')}:
+                    </span>
+                    <span className={styles.fieldValue}>
+                      {item.websockets ? t('common.yes') : t('common.no')}
+                    </span>
                   </div>
                 )}
                 {headerEntries.length > 0 && (
@@ -162,7 +166,10 @@ export function CodexSection({
                     </div>
                     <div className={styles.modelTagList}>
                       {excludedModels.map((model) => (
-                        <span key={model} className={`${styles.modelTag} ${styles.excludedModelTag}`}>
+                        <span
+                          key={model}
+                          className={`${styles.modelTag} ${styles.excludedModelTag}`}
+                        >
                           <span className={styles.modelName}>{model}</span>
                         </span>
                       ))}

@@ -82,7 +82,7 @@ interface SidebarNavDrawerItem {
 type SidebarNavItem = SidebarNavLinkItem | SidebarNavDrawerItem;
 
 const flattenNavItems = (items: SidebarNavItem[]): SidebarNavLinkItem[] =>
-  items.flatMap((item) => item.kind === 'drawer' ? item.children : [item]);
+  items.flatMap((item) => (item.kind === 'drawer' ? item.children : [item]));
 
 function PluginSidebarIcon({ src }: { src: string }) {
   const [failed, setFailed] = useState(false);
@@ -998,9 +998,7 @@ export function MainLayout() {
         <aside
           className={`sidebar ${sidebarOpen ? 'open' : ''} ${sidebarCollapsed ? 'collapsed' : ''}`}
         >
-          <div className="nav-section">
-            {navItems.map((item) => renderNavItem(item))}
-          </div>
+          <div className="nav-section">{navItems.map((item) => renderNavItem(item))}</div>
           {pluginNavItems.length > 0 ? (
             <div className="nav-section nav-section-plugin-pages">
               {showSidebarLabels ? (

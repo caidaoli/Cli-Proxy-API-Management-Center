@@ -91,9 +91,7 @@ const modelAliases: Record<string, string> = {
   'gemini-claude-sonnet-4-5': 'claude-sonnet-4-5',
 };
 
-const fuzzyPrefixes = Object.keys(modelPricing).sort(
-  (left, right) => right.length - left.length
-);
+const fuzzyPrefixes = Object.keys(modelPricing).sort((left, right) => right.length - left.length);
 
 function toSafeTokenCount(value: number): number {
   return Number.isFinite(value) && value > 0 ? value : 0;

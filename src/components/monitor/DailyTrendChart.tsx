@@ -4,9 +4,7 @@ import { Chart } from 'react-chartjs-2';
 import type { TimeRange } from '@/pages/MonitorPage';
 import { monitorApi, type MonitorDailyTrendItem } from '@/services/api/monitor';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import {
-  buildMonitorTimeRangeParams,
-} from '@/utils/monitor';
+import { buildMonitorTimeRangeParams } from '@/utils/monitor';
 import styles from '@/pages/MonitorPage.module.scss';
 
 interface DailyTrendChartProps {
@@ -19,7 +17,13 @@ interface DailyTrendChartProps {
 
 const EMPTY_DAILY_ITEMS: MonitorDailyTrendItem[] = [];
 
-export function DailyTrendChart({ timeRange, apiFilter, isDark, preloadedItems, preloadedKey }: DailyTrendChartProps) {
+export function DailyTrendChart({
+  timeRange,
+  apiFilter,
+  isDark,
+  preloadedItems,
+  preloadedKey,
+}: DailyTrendChartProps) {
   const { t } = useTranslation();
   const isMobile = useMediaQuery('(max-width: 768px)');
   const requestKey = `${timeRange}\0${apiFilter}`;
@@ -28,8 +32,12 @@ export function DailyTrendChart({ timeRange, apiFilter, isDark, preloadedItems, 
     items: MonitorDailyTrendItem[];
   } | null>(null);
   const parentOwned = preloadedKey === requestKey;
-  const loading = parentOwned ? preloadedItems === undefined : dailyState?.requestKey !== requestKey;
-  const dailyItems = parentOwned ? (preloadedItems ?? EMPTY_DAILY_ITEMS) : (dailyState?.items ?? EMPTY_DAILY_ITEMS);
+  const loading = parentOwned
+    ? preloadedItems === undefined
+    : dailyState?.requestKey !== requestKey;
+  const dailyItems = parentOwned
+    ? (preloadedItems ?? EMPTY_DAILY_ITEMS)
+    : (dailyState?.items ?? EMPTY_DAILY_ITEMS);
 
   useEffect(() => {
     if (parentOwned) return;
@@ -40,18 +48,23 @@ export function DailyTrendChart({ timeRange, apiFilter, isDark, preloadedItems, 
       ...(apiFilter ? { api_filter: apiFilter } : {}),
     };
 
-    monitorApi.getDailyTrend(params).then((data) => {
-      if (!cancelled) {
-        setDailyState({ requestKey, items: data.items || [] });
-      }
-    }).catch((err) => {
-      console.error('Daily trend load failed:', err);
-      if (!cancelled) {
-        setDailyState({ requestKey, items: [] });
-      }
-    });
+    monitorApi
+      .getDailyTrend(params)
+      .then((data) => {
+        if (!cancelled) {
+          setDailyState({ requestKey, items: data.items || [] });
+        }
+      })
+      .catch((err) => {
+        console.error('Daily trend load failed:', err);
+        if (!cancelled) {
+          setDailyState({ requestKey, items: [] });
+        }
+      });
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [timeRange, apiFilter, requestKey, parentOwned]);
 
   // 图表数据
@@ -108,122 +121,125 @@ export function DailyTrendChart({ timeRange, apiFilter, isDark, preloadedItems, 
   }, [dailyItems, t]);
 
   // 图表配置
-  const chartOptions = useMemo(() => ({
-    responsive: true,
-    maintainAspectRatio: false,
-    interaction: {
-      mode: 'index' as const,
-      intersect: false,
-    },
-    plugins: {
-      legend: {
-        display: true,
-        position: 'bottom' as const,
-        labels: {
-          color: isDark ? '#9ca3af' : '#6b7280',
-          usePointStyle: true,
-          padding: isMobile ? 8 : 16,
-          font: {
-            size: isMobile ? 10 : 11,
+  const chartOptions = useMemo(
+    () => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        mode: 'index' as const,
+        intersect: false,
+      },
+      plugins: {
+        legend: {
+          display: true,
+          position: 'bottom' as const,
+          labels: {
+            color: isDark ? '#9ca3af' : '#6b7280',
+            usePointStyle: true,
+            padding: isMobile ? 8 : 16,
+            font: {
+              size: isMobile ? 10 : 11,
+            },
+            generateLabels: (chart: any) => {
+              return chart.data.datasets.map((dataset: any, i: number) => {
+                const isLine = dataset.type === 'line';
+                return {
+                  text: dataset.label,
+                  fillStyle: dataset.backgroundColor,
+                  strokeStyle: dataset.borderColor,
+                  lineWidth: 0,
+                  hidden: !chart.isDatasetVisible(i),
+                  datasetIndex: i,
+                  pointStyle: isLine ? 'circle' : 'rect',
+                };
+              });
+            },
           },
-          generateLabels: (chart: any) => {
-            return chart.data.datasets.map((dataset: any, i: number) => {
-              const isLine = dataset.type === 'line';
-              return {
-                text: dataset.label,
-                fillStyle: dataset.backgroundColor,
-                strokeStyle: dataset.borderColor,
-                lineWidth: 0,
-                hidden: !chart.isDatasetVisible(i),
-                datasetIndex: i,
-                pointStyle: isLine ? 'circle' : 'rect',
-              };
-            });
+        },
+        tooltip: {
+          backgroundColor: isDark ? '#374151' : '#ffffff',
+          titleColor: isDark ? '#f3f4f6' : '#111827',
+          bodyColor: isDark ? '#d1d5db' : '#4b5563',
+          borderColor: isDark ? '#4b5563' : '#e5e7eb',
+          borderWidth: 1,
+          padding: 12,
+          callbacks: {
+            label: (context: any) => {
+              const label = context.dataset.label || '';
+              const value = context.raw;
+              if (context.dataset.yAxisID === 'y1') {
+                return `${label}: ${value.toLocaleString()}`;
+              }
+              return `${label}: ${value.toFixed(1)}K`;
+            },
           },
         },
       },
-      tooltip: {
-        backgroundColor: isDark ? '#374151' : '#ffffff',
-        titleColor: isDark ? '#f3f4f6' : '#111827',
-        bodyColor: isDark ? '#d1d5db' : '#4b5563',
-        borderColor: isDark ? '#4b5563' : '#e5e7eb',
-        borderWidth: 1,
-        padding: 12,
-        callbacks: {
-          label: (context: any) => {
-            const label = context.dataset.label || '';
-            const value = context.raw;
-            if (context.dataset.yAxisID === 'y1') {
-              return `${label}: ${value.toLocaleString()}`;
-            }
-            return `${label}: ${value.toFixed(1)}K`;
+      scales: {
+        x: {
+          grid: {
+            color: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.06)',
+          },
+          ticks: {
+            color: isDark ? '#9ca3af' : '#6b7280',
+            autoSkip: true,
+            maxTicksLimit: isMobile ? 4 : 8,
+            maxRotation: 0,
+            font: {
+              size: isMobile ? 10 : 11,
+            },
           },
         },
-      },
-    },
-    scales: {
-      x: {
-        grid: {
-          color: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.06)',
-        },
-        ticks: {
-          color: isDark ? '#9ca3af' : '#6b7280',
-          autoSkip: true,
-          maxTicksLimit: isMobile ? 4 : 8,
-          maxRotation: 0,
-          font: {
-            size: isMobile ? 10 : 11,
+        y: {
+          type: 'linear' as const,
+          position: 'left' as const,
+          stacked: true,
+          grid: {
+            color: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.06)',
+          },
+          ticks: {
+            color: isDark ? '#9ca3af' : '#6b7280',
+            maxTicksLimit: isMobile ? 4 : 8,
+            font: {
+              size: isMobile ? 10 : 11,
+            },
+            callback: (value: string | number) => `${value}K`,
+          },
+          title: {
+            display: !isMobile,
+            text: 'Tokens (K)',
+            color: isDark ? '#9ca3af' : '#6b7280',
+            font: {
+              size: 11,
+            },
           },
         },
-      },
-      y: {
-        type: 'linear' as const,
-        position: 'left' as const,
-        stacked: true,
-        grid: {
-          color: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.06)',
-        },
-        ticks: {
-          color: isDark ? '#9ca3af' : '#6b7280',
-          maxTicksLimit: isMobile ? 4 : 8,
-          font: {
-            size: isMobile ? 10 : 11,
-          },
-          callback: (value: string | number) => `${value}K`,
-        },
-        title: {
+        y1: {
+          type: 'linear' as const,
+          position: 'right' as const,
           display: !isMobile,
-          text: 'Tokens (K)',
-          color: isDark ? '#9ca3af' : '#6b7280',
-          font: {
-            size: 11,
+          grid: {
+            drawOnChartArea: false,
+          },
+          ticks: {
+            color: isDark ? '#9ca3af' : '#6b7280',
+            font: {
+              size: 11,
+            },
+          },
+          title: {
+            display: !isMobile,
+            text: t('monitor.trend.requests'),
+            color: isDark ? '#9ca3af' : '#6b7280',
+            font: {
+              size: 11,
+            },
           },
         },
       },
-      y1: {
-        type: 'linear' as const,
-        position: 'right' as const,
-        display: !isMobile,
-        grid: {
-          drawOnChartArea: false,
-        },
-        ticks: {
-          color: isDark ? '#9ca3af' : '#6b7280',
-          font: {
-            size: 11,
-          },
-        },
-        title: {
-          display: !isMobile,
-          text: t('monitor.trend.requests'),
-          color: isDark ? '#9ca3af' : '#6b7280',
-          font: {
-            size: 11,
-          },
-        },
-      },
-    },
-  }), [isDark, isMobile, t]);
+    }),
+    [isDark, isMobile, t]
+  );
 
   const timeRangeLabel = (() => {
     if (timeRange === 'yesterday') return t('monitor.yesterday');

@@ -26,11 +26,7 @@ import { useQuotaLoader } from './useQuotaLoader';
 import type { QuotaConfig } from './quotaConfigs';
 import { sortQuotaFiles } from './quotaFiles';
 import { buildQuotaAuthFilesListQuery } from './quotaListQuery';
-import {
-  MAX_QUOTA_PAGE_SIZE,
-  MIN_QUOTA_PAGE_SIZE,
-  normalizeQuotaPageSize,
-} from './uiState';
+import { MAX_QUOTA_PAGE_SIZE, MIN_QUOTA_PAGE_SIZE, normalizeQuotaPageSize } from './uiState';
 import { IconRefreshCw } from '@/components/ui/icons';
 import styles from '@/pages/QuotaPage.module.scss';
 
@@ -86,8 +82,7 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
   const pageSize = normalizeQuotaPageSize(quotaPageSize);
   const effectiveViewMode: ViewMode =
     viewMode === 'all' && total > MAX_SHOW_ALL_THRESHOLD ? 'paged' : viewMode;
-  const requestPageSize =
-    effectiveViewMode === 'all' ? MAX_SHOW_ALL_THRESHOLD : pageSize;
+  const requestPageSize = effectiveViewMode === 'all' ? MAX_SHOW_ALL_THRESHOLD : pageSize;
   const requestPage = effectiveViewMode === 'all' ? 1 : page;
   const totalPages = Math.max(1, Math.ceil(total / requestPageSize));
   const currentPage = Math.min(requestPage, totalPages);
@@ -174,14 +169,11 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
     setPageSizeInput(String(MAX_SHOW_ALL_THRESHOLD));
   }, [setPageSize]);
 
-  const handlePageSizeInputKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLInputElement>) => {
-      if (event.key === 'Enter') {
-        event.currentTarget.blur();
-      }
-    },
-    []
-  );
+  const handlePageSizeInputKeyDown = useCallback((event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      event.currentTarget.blur();
+    }
+  }, []);
 
   useEffect(() => {
     if (total <= MAX_SHOW_ALL_THRESHOLD) return;
@@ -342,16 +334,7 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
         },
       });
     },
-    [
-      config,
-      disabled,
-      quota,
-      resettingQuotaName,
-      setQuota,
-      showConfirmation,
-      showNotification,
-      t,
-    ]
+    [config, disabled, quota, resettingQuotaName, setQuota, showConfirmation, showNotification, t]
   );
 
   const titleNode = (

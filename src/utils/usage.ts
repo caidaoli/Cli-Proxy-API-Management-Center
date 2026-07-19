@@ -113,7 +113,8 @@ export function normalizeUsageSourceId(
   value: unknown,
   masker: (val: string) => string = maskApiKey
 ): string {
-  const raw = typeof value === 'string' ? value : value === null || value === undefined ? '' : String(value);
+  const raw =
+    typeof value === 'string' ? value : value === null || value === undefined ? '' : String(value);
   const trimmed = raw.trim();
   if (!trimmed) return '';
 
@@ -129,7 +130,10 @@ export function normalizeUsageSourceId(
   return `${USAGE_SOURCE_PREFIX_TEXT}${trimmed}`;
 }
 
-export function buildCandidateUsageSourceIds(input: { apiKey?: string; prefix?: string }): string[] {
+export function buildCandidateUsageSourceIds(input: {
+  apiKey?: string;
+  prefix?: string;
+}): string[] {
   const result: string[] = [];
 
   const prefix = input.prefix?.trim();

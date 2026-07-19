@@ -126,10 +126,7 @@ export function useAuthFileQuotaRefresh() {
             [file.name]: config.buildSuccessState(data),
           }));
           if (notify) {
-            showNotification(
-              t('auth_files.quota_refresh_success', { name: file.name }),
-              'success'
-            );
+            showNotification(t('auth_files.quota_refresh_success', { name: file.name }), 'success');
           }
         });
         return committed

@@ -52,7 +52,14 @@ const DISTRIBUTION_SOURCE_LIMIT = 100;
 
 const EMPTY_DISTRIBUTION_ITEMS: MonitorDistributionListItem[] = [];
 
-export function ModelDistributionChart({ timeRange, apiFilter, isDark, providerMap, preloadedChannelStats, preloadedKey }: ModelDistributionChartProps) {
+export function ModelDistributionChart({
+  timeRange,
+  apiFilter,
+  isDark,
+  providerMap,
+  preloadedChannelStats,
+  preloadedKey,
+}: ModelDistributionChartProps) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<DistributionTab>('channel-token');
   const distributionMode = activeTab.startsWith('channel') ? 'channel' : 'model';
@@ -101,12 +108,7 @@ export function ModelDistributionChart({ timeRange, apiFilter, isDark, providerM
         );
       }
 
-      return buildMonitorModelDistributionItems(
-        items,
-        metric,
-        DISTRIBUTION_TOP_LIMIT,
-        otherLabel
-      );
+      return buildMonitorModelDistributionItems(items, metric, DISTRIBUTION_TOP_LIMIT, otherLabel);
     };
 
     loadDistribution()
@@ -121,8 +123,21 @@ export function ModelDistributionChart({ timeRange, apiFilter, isDark, providerM
         }
       });
 
-    return () => { cancelled = true; };
-  }, [timeRange, apiFilter, activeTab, distributionMode, metric, providerMap, otherLabel, requestKey, parentOwned, preloadedChannelStats]);
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    timeRange,
+    apiFilter,
+    activeTab,
+    distributionMode,
+    metric,
+    providerMap,
+    otherLabel,
+    requestKey,
+    parentOwned,
+    preloadedChannelStats,
+  ]);
 
   const timeRangeLabel = (() => {
     if (timeRange === 'yesterday') return t('monitor.yesterday');
@@ -144,7 +159,7 @@ export function ModelDistributionChart({ timeRange, apiFilter, isDark, providerM
       labels: distributionItems.map((item) => item.label),
       datasets: [
         {
-          data: distributionItems.map((item) => metric === 'cost' ? item.cost : item.tokens),
+          data: distributionItems.map((item) => (metric === 'cost' ? item.cost : item.tokens)),
           backgroundColor: COLORS.slice(0, distributionItems.length),
           borderColor: isDark ? '#1f2937' : '#ffffff',
           borderWidth: 2,
@@ -154,34 +169,37 @@ export function ModelDistributionChart({ timeRange, apiFilter, isDark, providerM
   }, [distributionItems, metric, isDark]);
 
   // 图表配置
-  const chartOptions = useMemo(() => ({
-    responsive: true,
-    maintainAspectRatio: false,
-    cutout: '65%',
-    plugins: {
-      legend: {
-        display: false,
-      },
-      tooltip: {
-        backgroundColor: isDark ? '#374151' : '#ffffff',
-        titleColor: isDark ? '#f3f4f6' : '#111827',
-        bodyColor: isDark ? '#d1d5db' : '#4b5563',
-        borderColor: isDark ? '#4b5563' : '#e5e7eb',
-        borderWidth: 1,
-        padding: 12,
-        callbacks: {
-          label: (context: TooltipItem<'doughnut'>) => {
-            const value = Number(context.raw || 0);
-            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
-            if (metric === 'cost') {
-              return `${formatMonitorCost(value)} (${percentage}%)`;
-            }
-            return `${value.toLocaleString()} ${t('monitor.distribution.tokens')} (${percentage}%)`;
+  const chartOptions = useMemo(
+    () => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '65%',
+      plugins: {
+        legend: {
+          display: false,
+        },
+        tooltip: {
+          backgroundColor: isDark ? '#374151' : '#ffffff',
+          titleColor: isDark ? '#f3f4f6' : '#111827',
+          bodyColor: isDark ? '#d1d5db' : '#4b5563',
+          borderColor: isDark ? '#4b5563' : '#e5e7eb',
+          borderWidth: 1,
+          padding: 12,
+          callbacks: {
+            label: (context: TooltipItem<'doughnut'>) => {
+              const value = Number(context.raw || 0);
+              const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+              if (metric === 'cost') {
+                return `${formatMonitorCost(value)} (${percentage}%)`;
+              }
+              return `${value.toLocaleString()} ${t('monitor.distribution.tokens')} (${percentage}%)`;
+            },
           },
         },
       },
-    },
-  }), [isDark, total, metric, t]);
+    }),
+    [isDark, total, metric, t]
+  );
 
   // 格式化数值
   const formatTokenValue = (value: number) => {
@@ -197,15 +215,16 @@ export function ModelDistributionChart({ timeRange, apiFilter, isDark, providerM
   const formatDistributionValue = (value: number) =>
     metric === 'cost' ? formatMonitorCost(value) : formatTokenValue(value);
 
-  const titleKey = distributionMode === 'channel'
-    ? 'monitor.distribution.channel_title'
-    : 'monitor.distribution.title';
-  const dimensionLabel = distributionMode === 'channel'
-    ? t('monitor.distribution.channels')
-    : t('monitor.distribution.models');
-  const metricLabel = metric === 'cost'
-    ? t('monitor.distribution.by_cost')
-    : t('monitor.distribution.by_tokens');
+  const titleKey =
+    distributionMode === 'channel'
+      ? 'monitor.distribution.channel_title'
+      : 'monitor.distribution.title';
+  const dimensionLabel =
+    distributionMode === 'channel'
+      ? t('monitor.distribution.channels')
+      : t('monitor.distribution.models');
+  const metricLabel =
+    metric === 'cost' ? t('monitor.distribution.by_cost') : t('monitor.distribution.by_tokens');
   const shareLabel = (() => {
     if (distributionMode === 'channel' && metric === 'cost') {
       return t('monitor.distribution.channel_cost_share');
@@ -260,9 +279,7 @@ export function ModelDistributionChart({ timeRange, apiFilter, isDark, providerM
           <div className={styles.donutWrapper}>
             <Doughnut data={chartData} options={chartOptions} />
             <div className={styles.donutCenter}>
-              <div className={styles.donutLabel}>
-                {shareLabel}
-              </div>
+              <div className={styles.donutLabel}>{shareLabel}</div>
             </div>
           </div>
           <div className={styles.legendList}>
@@ -271,10 +288,7 @@ export function ModelDistributionChart({ timeRange, apiFilter, isDark, providerM
               const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0';
               return (
                 <div key={`${item.label}-${index}`} className={styles.legendItem}>
-                  <span
-                    className={styles.legendDot}
-                    style={{ backgroundColor: COLORS[index] }}
-                  />
+                  <span className={styles.legendDot} style={{ backgroundColor: COLORS[index] }} />
                   <span className={styles.legendName} title={item.label}>
                     {item.label}
                   </span>

@@ -4,12 +4,21 @@ import { Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
 import { providersApi } from '@/services/api';
-import { useAuthStore, useClaudeEditDraftStore, useConfigStore, useNotificationStore } from '@/stores';
+import {
+  useAuthStore,
+  useClaudeEditDraftStore,
+  useConfigStore,
+  useNotificationStore,
+} from '@/stores';
 import type { ProviderKeyConfig } from '@/types';
 import type { ModelInfo } from '@/utils/models';
 import type { ModelEntry, ProviderFormState } from '@/components/providers/types';
 import { buildHeaderObject, headersToEntries, normalizeHeaderEntries } from '@/utils/headers';
-import { areKeyValueEntriesEqual, areModelEntriesEqual, areStringArraysEqual } from '@/utils/compare';
+import {
+  areKeyValueEntriesEqual,
+  areModelEntriesEqual,
+  areStringArraysEqual,
+} from '@/utils/compare';
 import { excludedModelsToText, parseExcludedModels } from '@/components/providers/utils';
 import { modelsToEntries } from '@/components/ui/modelInputListUtils';
 import type { ClaudeEditBaseline } from '@/stores/useClaudeEditDraftStore';
@@ -74,7 +83,10 @@ const normalizeClaudeModelEntries = (entries: Array<{ name: string; alias: strin
 
 const normalizeCloakConfig = (cloak: ProviderFormState['cloak']) => {
   if (!cloak) return null;
-  const mode = String(cloak.mode ?? '').trim().toLowerCase() || 'auto';
+  const mode =
+    String(cloak.mode ?? '')
+      .trim()
+      .toLowerCase() || 'auto';
   const strictMode = Boolean(cloak.strictMode);
   const sensitiveWords = Array.isArray(cloak.sensitiveWords)
     ? cloak.sensitiveWords.map((word) => String(word ?? '').trim()).filter(Boolean)
@@ -89,7 +101,9 @@ const normalizeCloakConfig = (cloak: ProviderFormState['cloak']) => {
 const buildClaudeBaseline = (form: ProviderFormState): ClaudeEditBaseline => ({
   apiKey: String(form.apiKey ?? '').trim(),
   priority:
-    form.priority !== undefined && Number.isFinite(form.priority) ? Math.trunc(form.priority) : null,
+    form.priority !== undefined && Number.isFinite(form.priority)
+      ? Math.trunc(form.priority)
+      : null,
   prefix: String(form.prefix ?? '').trim(),
   baseUrl: String(form.baseUrl ?? '').trim(),
   proxyUrl: String(form.proxyUrl ?? '').trim(),
@@ -99,7 +113,10 @@ const buildClaudeBaseline = (form: ProviderFormState): ClaudeEditBaseline => ({
   cloak: normalizeCloakConfig(form.cloak),
 });
 
-const areCloakConfigsEqual = (left: ClaudeEditBaseline['cloak'], right: ClaudeEditBaseline['cloak']) => {
+const areCloakConfigsEqual = (
+  left: ClaudeEditBaseline['cloak'],
+  right: ClaudeEditBaseline['cloak']
+) => {
   if (left === right) return true;
   if (!left || !right) return false;
   if (left.mode !== right.mode || left.strictMode !== right.strictMode) return false;
@@ -325,8 +342,7 @@ export function AiProvidersClaudeEditLayout() {
     enabled: canGuard,
     shouldBlock: ({ nextLocation }) => {
       const nextPath = nextLocation.pathname;
-      const isWithinRoot =
-        nextPath === editorRootPath || nextPath.startsWith(`${editorRootPath}/`);
+      const isWithinRoot = nextPath === editorRootPath || nextPath.startsWith(`${editorRootPath}/`);
       return isDirty && !isWithinRoot;
     },
     dialog: {
@@ -385,7 +401,10 @@ export function AiProvidersClaudeEditLayout() {
       });
 
       if (addedCount > 0) {
-        showNotification(t('ai_providers.claude_models_fetch_added', { count: addedCount }), 'success');
+        showNotification(
+          t('ai_providers.claude_models_fetch_added', { count: addedCount }),
+          'success'
+        );
       }
     },
     [setForm, showNotification, t]
@@ -427,7 +446,9 @@ export function AiProvidersClaudeEditLayout() {
       updateConfigValue('claude-api-key', nextList);
       clearCache('claude-api-key');
       showNotification(
-        editIndex !== null ? t('notification.claude_config_updated') : t('notification.claude_config_added'),
+        editIndex !== null
+          ? t('notification.claude_config_updated')
+          : t('notification.claude_config_added'),
         'success'
       );
       allowNextNavigation();
@@ -459,27 +480,29 @@ export function AiProvidersClaudeEditLayout() {
 
   return (
     <Outlet
-      context={{
-        hasIndexParam,
-        editIndex,
-        invalidIndexParam,
-        invalidIndex,
-        disableControls,
-        loading: resolvedLoading,
-        saving,
-        form,
-        setForm,
-        testModel,
-        setTestModel,
-        testStatus,
-        setTestStatus,
-        testMessage,
-        setTestMessage,
-        availableModels,
-        handleBack,
-        handleSave,
-        mergeDiscoveredModels,
-      } satisfies ClaudeEditOutletContext}
+      context={
+        {
+          hasIndexParam,
+          editIndex,
+          invalidIndexParam,
+          invalidIndex,
+          disableControls,
+          loading: resolvedLoading,
+          saving,
+          form,
+          setForm,
+          testModel,
+          setTestModel,
+          testStatus,
+          setTestStatus,
+          testMessage,
+          setTestMessage,
+          availableModels,
+          handleBack,
+          handleSave,
+          mergeDiscoveredModels,
+        } satisfies ClaudeEditOutletContext
+      }
     />
   );
 }

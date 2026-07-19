@@ -10,9 +10,9 @@ const BLOCK_COUNT = ROWS * COLS;
 const BLOCK_DURATION_MS = 15 * 60 * 1000;
 
 const COLOR_STOPS = [
-  { r: 239, g: 68, b: 68 },   // #ef4444
-  { r: 250, g: 204, b: 21 },  // #facc15
-  { r: 34, g: 197, b: 94 },   // #22c55e
+  { r: 239, g: 68, b: 68 }, // #ef4444
+  { r: 250, g: 204, b: 21 }, // #facc15
+  { r: 34, g: 197, b: 94 }, // #22c55e
 ] as const;
 
 const TOOLTIP_OFFSET = 8;
@@ -83,7 +83,10 @@ interface ServiceHealthCardProps {
   preloadedOwned?: boolean;
 }
 
-export function ServiceHealthCard({ preloaded, preloadedOwned = false }: ServiceHealthCardProps = {}) {
+export function ServiceHealthCard({
+  preloaded,
+  preloadedOwned = false,
+}: ServiceHealthCardProps = {}) {
   const { t } = useTranslation();
   const [fetchedData, setFetchedData] = useState<MonitorServiceHealthData | null>(null);
   const [fetchLoading, setFetchLoading] = useState(true);
@@ -105,7 +108,9 @@ export function ServiceHealthCard({ preloaded, preloadedOwned = false }: Service
       .finally(() => {
         if (!cancelled) setFetchLoading(false);
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [preloadedOwned]);
 
   const data = preloadedOwned ? (preloaded ?? null) : fetchedData;
@@ -234,8 +239,12 @@ export function ServiceHealthCard({ preloaded, preloadedOwned = false }: Service
         <span className={styles.healthTooltipTime}>{timeRange}</span>
         {total > 0 ? (
           <span className={styles.healthTooltipStats}>
-            <span className={styles.healthTooltipSuccess}>{t('status_bar.success_short')} {detail.success}</span>
-            <span className={styles.healthTooltipFailure}>{t('status_bar.failure_short')} {detail.failure}</span>
+            <span className={styles.healthTooltipSuccess}>
+              {t('status_bar.success_short')} {detail.success}
+            </span>
+            <span className={styles.healthTooltipFailure}>
+              {t('status_bar.failure_short')} {detail.failure}
+            </span>
             <span className={styles.healthTooltipRate}>({(detail.rate * 100).toFixed(1)}%)</span>
           </span>
         ) : (
@@ -265,7 +274,9 @@ export function ServiceHealthCard({ preloaded, preloadedOwned = false }: Service
         <div className={styles.healthHeader}>
           <h3 className={styles.healthTitle}>{t('service_health.title')}</h3>
         </div>
-        <div className={styles.healthEmpty}>{t('common.load_failed', { defaultValue: t('common.unknown_error') })}</div>
+        <div className={styles.healthEmpty}>
+          {t('common.load_failed', { defaultValue: t('common.unknown_error') })}
+        </div>
       </div>
     );
   }
@@ -289,7 +300,9 @@ export function ServiceHealthCard({ preloaded, preloadedOwned = false }: Service
             <div className={styles.healthGrid} ref={gridRef}>
               {blockDetails.map((detail, idx) => {
                 const isIdle = detail.rate === -1;
-                const blockStyle = isIdle ? undefined : { backgroundColor: rateToColor(detail.rate) };
+                const blockStyle = isIdle
+                  ? undefined
+                  : { backgroundColor: rateToColor(detail.rate) };
                 const isActive = activeTooltip?.idx === idx;
 
                 return (

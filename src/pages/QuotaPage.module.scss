@@ -546,12 +546,14 @@
   text-transform: capitalize;
 
   @media (dynamic-range: high) {
-    background: linear-gradient(135deg,
+    background: linear-gradient(
+      135deg,
       color(display-p3 0.99 0.95 0.82),
-      color(display-p3 0.97 0.82 0.28));
-    border-color: color(display-p3 0.90 0.73 0.12);
-    box-shadow: 0 1px 8px color(display-p3 1.0 0.84 0.0 / 0.25);
-    color: color(display-p3 0.50 0.38 0.0);
+      color(display-p3 0.97 0.82 0.28)
+    );
+    border-color: color(display-p3 0.9 0.73 0.12);
+    box-shadow: 0 1px 8px color(display-p3 1 0.84 0 / 0.25);
+    color: color(display-p3 0.5 0.38 0);
   }
 }
 
@@ -562,11 +564,13 @@
   color: #e8c84c;
 
   @media (dynamic-range: high) {
-    background: linear-gradient(135deg,
-      color(display-p3 0.24 0.20 0.06),
-      color(display-p3 0.38 0.30 0.08));
+    background: linear-gradient(
+      135deg,
+      color(display-p3 0.24 0.2 0.06),
+      color(display-p3 0.38 0.3 0.08)
+    );
     border-color: color(display-p3 0.58 0.46 0.15);
-    box-shadow: 0 1px 12px color(display-p3 0.80 0.65 0.0 / 0.2);
+    box-shadow: 0 1px 12px color(display-p3 0.8 0.65 0 / 0.2);
     color: color(display-p3 0.95 0.82 0.25);
   }
 }

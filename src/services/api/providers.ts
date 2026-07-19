@@ -80,8 +80,7 @@ const providerKeyIdentity = (record: Record<string, unknown>) => {
 const openAIProviderIdentity = (record: Record<string, unknown>) =>
   getStringField(record, ['name']);
 
-const modelIdentity = (record: Record<string, unknown>) =>
-  getStringField(record, ['name']);
+const modelIdentity = (record: Record<string, unknown>) => getStringField(record, ['name']);
 
 const apiKeyEntryIdentity = (record: Record<string, unknown>) =>
   getStringField(record, ['api-key']);
@@ -482,5 +481,5 @@ export const providersApi = {
       payload.models = serializeModelAliases(value.models);
     }
     return apiClient.patch('/openai-compatibility', { name, value: payload });
-  }
+  },
 };

@@ -431,8 +431,7 @@ export const buildProviderModelDiscoveryRequest = (
 
   if (input.brand === 'openai') {
     const firstEntry = (input.apiKeyEntries ?? []).find(
-      (entry) =>
-        firstTrimmed(entry.apiKey, entry.existingApiKey) || firstTrimmed(entry.authIndex)
+      (entry) => firstTrimmed(entry.apiKey, entry.existingApiKey) || firstTrimmed(entry.authIndex)
     );
     const entryKey = firstTrimmed(firstEntry?.apiKey, firstEntry?.existingApiKey);
     const entryAuthIndex = firstTrimmed(firstEntry?.authIndex, authIndex) || undefined;

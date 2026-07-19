@@ -16,8 +16,7 @@ import styles from './PluginResourcePage.module.scss';
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === 'object' && !Array.isArray(value);
 
-const hasStatus = (error: unknown, status: number) =>
-  isRecord(error) && error.status === status;
+const hasStatus = (error: unknown, status: number) => isRecord(error) && error.status === status;
 
 const getErrorMessage = (error: unknown, fallback: string) =>
   error instanceof Error ? error.message : typeof error === 'string' ? error : fallback;
@@ -46,14 +45,8 @@ export function PluginResourcePage() {
   const [error, setError] = useState('');
 
   const connected = connectionStatus === 'connected';
-  const pluginID = useMemo(
-    () => safeDecodeURIComponent(params.pluginId),
-    [params.pluginId]
-  );
-  const menuIndex = useMemo(
-    () => parseMenuIndex(params.menuIndex),
-    [params.menuIndex]
-  );
+  const pluginID = useMemo(() => safeDecodeURIComponent(params.pluginId), [params.pluginId]);
+  const menuIndex = useMemo(() => parseMenuIndex(params.menuIndex), [params.menuIndex]);
 
   const loadResource = useCallback(async () => {
     if (!connected) {

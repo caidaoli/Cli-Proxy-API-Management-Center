@@ -79,9 +79,13 @@ export function OpenAISection({
             const headerEntries = Object.entries(item.headers || {});
             const apiKeyEntries = item.apiKeyEntries || [];
             const allCandidates: string[] = [];
-            buildCandidateUsageSourceIds({ prefix: item.prefix }).forEach((id) => allCandidates.push(id));
+            buildCandidateUsageSourceIds({ prefix: item.prefix }).forEach((id) =>
+              allCandidates.push(id)
+            );
             (item.apiKeyEntries || []).forEach((entry) => {
-              buildCandidateUsageSourceIds({ apiKey: entry.apiKey }).forEach((id) => allCandidates.push(id));
+              buildCandidateUsageSourceIds({ apiKey: entry.apiKey }).forEach((id) =>
+                allCandidates.push(id)
+              );
             });
             const statusData = lookupStatusBar(statusBarBySource, allCandidates);
 
@@ -124,7 +128,9 @@ export function OpenAISection({
                         return (
                           <div key={entryIndex} className={styles.apiKeyEntryCard}>
                             <span className={styles.apiKeyEntryIndex}>{entryIndex + 1}</span>
-                            <span className={styles.apiKeyEntryKey}>{maskApiKey(entry.apiKey)}</span>
+                            <span className={styles.apiKeyEntryKey}>
+                              {maskApiKey(entry.apiKey)}
+                            </span>
                             {entry.proxyUrl && (
                               <span className={styles.apiKeyEntryProxy}>{entry.proxyUrl}</span>
                             )}
@@ -147,7 +153,9 @@ export function OpenAISection({
                   </div>
                 )}
                 <div className={styles.fieldRow} style={{ marginTop: '8px' }}>
-                  <span className={styles.fieldLabel}>{t('ai_providers.openai_models_count')}:</span>
+                  <span className={styles.fieldLabel}>
+                    {t('ai_providers.openai_models_count')}:
+                  </span>
                   <span className={styles.fieldValue}>{item.models?.length || 0}</span>
                 </div>
                 {item.models?.length ? (

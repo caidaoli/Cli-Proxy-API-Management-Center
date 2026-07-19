@@ -2,11 +2,7 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
-import {
-  DIFF_CONTEXT_LINES,
-  buildDiffCards,
-  type DiffChunkCard,
-} from './diffModalUtils';
+import { DIFF_CONTEXT_LINES, buildDiffCards, type DiffChunkCard } from './diffModalUtils';
 import styles from './DiffModal.module.scss';
 
 type DiffModalProps = {

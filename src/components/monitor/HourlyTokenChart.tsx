@@ -26,7 +26,13 @@ const EMPTY_DATA: MonitorHourlyTokensData = {
   cache_write_tokens: [],
 };
 
-export function HourlyTokenChart({ timeRange, apiFilter, isDark, preloaded, preloadedKey }: HourlyTokenChartProps) {
+export function HourlyTokenChart({
+  timeRange,
+  apiFilter,
+  isDark,
+  preloaded,
+  preloadedKey,
+}: HourlyTokenChartProps) {
   const { t } = useTranslation();
   const [hourRange, setHourRange] = useState<HourRange>(12);
   const requestKey = `${timeRange}\0${apiFilter}\0${hourRange}`;

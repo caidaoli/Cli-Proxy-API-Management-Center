@@ -52,9 +52,7 @@ function parseApiKeysText(raw: unknown): string {
 
 function parseStringList(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];
-  return raw
-    .map((item) => (typeof item === 'string' ? item.trim() : ''))
-    .filter(Boolean);
+  return raw.map((item) => (typeof item === 'string' ? item.trim() : '')).filter(Boolean);
 }
 
 const PLUGIN_STORE_AUTH_TYPES: PluginStoreAuthType[] = [
@@ -193,7 +191,7 @@ function buildApiKeyEntries(
 
     const record = asRecord(originalEntry);
     return record
-      ? ({ ...record, ...(replaceApiKeyValue(record, apiKey) as Record<string, unknown>) })
+      ? { ...record, ...(replaceApiKeyValue(record, apiKey) as Record<string, unknown>) }
       : apiKey;
   });
 }
@@ -1113,9 +1111,7 @@ export function useVisualConfig() {
               ? 'sf'
               : 'round-robin',
         routingSessionAffinity: Boolean(
-          routing?.['session-affinity'] ??
-            routing?.sessionAffinity ??
-            routing?.['sessionAffinity']
+          routing?.['session-affinity'] ?? routing?.sessionAffinity ?? routing?.['sessionAffinity']
         ),
         routingSessionAffinityTTL:
           typeof routing?.['session-affinity-ttl'] === 'string'

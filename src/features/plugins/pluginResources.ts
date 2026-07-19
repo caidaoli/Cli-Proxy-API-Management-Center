@@ -103,9 +103,7 @@ export const isDefaultPluginStoreSource = (
 export const getPluginConfirmToken = (entry: PluginStoreEntry): string =>
   getPluginRepositorySlug(entry.repository) || entry.id;
 
-export const collectPluginResourceEntries = (
-  plugins: PluginListEntry[]
-): PluginResourceEntry[] =>
+export const collectPluginResourceEntries = (plugins: PluginListEntry[]): PluginResourceEntry[] =>
   plugins.flatMap((plugin) => {
     if (!plugin.effectiveEnabled) return [];
 

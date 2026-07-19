@@ -236,7 +236,7 @@ export function useAuthFilesOauth(options: UseAuthFilesOauthOptions): UseAuthFil
               showNotification(`${t('oauth_excluded.delete_failed')}: ${errorMessage}`, 'error');
             }
           }
-        }
+        },
       });
     },
     [loadExcluded, showConfirmation, showLoadRequired, showNotification, t]
@@ -262,7 +262,7 @@ export function useAuthFilesOauth(options: UseAuthFilesOauthOptions): UseAuthFil
             const errorMessage = err instanceof Error ? err.message : '';
             showNotification(`${t('oauth_model_alias.delete_failed')}: ${errorMessage}`, 'error');
           }
-        }
+        },
       });
     },
     [loadModelAlias, showConfirmation, showLoadRequired, showNotification, t]
@@ -300,7 +300,7 @@ export function useAuthFilesOauth(options: UseAuthFilesOauthOptions): UseAuthFil
 
       const nextMappings: OAuthModelAliasEntry[] = [
         ...currentMappings,
-        { name: nameTrim, alias: aliasTrim, fork: true }
+        { name: nameTrim, alias: aliasTrim, fork: true },
       ];
 
       try {
@@ -363,7 +363,7 @@ export function useAuthFilesOauth(options: UseAuthFilesOauthOptions): UseAuthFil
             const errorMessage = err instanceof Error ? err.message : '';
             showNotification(`${t('oauth_model_alias.save_failed')}: ${errorMessage}`, 'error');
           }
-        }
+        },
       });
     },
     [loadModelAlias, modelAlias, showConfirmation, showLoadRequired, showNotification, t]
@@ -533,7 +533,7 @@ export function useAuthFilesOauth(options: UseAuthFilesOauthOptions): UseAuthFil
           } else {
             showNotification(t('oauth_model_alias.delete_success'), 'success');
           }
-        }
+        },
       });
     },
     [loadModelAlias, modelAlias, showConfirmation, showLoadRequired, showNotification, t]
@@ -554,7 +554,6 @@ export function useAuthFilesOauth(options: UseAuthFilesOauthOptions): UseAuthFil
     handleDeleteLink,
     handleToggleFork,
     handleRenameAlias,
-    handleDeleteAlias
+    handleDeleteAlias,
   };
 }
-

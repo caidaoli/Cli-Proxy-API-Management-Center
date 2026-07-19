@@ -148,7 +148,10 @@
   background: var(--primary-color);
   border: 1px solid var(--primary-color);
   color: #fff;
-  transition: background-color $transition-fast, border-color $transition-fast, opacity $transition-fast;
+  transition:
+    background-color $transition-fast,
+    border-color $transition-fast,
+    opacity $transition-fast;
 
   &:hover:not(:disabled) {
     background: var(--primary-hover);
@@ -377,7 +380,9 @@
   border-radius: 999px;
   cursor: pointer;
   color: var(--text-primary);
-  transition: background-color 0.2s ease, transform 0.15s ease;
+  transition:
+    background-color 0.2s ease,
+    transform 0.15s ease;
 
   &:hover:not(:disabled) {
     background: color-mix(in srgb, var(--text-primary) 10%, transparent);
