@@ -7,6 +7,7 @@ import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
 import {
   IconBot,
   IconDownload,
+  IconPlay,
   IconRefreshCw,
   IconSettings,
   IconTrash2,
@@ -49,6 +50,7 @@ export type AuthFileCardProps = {
   keyStats: KeyStats;
   statusBarCache: Map<string, AuthFileStatusBarData>;
   onShowModels: (file: AuthFileItem) => void;
+  onTest: (file: AuthFileItem) => void;
   onDownload: (name: string) => void;
   onOpenPrefixProxyEditor: (file: AuthFileItem) => void;
   onDelete: (name: string) => void;
@@ -70,6 +72,7 @@ export function AuthFileCard(props: AuthFileCardProps) {
     keyStats,
     statusBarCache,
     onShowModels,
+    onTest,
     onDownload,
     onOpenPrefixProxyEditor,
     onDelete,
@@ -228,6 +231,17 @@ export function AuthFileCard(props: AuthFileCardProps) {
                 )}
               </Button>
             )}
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => onTest(file)}
+              className={styles.iconButton}
+              title={t('auth_files.test_button')}
+              aria-label={t('auth_files.test_button')}
+              disabled={disableControls}
+            >
+              <IconPlay className={styles.actionIcon} size={16} />
+            </Button>
             {showModelsButton && (
               <Button
                 variant="secondary"

@@ -1490,6 +1490,59 @@
   }
 }
 
+.testModalContent {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+}
+
+.testAccountSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-md;
+  padding: $spacing-sm $spacing-md;
+  border: 1px solid var(--border-color);
+  border-radius: $radius-md;
+  background-color: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 13px;
+
+  strong {
+    color: var(--text-primary);
+    font-weight: 600;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    text-align: right;
+  }
+}
+
+.testResult {
+  min-height: 132px;
+  max-height: 300px;
+  overflow: auto;
+  padding: $spacing-md;
+  border: 1px solid var(--border-color);
+  border-radius: $radius-md;
+  background-color: #090c12;
+  color: var(--text-secondary);
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.testResultSuccess {
+  border-color: var(--success-color);
+  color: var(--success-color);
+}
+
+.testResultError {
+  border-color: var(--danger-color);
+  color: var(--danger-color);
+}
+
 .fieldHint {
   color: var(--text-secondary);
   font-size: 12px;

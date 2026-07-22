@@ -66,6 +66,14 @@ export function IconBot({ size = 20, ...props }: IconProps) {
   );
 }
 
+export function IconPlay({ size = 20, ...props }: IconProps) {
+  return (
+    <svg {...baseSvgProps} width={size} height={size} {...props}>
+      <path d="m6 3 14 9-14 9Z" />
+    </svg>
+  );
+}
+
 export function IconFileText({ size = 20, ...props }: IconProps) {
   return (
     <svg {...baseSvgProps} width={size} height={size} {...props}>

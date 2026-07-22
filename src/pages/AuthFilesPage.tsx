@@ -40,6 +40,7 @@ import type { AuthFilesListQuery } from '@/features/authFiles/listQuery';
 import { AUTH_UPLOAD_ACCEPT } from '@/features/authFiles/uploadValidation';
 import { AuthFileCard } from '@/features/authFiles/components/AuthFileCard';
 import { AuthFileModelsModal } from '@/features/authFiles/components/AuthFileModelsModal';
+import { AuthFileTestModal } from '@/features/authFiles/components/AuthFileTestModal';
 import { AuthFilesPrefixProxyEditorModal } from '@/features/authFiles/components/AuthFilesPrefixProxyEditorModal';
 import { AuthFilesBatchFieldsEditorModal } from '@/features/authFiles/components/AuthFilesBatchFieldsEditorModal';
 import { OAuthExcludedCard } from '@/features/authFiles/components/OAuthExcludedCard';
@@ -67,6 +68,7 @@ import {
   type AuthFilesSortMode,
 } from '@/features/authFiles/uiState';
 import { useAuthStore, useNotificationStore, useThemeStore } from '@/stores';
+import type { AuthFileItem } from '@/types';
 import {
   AUTH_CLEANUP_SUPPORTED_TYPES,
   authFilesApi,
@@ -244,6 +246,7 @@ export function AuthFilesPage() {
   });
 
   const disableControls = connectionStatus !== 'connected';
+  const [testFile, setTestFile] = useState<AuthFileItem | null>(null);
   const [codexCleaning, setCodexCleaning] = useState(false);
   const [cleanupPickerOpen, setCleanupPickerOpen] = useState(false);
   const [cleanupProvider, setCleanupProvider] = useState('codex');
@@ -933,6 +936,7 @@ export function AuthFilesPage() {
                 quotaFilterType={quotaFilterType}
                 keyStats={keyStats}
                 statusBarCache={statusBarCache}
+                onTest={setTestFile}
                 onShowModels={showModels}
                 onDownload={handleDownload}
                 onOpenPrefixProxyEditor={openPrefixProxyEditor}
@@ -1012,6 +1016,12 @@ export function AuthFilesPage() {
         excluded={excluded}
         onClose={closeModelsModal}
         onCopyText={copyTextWithNotification}
+      />
+
+      <AuthFileTestModal
+        open={testFile !== null}
+        file={testFile}
+        onClose={() => setTestFile(null)}
       />
 
       <AuthFilesPrefixProxyEditorModal
