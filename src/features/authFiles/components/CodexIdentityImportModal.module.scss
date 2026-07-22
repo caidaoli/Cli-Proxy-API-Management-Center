@@ -1,0 +1,127 @@
+@use '../../../styles/variables' as *;
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+}
+
+.typeRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-md;
+  color: var(--text-secondary);
+  font-size: 13px;
+
+  strong {
+    padding: 4px 10px;
+    border-radius: 999px;
+    color: var(--primary-color);
+    background: color-mix(in srgb, var(--primary-color) 12%, transparent);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+}
+
+.inputShell {
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  border-radius: $radius-md;
+  background: var(--bg-primary);
+
+  &:focus-within {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary-color) 12%, transparent);
+  }
+}
+
+.inputHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-md;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 12px;
+  letter-spacing: 0.03em;
+
+  strong {
+    color: var(--primary-color);
+    font-weight: 700;
+  }
+}
+
+.textarea {
+  display: block;
+  width: 100%;
+  min-height: 280px;
+  padding: 18px 20px;
+  border: 0;
+  outline: 0;
+  resize: vertical;
+  box-sizing: border-box;
+  color: var(--text-primary);
+  background: transparent;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.65;
+
+  &::placeholder {
+    color: var(--text-tertiary);
+  }
+
+  &:disabled {
+    cursor: wait;
+    opacity: 0.7;
+  }
+}
+
+.hint {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.error {
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--danger-color) 45%, transparent);
+  border-radius: $radius-md;
+  color: var(--danger-color);
+  background: color-mix(in srgb, var(--danger-color) 8%, transparent);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-md;
+  width: 100%;
+}
+
+.footerActions {
+  display: flex;
+  gap: $spacing-sm;
+}
+
+@media (max-width: 560px) {
+  .textarea {
+    min-height: 220px;
+  }
+
+  .footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .footerActions {
+    justify-content: flex-end;
+  }
+}
