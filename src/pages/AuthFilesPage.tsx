@@ -43,7 +43,6 @@ import { AuthFileModelsModal } from '@/features/authFiles/components/AuthFileMod
 import { AuthFileTestModal } from '@/features/authFiles/components/AuthFileTestModal';
 import { AuthFilesPrefixProxyEditorModal } from '@/features/authFiles/components/AuthFilesPrefixProxyEditorModal';
 import { AuthFilesBatchFieldsEditorModal } from '@/features/authFiles/components/AuthFilesBatchFieldsEditorModal';
-import { CodexIdentityImportModal } from '@/features/authFiles/components/CodexIdentityImportModal';
 import { OAuthExcludedCard } from '@/features/authFiles/components/OAuthExcludedCard';
 import { OAuthModelAliasCard } from '@/features/authFiles/components/OAuthModelAliasCard';
 import iconAntigravity from '@/assets/icons/antigravity.svg';
@@ -76,7 +75,6 @@ import {
   isAuthCleanupProvider,
   type CodexCleanupEvent,
 } from '@/services/api/authFiles';
-import type { CodexIdentityAccount } from '@/features/authFiles/codexIdentity';
 import styles from './AuthFilesPage.module.scss';
 
 const easePower3Out = (progress: number) => 1 - (1 - progress) ** 4;
@@ -249,8 +247,6 @@ export function AuthFilesPage() {
 
   const disableControls = connectionStatus !== 'connected';
   const [testFile, setTestFile] = useState<AuthFileItem | null>(null);
-  const [codexIdentityImportOpen, setCodexIdentityImportOpen] = useState(false);
-  const [codexIdentityImporting, setCodexIdentityImporting] = useState(false);
   const [codexCleaning, setCodexCleaning] = useState(false);
   const [cleanupPickerOpen, setCleanupPickerOpen] = useState(false);
   const [cleanupProvider, setCleanupProvider] = useState('codex');
@@ -335,37 +331,6 @@ export function AuthFilesPage() {
     const [latestFiles] = await Promise.all([loadFiles(), loadExcluded(), loadModelAlias()]);
     await refreshKeyStatsForFiles(latestFiles);
   }, [loadFiles, loadExcluded, loadModelAlias, refreshKeyStatsForFiles]);
-
-  const handleCodexIdentityImport = useCallback(
-    async (accounts: CodexIdentityAccount[]) => {
-      setCodexIdentityImporting(true);
-      try {
-        const result = await authFilesApi.importCodexIdentity(
-          accounts.map((account) => account.accessToken)
-        );
-        if (result.imported === 0) {
-          throw new Error(t('auth_files.codex_identity_all_failed'));
-        }
-        await loadFiles();
-
-        if (result.failed.length > 0) {
-          showNotification(
-            t('auth_files.codex_identity_partial', {
-              success: result.imported,
-              failed: result.failed.length,
-              accounts: result.failed.map((failure) => failure.email || failure.error).join(', '),
-            }),
-            'warning'
-          );
-        } else {
-          showNotification(t('auth_files.codex_identity_import_success'), 'success');
-        }
-      } finally {
-        setCodexIdentityImporting(false);
-      }
-    },
-    [loadFiles, showNotification, t]
-  );
 
   const cleanableTypes = useMemo(
     () => AUTH_CLEANUP_SUPPORTED_TYPES.filter((type) => (enabledTypeCounts[type] ?? 0) > 0),
@@ -753,15 +718,6 @@ export function AuthFilesPage() {
         title={titleNode}
         extra={
           <div className={styles.headerActions}>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setCodexIdentityImportOpen(true)}
-              disabled={disableControls || codexIdentityImporting || uploading}
-              loading={codexIdentityImporting}
-            >
-              {t('auth_files.codex_identity_import_button')}
-            </Button>
             {cleanableTypes.length > 0 && (
               <Button
                 variant="secondary"
@@ -1066,12 +1022,6 @@ export function AuthFilesPage() {
         open={testFile !== null}
         file={testFile}
         onClose={() => setTestFile(null)}
-      />
-
-      <CodexIdentityImportModal
-        open={codexIdentityImportOpen}
-        onClose={() => setCodexIdentityImportOpen(false)}
-        onImport={handleCodexIdentityImport}
       />
 
       <AuthFilesPrefixProxyEditorModal

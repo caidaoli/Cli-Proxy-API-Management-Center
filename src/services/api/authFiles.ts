@@ -26,13 +26,6 @@ export type AuthFilesDeleteResult = {
   failed?: Array<{ name?: string; error?: string }>;
 };
 
-export type CodexIdentityImportResult = {
-  status: 'ok' | 'partial';
-  imported: number;
-  files: string[];
-  failed: Array<{ email?: string; error: string }>;
-};
-
 export type AuthFilesDeleteProgressEvent =
   | { type: 'start'; total: number }
   | {
@@ -360,11 +353,6 @@ export const authFilesApi = {
     });
     return normalizeAuthFilesUploadResponse(data, files.length);
   },
-
-  importCodexIdentity: (accessTokens: string[]) =>
-    apiClient.post<CodexIdentityImportResult>('/custom/codex-agent-identity/import', {
-      access_tokens: accessTokens,
-    }),
 
   deleteFile: (name: string) => apiClient.delete(`/auth-files?name=${encodeURIComponent(name)}`),
 
