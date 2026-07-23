@@ -42,7 +42,9 @@ test('监控请求日志表格列宽与列定义保持同步', () => {
   );
 
   assert.equal(REQUEST_LOG_TABLE_MIN_WIDTH, widthSum);
-  assert.equal(REQUEST_LOG_TABLE_COLUMN_WIDTHS.source, 96);
+  assert.equal(REQUEST_LOG_TABLE_COLUMN_WIDTHS.model, 140);
+  assert.equal(REQUEST_LOG_TABLE_COLUMN_WIDTHS.source, 160);
+  assert.ok(REQUEST_LOG_TABLE_COLUMN_WIDTHS.source > REQUEST_LOG_TABLE_COLUMN_WIDTHS.model);
   assert.equal(REQUEST_LOG_TABLE_COLUMN_WIDTHS.output, 88);
   assert.equal(REQUEST_LOG_TABLE_COLUMN_WIDTHS.cache, 88);
   assert.equal(REQUEST_LOG_TABLE_COLUMN_WIDTHS.cacheRate, 88);

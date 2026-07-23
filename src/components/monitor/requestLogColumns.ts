@@ -19,8 +19,8 @@ export type RequestLogTableColumnKey = (typeof REQUEST_LOG_TABLE_COLUMN_KEYS)[nu
 export type RequestLogFilterKey = (typeof REQUEST_LOG_FILTER_KEYS)[number];
 
 export const REQUEST_LOG_TABLE_COLUMN_WIDTHS: Record<RequestLogTableColumnKey, number> = {
-  model: 160,
-  source: 96,
+  model: 140,
+  source: 160,
   status: 70,
   recent: 110,
   timing: 120,
