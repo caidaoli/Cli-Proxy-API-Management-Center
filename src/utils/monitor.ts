@@ -456,19 +456,15 @@ export function resolveProvider(
 }
 
 /**
- * 格式化 Gemini OAuth 文件名（去掉后缀、前缀并脱敏）
+ * 格式化 Gemini OAuth 来源（去掉后缀、前缀并脱敏）
  * @param source 来源标识（如 gemini-putthzli.json 或 xxx@gmail.com）
  * @returns 脱敏后的名称（如 g-put*zli）
  */
 function formatGeminiSource(source: string): string {
-  const lower = source.toLowerCase();
-  // 判断是否是 gemini 类型（gemini- 开头或 .json 结尾）
-  const isGeminiType = lower.startsWith('gemini-') || lower.endsWith('.json');
-
   let name = source;
 
-  // 去掉 @gmail.com 后缀
-  if (lower.endsWith('@gmail.com')) {
+  // 去掉 @gmail.com 后缀（裸邮箱形式）
+  if (name.toLowerCase().endsWith('@gmail.com')) {
     name = name.slice(0, -10);
   }
 
@@ -482,26 +478,65 @@ function formatGeminiSource(source: string): string {
     name = name.slice(7);
   }
 
-  // 确定前缀
-  const prefix = isGeminiType ? 'g-' : '';
-
   // 如果太短就直接返回
   if (name.length <= 6) {
-    return `${prefix}${name}`;
+    return `g-${name}`;
   }
 
   // 按 abc*jkh 格式显示（前3个字符 + * + 后3个字符）
-  return `${prefix}${name.slice(0, 3)}*${name.slice(-3)}`;
+  return `g-${name.slice(0, 3)}*${name.slice(-3)}`;
 }
 
 /**
- * 检查是否是 Gemini OAuth 类型的来源
- * @param source 来源标识
- * @returns 是否是 Gemini OAuth 类型
+ * 仅识别真正的 Gemini OAuth 来源。
+ * 不得把所有 .json 凭证文件（codex-*.json / antigravity-*.json 等）当成 Gemini。
  */
 function isGeminiOAuthSource(source: string): boolean {
-  const lower = source.toLowerCase();
-  return lower.endsWith('.json') || lower.endsWith('@gmail.com');
+  const lower = source.toLowerCase().trim();
+  if (!lower) return false;
+
+  // 标准 Gemini 凭证文件前缀
+  if (lower.startsWith('gemini-') || lower.startsWith('gemini_')) {
+    return true;
+  }
+
+  // 历史裸 Gmail 邮箱形式（无文件后缀、无其它 provider 前缀）
+  if (
+    lower.endsWith('@gmail.com') &&
+    !lower.endsWith('.json') &&
+    !lower.includes('/') &&
+    !/^(codex|antigravity|claude|vertex|aistudio|qwen|iflow|xai|kimi)-/.test(lower)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * 对凭证文件名做可读脱敏：去掉 .json，保留前缀与尾部。
+ * API key 仍走 maskSecret。
+ */
+function maskAuthFileSource(source: string): string {
+  let name = source;
+  if (name.toLowerCase().endsWith('.json')) {
+    name = name.slice(0, -5);
+  }
+  if (name.length <= 8) {
+    return name;
+  }
+  if (name.length <= 16) {
+    return `${name.slice(0, 4)}*${name.slice(-4)}`;
+  }
+  return `${name.slice(0, 6)}*${name.slice(-6)}`;
+}
+
+function isAuthFileSource(source: string): boolean {
+  return source.toLowerCase().endsWith('.json');
+}
+
+function maskSourceForDisplay(source: string): string {
+  return isAuthFileSource(source) ? maskAuthFileSource(source) : maskSecret(source);
 }
 
 /**
@@ -515,15 +550,18 @@ export function formatProviderDisplay(source: string, providerMap: Record<string
     return source || '-';
   }
 
-  // 检查是否是 gemini 类型（OAuth 文件或 Gmail 账号）
+  // provider-map 优先：后端已把 OAuth 文件名映射到 Codex/Antigravity 等
+  const provider = resolveProvider(source, providerMap);
+  if (provider) {
+    return `${provider} (${maskSourceForDisplay(source)})`;
+  }
+
+  // 仅在 map 未命中时，对真正的 Gemini OAuth 使用紧凑 g- 显示
   if (isGeminiOAuthSource(source)) {
     return formatGeminiSource(source);
   }
 
-  const provider = resolveProvider(source, providerMap);
-  const masked = maskSecret(source);
-  if (!provider) return masked;
-  return `${provider} (${masked})`;
+  return maskSourceForDisplay(source);
 }
 
 /**
@@ -540,15 +578,17 @@ export function getProviderDisplayParts(
     return { provider: null, masked: source || '-' };
   }
 
-  // 检查是否是 gemini 类型（OAuth 文件或 Gmail 账号）
-  if (isGeminiOAuthSource(source)) {
-    const formatted = formatGeminiSource(source);
-    return { provider: null, masked: formatted };
+  // provider-map 优先，避免把 codex/antigravity 等 .json 凭证误判为 Gemini
+  const provider = resolveProvider(source, providerMap);
+  if (provider) {
+    return { provider, masked: maskSourceForDisplay(source) };
   }
 
-  const provider = resolveProvider(source, providerMap);
-  const masked = maskSecret(source);
-  return { provider, masked };
+  if (isGeminiOAuthSource(source)) {
+    return { provider: null, masked: formatGeminiSource(source) };
+  }
+
+  return { provider: null, masked: maskSourceForDisplay(source) };
 }
 
 /**
