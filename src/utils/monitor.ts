@@ -513,47 +513,80 @@ function isGeminiOAuthSource(source: string): boolean {
   return false;
 }
 
-/**
- * 对凭证文件名做可读脱敏：去掉 .json，保留前缀与尾部。
- * API key 仍走 maskSecret。
- */
-function maskAuthFileSource(source: string): string {
-  let name = source;
-  if (name.toLowerCase().endsWith('.json')) {
-    name = name.slice(0, -5);
-  }
-  if (name.length <= 8) {
-    return name;
-  }
-  if (name.length <= 16) {
-    return `${name.slice(0, 4)}*${name.slice(-4)}`;
-  }
-  return `${name.slice(0, 6)}*${name.slice(-6)}`;
-}
+/** 凭证文件名中常见的 provider 前缀（展示时剥离，避免与 map 中的渠道类型重复） */
+const AUTH_FILE_PROVIDER_PREFIXES = [
+  'antigravity-',
+  'codex-',
+  'gemini-',
+  'claude-',
+  'vertex-',
+  'aistudio-',
+  'qwen-',
+  'iflow-',
+  'xai-',
+  'kimi-',
+] as const;
 
 function isAuthFileSource(source: string): boolean {
   return source.toLowerCase().endsWith('.json');
 }
 
-function maskSourceForDisplay(source: string): string {
-  return isAuthFileSource(source) ? maskAuthFileSource(source) : maskSecret(source);
+/**
+ * 从凭证文件名提取完整可读身份（优先邮箱）。
+ * 例：
+ * - antigravity-vokegatuzo@gmail.com.json → vokegatuzo@gmail.com
+ * - xai-blvox1vcv0oo@bq4bwo.cc.cd.json → blvox1vcv0oo@bq4bwo.cc.cd
+ * - codex-32816962-caidaoli+2@gmail.com-team.json → caidaoli+2@gmail.com
+ */
+export function formatAuthFileIdentity(source: string): string {
+  let name = source.trim();
+  if (!name) return '-';
+
+  if (name.toLowerCase().endsWith('.json')) {
+    name = name.slice(0, -5);
+  }
+
+  const lower = name.toLowerCase();
+  for (const prefix of AUTH_FILE_PROVIDER_PREFIXES) {
+    if (lower.startsWith(prefix)) {
+      name = name.slice(prefix.length);
+      break;
+    }
+  }
+
+  // Codex 团队账号常见后缀 -team
+  if (/-team$/i.test(name)) {
+    name = name.replace(/-team$/i, '');
+  }
+
+  // Codex: 32816962-user@gmail.com → 去掉纯数字账号 id 前缀（仅当剩余段仍含邮箱）
+  const withoutNumericId = name.replace(/^\d+-/, '');
+  if (withoutNumericId !== name && /@/.test(withoutNumericId)) {
+    name = withoutNumericId;
+  }
+
+  // 文件名中夹杂其它段时，优先提取邮箱本体
+  const emailMatch = name.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+  if (emailMatch) {
+    return emailMatch[0];
+  }
+
+  return name || source;
 }
 
 /**
- * 格式化渠道显示名称：渠道名 (脱敏后的api-key)
- * @param source 来源标识
- * @param providerMap 渠道映射表
- * @returns 格式化后的显示名称
+ * 格式化渠道显示名称。
+ * - 凭证文件：只显示完整邮箱/身份，不拼接 Antigravity/Codex 等类型
+ * - API Key：渠道名 (脱敏 key)
  */
 export function formatProviderDisplay(source: string, providerMap: Record<string, string>): string {
   if (!source || source === '-' || source === 'unknown') {
     return source || '-';
   }
 
-  // provider-map 优先：后端已把 OAuth 文件名映射到 Codex/Antigravity 等
-  const provider = resolveProvider(source, providerMap);
-  if (provider) {
-    return `${provider} (${maskSourceForDisplay(source)})`;
+  // 凭证文件：直接展示完整身份（筛选下拉/表格共用）
+  if (isAuthFileSource(source)) {
+    return formatAuthFileIdentity(source);
   }
 
   // 仅在 map 未命中时，对真正的 Gemini OAuth 使用紧凑 g- 显示
@@ -561,14 +594,17 @@ export function formatProviderDisplay(source: string, providerMap: Record<string
     return formatGeminiSource(source);
   }
 
-  return maskSourceForDisplay(source);
+  const provider = resolveProvider(source, providerMap);
+  if (provider) {
+    return `${provider} (${maskSecret(source)})`;
+  }
+
+  return maskSecret(source);
 }
 
 /**
  * 获取渠道显示信息（分离渠道名和秘钥）
- * @param source 来源标识
- * @param providerMap 渠道映射表
- * @returns 包含渠道名和秘钥的对象
+ * 凭证文件不返回 provider，避免 UI 渲染「类型 (账号)」双段。
  */
 export function getProviderDisplayParts(
   source: string,
@@ -578,17 +614,21 @@ export function getProviderDisplayParts(
     return { provider: null, masked: source || '-' };
   }
 
-  // provider-map 优先，避免把 codex/antigravity 等 .json 凭证误判为 Gemini
-  const provider = resolveProvider(source, providerMap);
-  if (provider) {
-    return { provider, masked: maskSourceForDisplay(source) };
+  // 凭证文件：只展示完整邮箱/身份，不带外层类型
+  if (isAuthFileSource(source)) {
+    return { provider: null, masked: formatAuthFileIdentity(source) };
   }
 
   if (isGeminiOAuthSource(source)) {
     return { provider: null, masked: formatGeminiSource(source) };
   }
 
-  return { provider: null, masked: maskSourceForDisplay(source) };
+  const provider = resolveProvider(source, providerMap);
+  if (provider) {
+    return { provider, masked: maskSecret(source) };
+  }
+
+  return { provider: null, masked: maskSecret(source) };
 }
 
 /**

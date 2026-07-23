@@ -266,9 +266,12 @@ export function RequestLogs({
     switch (column) {
       case 'model':
         return <td title={entry.model}>{entry.model}</td>;
-      case 'source':
+      case 'source': {
+        const sourceLabel = entry.providerName
+          ? `${entry.providerName} (${entry.maskedKey})`
+          : entry.maskedKey;
         return (
-          <td title={entry.source}>
+          <td title={sourceLabel || entry.source}>
             {entry.providerName ? (
               <>
                 <span className={styles.channelName}>{entry.providerName}</span>
@@ -279,6 +282,7 @@ export function RequestLogs({
             )}
           </td>
         );
+      }
       case 'status':
         return (
           <td>

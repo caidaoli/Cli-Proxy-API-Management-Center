@@ -278,7 +278,7 @@ export function FailureAnalysis({
                   return (
                     <Fragment key={stat.source}>
                       <tr className={styles.expandable} onClick={() => toggleExpand(stat.source)}>
-                        <td>
+                        <td title={stat.displayName || stat.source}>
                           {stat.providerName ? (
                             <>
                               <span className={styles.channelName}>{stat.providerName}</span>
