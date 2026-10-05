@@ -86,6 +86,7 @@ export const openAIModelPricing = {
   "gpt-6-astra": {"inputPrice":10,"outputPrice":50,"cacheReadPrice":1,"cacheWritePrice":12.5,"tierThreshold":272000,"inputPriceHigh":20,"outputPriceHigh":75,"cacheReadPriceHigh":2,"cacheWritePriceHigh":25},
   "gpt-6-luna": {"inputPrice":0.1,"outputPrice":0.5,"cacheReadPrice":0.01,"cacheWritePrice":0.125,"tierThreshold":272000,"inputPriceHigh":0.2,"outputPriceHigh":0.75,"cacheReadPriceHigh":0.02,"cacheWritePriceHigh":0.25},
   "gpt-6-sol": {"inputPrice":2,"outputPrice":10,"cacheReadPrice":0.2,"cacheWritePrice":2.5,"tierThreshold":272000,"inputPriceHigh":4,"outputPriceHigh":15,"cacheReadPriceHigh":0.4,"cacheWritePriceHigh":5},
+  "gpt-6.1-sol": {"inputPrice":2,"outputPrice":10,"cacheReadPrice":0.1,"cacheWritePrice":2.5,"tierThreshold":272000,"inputPriceHigh":4,"outputPriceHigh":15,"cacheReadPriceHigh":0.2,"cacheWritePriceHigh":5},
   "gpt-daybreak-blue-latest": {"inputPrice":4,"outputPrice":20,"cacheReadPrice":0.4,"cacheWritePrice":5,"tierThreshold":272000,"inputPriceHigh":8,"outputPriceHigh":30,"cacheReadPriceHigh":0.8,"cacheWritePriceHigh":10},
   "gpt-daybreak-red-latest": {"inputPrice":12.5,"outputPrice":75,"cacheReadPrice":1.25,"cacheWritePrice":15.625},
   "gpt-image-2": {"inputPrice":5,"outputPrice":30,"cacheReadPrice":1.25},
@@ -117,6 +118,7 @@ export const claudeModelPricing = {
   "claude-sonnet-4-5-20250929": {"inputPrice":3,"outputPrice":15,"cacheReadPrice":0.3,"cacheWritePrice":3.75},
   "claude-sonnet-4-6": {"inputPrice":3,"outputPrice":15,"cacheReadPrice":0.3,"cacheWritePrice":3.75},
   "claude-sonnet-5": {"inputPrice":2,"outputPrice":10,"cacheReadPrice":0.2,"cacheWritePrice":2.5},
+  "claude-sonnet-5-5": {"inputPrice":2,"outputPrice":10,"cacheReadPrice":0.2,"cacheWritePrice":2.5},
 } satisfies Record<string, ModelPricing>;
 
 export const xAIModelPricing = {
