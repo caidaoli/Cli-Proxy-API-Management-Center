@@ -47,6 +47,7 @@ export const geminiModelPricing = {
   "gemini-flash-latest": {"inputPrice":0.75,"outputPrice":3.75,"cacheReadPrice":0.075},
   "gemini-flash-lite-latest": {"inputPrice":0.3,"outputPrice":2.5,"cacheReadPrice":0.03},
   "gemini-omni-flash-preview": {"inputPrice":1.5,"outputPrice":17.5},
+  "gemini-pro-latest": {"inputPrice":2,"outputPrice":12,"cacheReadPrice":0.2,"tierThreshold":200000,"inputPriceHigh":4,"outputPriceHigh":18,"cacheReadPriceHigh":0.4},
   "lyria-3-clip-preview": {"inputPrice":0,"outputPrice":0},
   "lyria-3-pro-preview": {"inputPrice":0,"outputPrice":0},
 } satisfies Record<string, ModelPricing>;
@@ -69,9 +70,7 @@ export const openAIModelPricing = {
   "gpt-5-pro": {"inputPrice":15,"outputPrice":120},
   "gpt-5.1": {"inputPrice":1.25,"outputPrice":10,"cacheReadPrice":0.125},
   "gpt-5.2": {"inputPrice":1.75,"outputPrice":14,"cacheReadPrice":0.175},
-  "gpt-5.2-chat-latest": {"inputPrice":1.75,"outputPrice":14,"cacheReadPrice":0.175},
   "gpt-5.2-pro": {"inputPrice":21,"outputPrice":168},
-  "gpt-5.3-chat-latest": {"inputPrice":1.75,"outputPrice":14,"cacheReadPrice":0.175},
   "gpt-5.3-codex": {"inputPrice":1.75,"outputPrice":14,"cacheReadPrice":0.175},
   "gpt-5.3-codex-spark": {"inputPrice":1.75,"outputPrice":14,"cacheReadPrice":0.175},
   "gpt-5.4": {"inputPrice":2.5,"outputPrice":15,"cacheReadPrice":0.25,"tierThreshold":272000,"inputPriceHigh":5,"outputPriceHigh":22.5,"cacheReadPriceHigh":0.5},
