@@ -42,6 +42,7 @@ export const geminiModelPricing = {
   "gemini-4-argon": {"inputPrice":2,"outputPrice":10,"cacheReadPrice":0.1},
   "gemini-4-carbon": {"inputPrice":2,"outputPrice":10,"cacheReadPrice":0.1},
   "gemini-4-hydrogen": {"inputPrice":1.5,"outputPrice":7.5,"cacheReadPrice":0.075},
+  "gemini-4-neon": {"inputPrice":3,"outputPrice":15,"cacheReadPrice":0.15},
   "gemini-embedding-001": {"inputPrice":0.15,"outputPrice":0},
   "gemini-embedding-2": {"inputPrice":0.2,"outputPrice":0},
   "gemini-flash-latest": {"inputPrice":0.75,"outputPrice":3.75,"cacheReadPrice":0.075},
@@ -91,6 +92,8 @@ export const openAIModelPricing = {
   "gpt-6-sol": {"inputPrice":2,"outputPrice":10,"cacheReadPrice":0.2,"cacheWritePrice":2.5,"tierThreshold":272000,"inputPriceHigh":4,"outputPriceHigh":15,"cacheReadPriceHigh":0.4,"cacheWritePriceHigh":5},
   "gpt-6.1-sol": {"inputPrice":2,"outputPrice":10,"cacheReadPrice":0.1,"cacheWritePrice":2.5,"tierThreshold":272000,"inputPriceHigh":4,"outputPriceHigh":15,"cacheReadPriceHigh":0.2,"cacheWritePriceHigh":5},
   "gpt-6.1-terra": {"inputPrice":1,"outputPrice":5,"cacheReadPrice":0.05,"cacheWritePrice":1.25,"tierThreshold":272000,"inputPriceHigh":2,"outputPriceHigh":7.5,"cacheReadPriceHigh":0.1,"cacheWritePriceHigh":2.5},
+  "gpt-6.2-astra": {"inputPrice":8,"outputPrice":40,"cacheReadPrice":0.4,"cacheWritePrice":10,"tierThreshold":272000,"inputPriceHigh":16,"outputPriceHigh":60,"cacheReadPriceHigh":0.8,"cacheWritePriceHigh":20},
+  "gpt-6.2-sol": {"inputPrice":2,"outputPrice":10,"cacheReadPrice":0.1,"cacheWritePrice":2.5,"tierThreshold":272000,"inputPriceHigh":4,"outputPriceHigh":15,"cacheReadPriceHigh":0.2,"cacheWritePriceHigh":5},
   "gpt-daybreak-blue-latest": {"inputPrice":4,"outputPrice":20,"cacheReadPrice":0.4,"cacheWritePrice":5,"tierThreshold":272000,"inputPriceHigh":8,"outputPriceHigh":30,"cacheReadPriceHigh":0.8,"cacheWritePriceHigh":10},
   "gpt-daybreak-red-latest": {"inputPrice":12.5,"outputPrice":75,"cacheReadPrice":1.25,"cacheWritePrice":15.625},
   "gpt-image-1.5": {"inputPrice":5,"outputPrice":10,"cacheReadPrice":1.25},
@@ -135,5 +138,4 @@ export const xAIModelPricing = {
   "grok-4.5": {"inputPrice":2,"outputPrice":6,"cacheReadPrice":0.3,"tierThreshold":200000,"inputPriceHigh":4,"outputPriceHigh":12,"cacheReadPriceHigh":0.6},
   "grok-4.6": {"inputPrice":2,"outputPrice":6,"cacheReadPrice":0.5,"tierThreshold":200000,"inputPriceHigh":4,"outputPriceHigh":12,"cacheReadPriceHigh":1},
   "grok-4.7": {"inputPrice":2,"outputPrice":6,"cacheReadPrice":0.5,"tierThreshold":200000,"inputPriceHigh":4,"outputPriceHigh":12,"cacheReadPriceHigh":1},
-  "grok-build-0.1": {"inputPrice":1,"outputPrice":2,"cacheReadPrice":0.2,"tierThreshold":200000,"inputPriceHigh":2,"outputPriceHigh":4,"cacheReadPriceHigh":0.4},
 } satisfies Record<string, ModelPricing>;
